@@ -1,0 +1,28 @@
+{
+  "name": "online-tutoring-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Online Tutoring Platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "tutoring",
+    "education",
+    "api",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "joi": "^17.13.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
