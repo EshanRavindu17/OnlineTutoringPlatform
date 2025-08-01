@@ -40,3 +40,7 @@ coverage/
 # Misc
 *.tgz
 /src/generated/prisma
+
+./node_modules
+.env
+.env.example
