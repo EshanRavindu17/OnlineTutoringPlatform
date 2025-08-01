@@ -1,7 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Get __dirname equivalent in ES6 modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Express app
 const app = express();
@@ -45,12 +51,19 @@ app.get('/api', (req, res) => {
 });
 
 // TODO: Import and use route modules
-// app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/users', require('./routes/users'));
-// app.use('/api/tutors', require('./routes/tutors'));
-// app.use('/api/students', require('./routes/students'));
-// app.use('/api/sessions', require('./routes/sessions'));
-// app.use('/api/courses', require('./routes/courses'));
+// import authRoutes from './routes/auth.js';
+// import userRoutes from './routes/users.js';
+// import tutorRoutes from './routes/tutors.js';
+// import studentRoutes from './routes/students.js';
+// import sessionRoutes from './routes/sessions.js';
+// import courseRoutes from './routes/courses.js';
+// 
+// app.use('/api/auth', authRoutes);
+// app.use('/api/users', userRoutes);
+// app.use('/api/tutors', tutorRoutes);
+// app.use('/api/students', studentRoutes);
+// app.use('/api/sessions', sessionRoutes);
+// app.use('/api/courses', courseRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -98,4 +111,4 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-module.exports = app;
+export default app;
