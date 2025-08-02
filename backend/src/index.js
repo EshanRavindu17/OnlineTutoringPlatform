@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 dotenv.config();
 
+
+
 // Get __dirname equivalent in ES6 modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,5 +112,17 @@ process.on('SIGINT', () => {
   console.log('🛑 SIGINT received. Shutting down gracefully...');
   process.exit(0);
 });
+
+
+// --------------------------
+
+app.get('/', (req, res) => {
+  console.log('Welcome to the Online Tutoring Platform API');
+})
+
+
+
+
+
 
 export default app;
