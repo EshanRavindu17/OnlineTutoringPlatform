@@ -19,8 +19,6 @@ export default function Navbar() {
   const commonLinks = [
     { to: '/',        label: 'Home'       },
     { to: '/findtutors', label: 'Find Tutors' },
-    { to: '/courses',    label: 'Courses'    },
-    { to: '/resources',  label: 'Resources'  },
   ];
 
   // Role-specific items
@@ -31,20 +29,20 @@ export default function Navbar() {
 
   const tutorLinks = [
     { to: '/addnewcourse', label: 'Create Course' },
-    { to: '/mycourses',     label: 'My Courses'     },
-    { to: '/tutorcalender',     label: 'Schedule Meeting'     },
+    { to: '/mycourses',     label: 'My Courses'},
+    { to: '/tutorcalender',     label: 'Schedule Meeting'},
   ];
 
   // Pick the right extras
   let extraLinks = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
-  if (userProfile?.role === 'tutor')   extraLinks = tutorLinks;
+  if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
+  if (userProfile?.role === 'Mass')   extraLinks = tutorLinks;
 
   // Profile path
-  const profilePath =
-    userProfile?.role === 'tutor'
-      ? '/tutorprofile'
-      : '/studentprofile';
+  const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
+    ? '/tutorprofile'
+    : '/studentprofile';
 
   const handleSignOutClick = () => {
     setShowSignOutModal(true);
@@ -55,7 +53,7 @@ export default function Navbar() {
   };
 
   const handleLoginClick = () => {
-    navigate('/selectuser');
+    navigate('/auth');
   };
 
   const handleRoleSelection = (role) => {
@@ -141,7 +139,7 @@ export default function Navbar() {
               ) : (
                 <>
                   <button
-                    onClick={() => navigate('/selectuser')}
+                    onClick={() => navigate('/auth')}
                     className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                   >
                     Log in

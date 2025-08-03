@@ -1,8 +1,7 @@
 // contexts/AuthContext.js
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 
 const AuthContext = createContext();
 
@@ -20,16 +19,23 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
         
-        // Fetch user profile from Firestore
+        // Fetch user profile from Node.js backend
         try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userSnapshot = await getDoc(userDocRef);
-          
-          if (userSnapshot.exists()) {
-            setUserProfile(userSnapshot.data());
+          const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (response.ok) {
+            const profileData = await response.json();
+            setUserProfile(profileData);
+          } else {
+            console.error('Failed to fetch user profile:', await response.text());
+            setUserProfile(null); // Fallback if profile not found
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          setUserProfile(null);
         }
       } else {
         setCurrentUser(null);

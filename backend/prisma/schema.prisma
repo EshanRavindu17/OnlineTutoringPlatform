@@ -9,12 +9,15 @@ datasource db {
 
 model User {
   id        Int       @id @default(autoincrement())
-  name      String
-  email     String    @unique
+  firebase_uid String   @unique @db.VarChar(128)
+  name      String    @db.VarChar(255)
+  email     String    @unique @db.VarChar(255)
   createdAt DateTime  @default(now())
   role      UserRole
+  photo_url String? @db.Text
   bio       String
   dob       DateTime? @db.Date
+  created_at  DateTime @default(now())
 }
 
 enum UserRole {
