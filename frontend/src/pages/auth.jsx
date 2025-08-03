@@ -2,17 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
   onAuthStateChanged,
   signOut,
   sendPasswordResetEmail,
-  sendEmailVerification, 
-  signInWithPopup
+  sendEmailVerification
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase'; // Adjust path as needed
+import { auth } from '../firebase'; // Adjust path as needed
 import { useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,8 +19,8 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const { state } = useLocation();
-  const initialType = state?.userType || 'student';
-  console.log('Initial userType from location:', initialType);
+  const initialType = state?.userType;
+  // console.log('Initial userType from location:', initialType);
   const [userType, setUserType] = useState(initialType);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +43,6 @@ export default function AuthPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       if (user) {
-        // User is signed in, redirect to dashboard or update UI
         console.log('User signed in:', user);
       }
     });
@@ -107,71 +104,61 @@ export default function AuthPage() {
     setError('');
 
     try {
-      if (isLogin){
-            const res = await fetch('http://localhost:8000/api/check-role/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: formData.email, role: userType })
-            })
+      if (isLogin) {
+        const res = await fetch('http://localhost:5000/api/check-role', { // Updated port to 5000
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, role: userType })
+        });
 
-            if (res.ok) {
-              const { user } = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-              console.log('User signed in successfully:', user);
-            }
-            else {
-              await signOut(auth)
-              const { detail } = await res.json()
-              setError(detail)
-}        
+        if (res.ok) {
+          const { user } = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+          console.log('User signed in successfully:', user);
+        } else {
+          await signOut(auth);
+          const { detail } = await res.json();
+          setError(detail);
+        }
       } else {
-  // Step 1: Create user with email/password
-  const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-  const firebaseAuthId = newUser.uid;
+        const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const firebaseAuthId = newUser.uid;
 
-  // Step 2: Save to Firestore
-  await setDoc(doc(db, "users", firebaseAuthId), {
-    displayName: formData.name,
-    email: newUser.email,
-    role: userType,
-    createdAt: Date.now()
-  });
+        
+        const response = await fetch('http://localhost:5000/api/add-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firebase_uid: firebaseAuthId,
+            email: newUser.email,
+            role: userType,
+            name: formData.name,
+            photo_url: '',       
+            bio: 'New user bio',  
+            dob: null    
+          })
+        });
 
-  // Step 3: Save to Django backend
-  const response = await fetch('http://localhost:8000/api/add-user/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      firebase_uid: firebaseAuthId,
-      email: newUser.email,
-      role: userType,
-      display_name: formData.name
-    })
-  });
+        console.log("Received new user:", req.body);
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.detail || 'Failed to save user to DB');
-  }
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || 'Failed to save user to DB');
+        }
 
-  // Step 4: Send verification email
-  await sendEmailVerification(newUser, {
-    url: "https://learnconnect.com/finishSignUp",
-    handleCodeInApp: false
-  });
+        await sendEmailVerification(newUser, {
+          url: "https://learnconnect.com/finishSignUp",
+          handleCodeInApp: false
+        });
 
-  console.log("Verification email sent to:", newUser.email);
+        console.log("Verification email sent to:", newUser.email);
 
-  // Step 5: Sign out and inform the user
-  await signOut(auth);
-  setIsLogin(true); // switch to login form
-  setError("Verification email sent. Please verify your email before logging in.");
-  return;
-}
-
+        await signOut(auth);
+        setIsLogin(true);
+        setError("Verification email sent. Please verify your email before logging in.");
+      }
     } catch (error) {
       console.error('Authentication error:', error);
       
-      // Handle specific Firebase auth errors
       switch (error.code) {
         case 'auth/email-already-in-use':
           setError('An account with this email already exists');
@@ -206,80 +193,95 @@ export default function AuthPage() {
   };
 
   const handleGoogleSignIn = async () => {
-  setLoading(true);
-  setError('');
+    setLoading(true);
+    setError('');
 
-  try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const firebaseUser = result.user;
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
 
-    
-    const fullName = firebaseUser.displayName || '';
-    console.log('Full name:', fullName);
-
-    const response = await fetch('http://localhost:8000/api/add-user/',{
-      method: 'POST',
-      headers: { "Content-Type": "application/json"
-                
-      },
-      body: JSON.stringify({
+      // Construct request body with required fields
+      const userPayload = {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         role: userType,
-        display_name: fullName,
-      }),
-    });
-     
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      await signOut(auth);
-      window.location.reload();
-      throw new Error(errJson.detail || "Failed to register/login");
+        name: firebaseUser.displayName || 'Unnamed User',
+        photo_url: firebaseUser.photoURL || '',
+        bio: 'Signed up via Google',
+        dob: null // Optional field, handled in backend
+      };
+
+      const response = await fetch('http://localhost:5000/api/add-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPayload)
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        await signOut(auth);
+        window.location.reload();
+        throw new Error(errJson.detail || "Failed to register/login");
+      }
+
+      const createdUser = await response.json();
+      console.log('✅ Saved Google user to DB:', createdUser);
+
+      // Send verification email only if not verified (Google users usually are verified)
+      if (createdUser.created && !firebaseUser.emailVerified) {
+        await sendEmailVerification(firebaseUser, {
+          url: "https://learnconnect.com/finishSignUp",
+          handleCodeInApp: false
+        });
+        console.log("📩 Verification email sent to:", firebaseUser.email);
+        await signOut(auth);
+        setError("Verification email sent. Please verify your email before logging in.");
+      }
+
+      // ✅ You can redirect or set user state here if needed
+
+    } catch (err) {
+      console.error('❌ Google sign-in error:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-      await setDoc(doc(db, "users", firebaseUser.uid), {
-      displayName: firebaseUser.displayName,
-      email:       firebaseUser.email,
-      role:        userType,
-      photoURL:    firebaseUser.photoURL,
-      createdAt:   Date.now()
-    }, { merge: true }); 
-
-    const createdUser = await response.json();
-    console.log('Saved Google user to DB:', createdUser);
-    
-
-    if (createdUser.created && !firebaseUser.emailVerified) {
-  await sendEmailVerification(firebaseUser, {
-    url: "https://learnconnect.com/finishSignUp",
-    handleCodeInApp: false,
-  });
-  console.log("Verification email sent to:", firebaseUser.email);
-  await signOut(auth);
-  setError("Verification email sent. Please verify your email before logging in.");
-  return;
-}
-
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
-
-  
   const handleMicrosoftSignIn = async () => {
     setLoading(true);
     setError('');
-    
-    const provider = new OAuthProvider('microsoft.com');
+
     
     try {
+      const provider = new OAuthProvider('microsoft.com');
       const result = await signInWithPopup(auth, provider);
-      await createUserProfile(result.user);
+      const firebaseUser = result.user;
+
+      const userPayload = {
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        role: userType,
+        name: firebaseUser.displayName || 'Unnamed User',
+        photo_url: firebaseUser.photoURL || '',
+        bio: 'Signed up via Google',
+        dob: null // Optional field, handled in backend
+      };
+
+      const response = await fetch('http://localhost:5000/api/add-user', { // Updated port to 5000
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPayload)
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        await signOut(auth);
+        throw new Error(errJson.detail || 'Failed to register/login');
+      }
+
       console.log('Microsoft sign in successful:', result.user);
     } catch (error) {
       console.error('Microsoft sign in error:', error);
@@ -311,7 +313,6 @@ export default function AuthPage() {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotEmail)) {
       setResetError('Please enter a valid email address');
@@ -345,47 +346,10 @@ export default function AuthPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      console.log('User signed out successfully');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
-
-  // If user is already signed in, show a different UI
-  // if (user) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
-  //         <h2 className="text-2xl font-bold text-center mb-4">Welcome!</h2>
-  //         <p className="text-center text-gray-600 mb-6">You are already signed in as:</p>
-  //         <div className="text-center mb-6">
-  //           <p className="font-medium">{user.displayName || user.email}</p>
-  //           <p className="text-sm text-gray-500">{user.email}</p>
-  //         </div>
-  //         <button
-  //           onClick={handleSignOut}
-  //           className="w-full py-2 px-4 border border-transparent rounded-md font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-  //         >
-  //           Sign Out
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-    useEffect(() => {
+  useEffect(() => {
     if (user) {
       console.log('User is signed in:', userType);
-      // pick your route based on their role or just send to a dashboard
-      // e.g. user.photoURL or custom claims, or fetch from Firestore...
-      // For now, if you store their role in Firestore, you'd fetch it here,
-      // but let's assume you know it in state or in userProfile:
-      const dest = userType === 'tutor'
-        ? '/tutorprofile'
-        : '/studentprofile';
+      const dest = userType === 'tutor' ? '/tutorprofile' : '/studentprofile';
       navigate(dest, { replace: true });
     }
   }, [user, navigate]);
@@ -423,33 +387,30 @@ export default function AuthPage() {
 
           <div className="mt-6">
             <form className="space-y-6" onSubmit={handleSubmit}>
-                  {!isLogin && (
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Full Name
-                    </label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="text-gray-400" size={18} />
-                      </div>
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                        placeholder="Enter your full name"
-                      />
+              {!isLogin && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    Full Name
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="text-gray-400" size={18} />
                     </div>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      disabled={loading}
+                      className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
+                      placeholder="Enter your full name"
+                    />
                   </div>
-                )}
+                </div>
+              )}
 
-
-
-              
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email address

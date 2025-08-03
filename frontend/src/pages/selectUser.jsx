@@ -11,15 +11,32 @@ export default function UserSelectionPage() {
   };
 
   const handleUserSelection = (userType) => {
-  const card = document.querySelector(`.${userType}-card`);
-  if (!card) return;
+  let cardSelector = '';
 
-  card.classList.add('scale-95');         // Tailwind: scale to 95%
+  // Decide which card to animate based on userType
+  if (userType === 'student') {
+    cardSelector = '.student-card';
+  } else if (userType === 'Individual' || userType === 'Mass') {
+    cardSelector = '.tutor-card';
+  } else {
+    console.warn('Unknown userType:', userType);  // Helps debugging
+    return;
+  }
+
+  const card = document.querySelector(cardSelector);
+  if (!card) {
+    console.warn('Card not found for selector:', cardSelector);
+    return;
+  }
+
+  // Add animation class
+  card.classList.add('scale-95');
   setTimeout(() => {
-    card.classList.remove('scale-95');     // back to 100%
+    card.classList.remove('scale-95');
     navigate('/auth', { state: { userType } });
   }, 150);
 };
+
 
 
   return (
@@ -27,7 +44,7 @@ export default function UserSelectionPage() {
       {/* Main Content */}
       <div className="flex-1 bg-gray-50">
         {/* Hero Section with User Selection */}
-        <div className="bg-blue-600 text-white ">
+        <div className="bg-blue-600 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl font-bold mb-6">Welcome to LearnConnect</h1>
@@ -35,10 +52,10 @@ export default function UserSelectionPage() {
             </div>
 
             {/* User Selection Cards */}
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-7xl mx-auto">
               <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">Who Are You?</h2>
               
-              <div className="grid md:grid-cols-2 gap-8">
+              <div className="grid md:grid-cols-3 gap-8">
                 {/* Student Card */}
                 <div 
                   className="student-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
@@ -74,9 +91,7 @@ export default function UserSelectionPage() {
 
                 {/* Tutor Card */}
                 <div 
-                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-                  onClick={() => handleUserSelection('tutor')}
-                >
+                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                   <div className="text-center">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                       <UserCheck className="text-blue-600" size={40} />
@@ -99,9 +114,52 @@ export default function UserSelectionPage() {
                         <span>Build your reputation and earn more</span>
                       </div>
                     </div>
-                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
-                      Get Started as Tutor <ChevronRight size={16} className="ml-2" />
-                    </button>
+                    <div className="mt-6 space-y-4">
+                      {/* Individual Tutor Button */}
+                      <button
+                        onClick={() => handleUserSelection('Individual')}
+                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
+                      >
+                        Get Started as Individual Tutor
+                        <ChevronRight size={16} className="ml-2" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <UserCheck className="text-blue-600" size={40} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-4">I'm a Tutor</h3>
+                    <p className="text-gray-600 mb-6 text-lg">
+                      Share your knowledge, connect with students worldwide, and build a flexible teaching career.
+                    </p>
+                    <div className="space-y-3 mb-8">
+                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+                        <Users size={16} className="text-blue-600" />
+                        <span>Connect with students globally</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+                        <Calendar size={16} className="text-blue-600" />
+                        <span>Set your own schedule and rates</span>
+                      </div>
+                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+                        <Award size={16} className="text-blue-600" />
+                        <span>Build your reputation and earn more</span>
+                      </div>
+                    </div>
+                    <div className="mt-6 space-y-4">
+                      {/* Mass Tutor Button */}
+                      <button
+                        onClick={() => handleUserSelection('Mass')}
+                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
+                      >
+                        Get Started as Mass Tutor
+                        <ChevronRight size={16} className="ml-2" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

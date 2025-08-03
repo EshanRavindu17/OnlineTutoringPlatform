@@ -27,9 +27,9 @@ const App = () => {
   return (
     <Router>
       <div>
-        <Routes>
+        <Routes> 
           <Route path="/" element={<WelcomePage />} />
-          <Route path="/auth" element={<Auth/>} />
+          <Route path="/auth" element={<Auth/>} />   
           <Route path="/selectuser" element={<SelectUser />} />
 
           
@@ -40,8 +40,7 @@ const App = () => {
 
 
           
-        <Route element={<StudentRoute />}>
-          
+        <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
           <Route path="/stripe-payment" element={<StripePaymentPage />} />
           
