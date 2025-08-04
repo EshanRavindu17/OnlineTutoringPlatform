@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import Navbar  from '../components/Navbar';
+import React, { useState, useEffect } from 'react';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../context/authContext';
+
 const EditableTutorProfile = () => {
+  const { userProfile, loading } = useAuth();
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [editMode, setEditMode] = useState({
     basic: false,
@@ -12,79 +15,47 @@ const EditableTutorProfile = () => {
     pricing: false
   });
 
-  // Basic Info State
+  // Basic Info State - Initialize with auth data
   const [basicInfo, setBasicInfo] = useState({
-    name: 'Dr. Sarah Martinez',
-    title: 'Mathematics & Physics Tutor',
-    rating: 4.9,
-    totalReviews: 127,
-    description: 'Passionate educator with 8+ years of experience helping students excel in mathematics and physics. Specializing in making complex concepts accessible and engaging.',
-    studentsTaught: 500,
-    successRate: 95,
-    experience: 8
+    name: userProfile?.displayName || 'Loading...',
+    title: userProfile?.title || 'Tutor',
+    rating: userProfile?.rating || 0,
+    totalReviews: userProfile?.totalReviews || 0,
+    description: userProfile?.description || '',
+    studentsTaught: userProfile?.studentsTaught || 0,
+    successRate: userProfile?.successRate || 0,
+    experience: userProfile?.experience || 0
   });
 
   // About Me State
   const [aboutMe, setAboutMe] = useState({
-    intro: "Welcome! I'm Dr. Sarah Martinez, a dedicated mathematics and physics tutor with over 8 years of teaching experience. I hold a Ph.D. in Applied Mathematics from MIT and have worked with students from middle school to university level.",
-    philosophy: "My teaching philosophy centers on understanding each student's unique learning style and adapting my approach accordingly. I believe that with the right guidance and practice, any student can master mathematics and physics concepts.",
-    personal: "When I'm not teaching, I enjoy hiking, reading science fiction novels, and working on mathematical puzzles. I'm fluent in English, Spanish, and French."
+    intro: userProfile?.about?.intro || '',
+    philosophy: userProfile?.about?.philosophy || '',
+    personal: userProfile?.about?.personal || ''
   });
 
   // Subjects State
-  const [subjects, setSubjects] = useState([
-    'Algebra', 'Geometry', 'Calculus', 'Statistics', 
-    'Physics', 'SAT/ACT Math', 'AP Calculus', 'AP Physics'
-  ]);
+  const [subjects, setSubjects] = useState(userProfile?.subjects || []);
   const [newSubject, setNewSubject] = useState('');
 
   // Qualifications State
-  const [qualifications, setQualifications] = useState([
-    {
-      degree: 'Ph.D. in Applied Mathematics',
-      institution: 'Massachusetts Institute of Technology (MIT)',
-      year: '2015'
-    },
-    {
-      degree: 'M.S. in Mathematics Education',
-      institution: 'Stanford University',
-      year: '2012'
-    },
-    {
-      degree: 'B.S. in Mathematics',
-      institution: 'University of California, Berkeley',
-      year: '2010'
-    },
-    {
-      degree: 'Certified Tutor',
-      institution: 'National Tutoring Association',
-      year: '2016'
-    }
-  ]);
+  const [qualifications, setQualifications] = useState(userProfile?.qualifications || []);
 
   // Contact Info State
   const [contactInfo, setContactInfo] = useState({
-    email: 'sarah.martinez@email.com',
-    phone: '+1 (555) 123-4567',
-    location: 'Online & In-Person (Bay Area)',
-    responseTime: 'Responds within 2 hours'
+    email: userProfile?.email || '',
+    phone: userProfile?.phone || '',
+    location: userProfile?.location || '',
+    responseTime: userProfile?.responseTime || ''
   });
 
   // Pricing State
   const [pricing, setPricing] = useState({
-    hourlyRate: 65
+    hourlyRate: userProfile?.hourlyRate || 0
   });
 
   // Availability State
-  const [timeSlots, setTimeSlots] = useState([
-    { day: 'Mon', time: '3-5 PM', available: true },
-    { day: 'Tue', time: '10-12 PM', available: false },
-    { day: 'Wed', time: '2-4 PM', available: true },
-    { day: 'Thu', time: '1-3 PM', available: true },
-    { day: 'Fri', time: '4-6 PM', available: false },
-    { day: 'Sat', time: '10-12 PM', available: true },
-    { day: 'Sun', time: '2-4 PM', available: true },
-  ]);
+  const [timeSlots, setTimeSlots] = useState(userProfile?.availability || []);
 
   const reviews = [
     {
@@ -197,9 +168,102 @@ const EditableTutorProfile = () => {
     }
   };
 
+  // Update profile when userProfile changes
+  useEffect(() => {
+    if (userProfile) {
+      setBasicInfo({
+        name: userProfile.displayName || 'Loading...',
+        title: userProfile.title || 'Tutor',
+        rating: userProfile.rating || 0,
+        totalReviews: userProfile.totalReviews || 0,
+        description: userProfile.description || '',
+        studentsTaught: userProfile.studentsTaught || 0,
+        successRate: userProfile.successRate || 0,
+        experience: userProfile.experience || 0
+      });
+
+      setAboutMe({
+        intro: userProfile.about?.intro || '',
+        philosophy: userProfile.about?.philosophy || '',
+        personal: userProfile.about?.personal || ''
+      });
+
+      setContactInfo({
+        email: userProfile.email || '',
+        phone: userProfile.phone || '',
+        location: userProfile.location || '',
+        responseTime: userProfile.responseTime || ''
+      });
+
+      setSubjects(userProfile.subjects || []);
+      setQualifications(userProfile.qualifications || []);
+      setTimeSlots(userProfile.availability || []);
+      setPricing({ hourlyRate: userProfile.hourlyRate || 0 });
+    }
+  }, [userProfile]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Handle save changes
+  const handleSaveChanges = async (section) => {
+    try {
+      const dataToUpdate = {};
+      
+      switch (section) {
+        case 'basic':
+          dataToUpdate.basicInfo = basicInfo;
+          break;
+        case 'about':
+          dataToUpdate.about = aboutMe;
+          break;
+        case 'subjects':
+          dataToUpdate.subjects = subjects;
+          break;
+        // Add other cases as needed
+      }
+
+      // Call your API to update the profile
+      const response = await fetch(`http://localhost:5000/api/tutors/${userProfile.uid}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add authentication header if needed
+        },
+        body: JSON.stringify(dataToUpdate)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Toggle edit mode off after successful save
+      setEditMode(prev => ({
+        ...prev,
+        [section]: false
+      }));
+
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      // Handle error (show notification, etc.)
+    }
+  };
+
   const EditButton = ({ section, className = "" }) => (
     <button
-      onClick={() => toggleEditMode(section)}
+      onClick={() => {
+        if (editMode[section]) {
+          handleSaveChanges(section);
+        } else {
+          toggleEditMode(section);
+        }
+      }}
       className={`text-blue-600 hover:text-blue-800 transition duration-200 ${className}`}
     >
       {editMode[section] ? '✅ Save' : '✏️ Edit'}

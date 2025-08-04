@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { User, BookOpen, Calendar, Star, Settings, Bell, Trophy, Target, Clock, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, BookOpen, Calendar, Star, Trophy, Clock, MessageCircle } from 'lucide-react';
+import { useAuth } from '../context/authContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-
 const EditableStudentProfile = () => {
+  const { userProfile, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [editMode, setEditMode] = useState({
     basic: false,
@@ -16,16 +17,16 @@ const EditableStudentProfile = () => {
     preferences: false
   });
 
-  // Basic Info State
+  // Basic Info State - Initialize with auth data
   const [basicInfo, setBasicInfo] = useState({
-    name: "Alex Johnson",
-    email: "alex.johnson@email.com",
-    grade: "11th Grade",
-    school: "Lincoln High School",
-    joinDate: "September 2023",
-    totalHours: 127,
-    completedSessions: 42,
-    averageScore: 87,
+    name: "",
+    email: "",
+    grade: "",
+    school: "",
+    joinDate: "",
+    totalHours: 0,
+    completedSessions: 0,
+    averageScore: 0,
     profilePicture: "/api/placeholder/150/150"
   });
 
@@ -168,6 +169,89 @@ const EditableStudentProfile = () => {
   const removeGoal = (id) => {
     setGoals(prev => prev.filter(goal => goal.id !== id));
   };
+
+  const handleSaveChanges = async (section) => {
+    try {
+      const updates = {};
+      
+      switch (section) {
+        case 'basic':
+          updates.basicInfo = basicInfo;
+          break;
+        case 'about':
+          updates.about = aboutMe;
+          break;
+        case 'contact':
+          updates.contactInfo = contactInfo;
+          break;
+        // Add other cases as needed
+      }
+
+      // Call your API to update the profile
+      const response = await fetch(`http://localhost:5000/api/students/${userProfile.uid}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      // Toggle edit mode off after successful save
+      setEditMode(prev => ({
+        ...prev,
+        [section]: false
+      }));
+
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      // Handle error (show notification, etc.)
+    }
+  };
+
+  useEffect(() => {
+    if (userProfile) {
+      setBasicInfo({
+        name: userProfile.displayName || 'Not set',
+        email: userProfile.email || 'Not set',
+        grade: userProfile.grade || 'Not set',
+        school: userProfile.school || 'Not set',
+        joinDate: userProfile.joinDate || new Date().toLocaleDateString(),
+        totalHours: userProfile.totalHours || 0,
+        completedSessions: userProfile.completedSessions || 0,
+        averageScore: userProfile.averageScore || 0,
+        profilePicture: userProfile.profilePicture || "/api/placeholder/150/150"
+      });
+
+      setAboutMe({
+        intro: userProfile.about?.intro || '',
+        goals: userProfile.about?.goals || '',
+        interests: userProfile.about?.interests || ''
+      });
+
+      setContactInfo({
+        email: userProfile.email || '',
+        phone: userProfile.phone || '',
+        parentEmail: userProfile.parentEmail || '',
+        preferredContact: userProfile.preferredContact || 'Email',
+        emergencyContact: userProfile.emergencyContact || ''
+      });
+
+      setCurrentCourses(userProfile.courses || []);
+      setGoals(userProfile.goals || []);
+    }
+  }, [userProfile]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   const EditButton = ({ section, className = "" }) => (
     <button

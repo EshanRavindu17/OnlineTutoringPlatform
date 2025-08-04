@@ -96,97 +96,46 @@ export default function AuthPage() {
     return true;
   };
 
+  // Fix handleSubmit function
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+    
     setLoading(true);
     setError('');
 
     try {
+      let userCredential;
       if (isLogin) {
-        const res = await fetch('http://localhost:5000/api/check-role', { // Updated port to 5000
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, role: userType })
-        });
-
-        if (res.ok) {
-          const { user } = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-          console.log('User signed in successfully:', user);
-        } else {
-          await signOut(auth);
-          const { detail } = await res.json();
-          setError(detail);
-        }
+        userCredential = await signInWithEmailAndPassword(
+          auth, 
+          formData.email, 
+          formData.password
+        );
       } else {
-        const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        const firebaseAuthId = newUser.uid;
-
+        userCredential = await createUserWithEmailAndPassword(
+          auth, 
+          formData.email, 
+          formData.password
+        );
         
-        const response = await fetch('http://localhost:5000/api/add-user', {
+        // Create user profile with role
+        await fetch('http://localhost:5000/api/users', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
-            firebase_uid: firebaseAuthId,
-            email: newUser.email,
-            role: userType,
+            uid: userCredential.user.uid,
+            email: formData.email,
             name: formData.name,
-            photo_url: '',       
-            bio: 'New user bio',  
-            dob: null    
-          })
+            role: userType,
+          }),
         });
-
-        console.log("Received new user:", req.body);
-
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.detail || 'Failed to save user to DB');
-        }
-
-        await sendEmailVerification(newUser, {
-          url: "https://learnconnect.com/finishSignUp",
-          handleCodeInApp: false
-        });
-
-        console.log("Verification email sent to:", newUser.email);
-
-        await signOut(auth);
-        setIsLogin(true);
-        setError("Verification email sent. Please verify your email before logging in.");
       }
     } catch (error) {
-      console.error('Authentication error:', error);
-      
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          setError('An account with this email already exists');
-          break;
-        case 'auth/invalid-email':
-          setError('Invalid email address');
-          break;
-        case 'auth/operation-not-allowed':
-          setError('Email/password accounts are not enabled');
-          break;
-        case 'auth/weak-password':
-          setError('Password is too weak');
-          break;
-        case 'auth/user-disabled':
-          setError('This account has been disabled');
-          break;
-        case 'auth/user-not-found':
-          setError('No account found with this email');
-          break;
-        case 'auth/wrong-password':
-          setError('Incorrect password');
-          break;
-        case 'auth/too-many-requests':
-          setError('Too many failed attempts. Please try again later');
-          break;
-        default:
-          setError('An error occurred. Please try again');
-      }
+      console.error('Auth error:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -346,13 +295,51 @@ export default function AuthPage() {
     }
   };
 
+  // Add role validation before navigation
   useEffect(() => {
     if (user) {
-      console.log('User is signed in:', userType);
-      const dest = userType === 'tutor' ? '/tutorprofile' : '/studentprofile';
-      navigate(dest, { replace: true });
+      // Check user role before navigation
+      const checkUserRole = async () => {
+        try {
+          const token = await user.getIdToken();
+          const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.status === 404) {
+            // User exists in Firebase but not in database - this is normal for new users
+            console.log('User not found in database - needs to complete registration');
+            return; // Don't set error, just return
+          }
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const userData = await response.json();
+          
+          if (userData.role !== userType) {
+            await signOut(auth);
+            setError('Invalid role for this account');
+            return;
+          }
+
+          // Navigate based on verified role
+          navigate(userData.role === 'Student' ? '/studentprofile' : '/tutorprofile');
+        } catch (error) {
+          console.error('Role verification failed:', error);
+          // Only set error for actual failures, not 404s
+          if (!error.message.includes('404')) {
+            setError('Failed to verify user role');
+          }
+        }
+      };
+
+      checkUserRole();
     }
-  }, [user, navigate]);
+  }, [user, userType]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

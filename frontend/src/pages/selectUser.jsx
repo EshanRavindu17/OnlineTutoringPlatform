@@ -11,31 +11,29 @@ export default function UserSelectionPage() {
   };
 
   const handleUserSelection = (userType) => {
-  let cardSelector = '';
+    // Current implementation uses string comparison
+    if (userType === 'Student') {
+      cardSelector = '.student-card';
+    } else if (userType === 'Individual' || userType === 'Mass') {
+      cardSelector = '.tutor-card';
+    } else {
+      console.warn('Unknown userType:', userType);  
+      return;
+    }
 
-  // Decide which card to animate based on userType
-  if (userType === 'student') {
-    cardSelector = '.student-card';
-  } else if (userType === 'Individual' || userType === 'Mass') {
-    cardSelector = '.tutor-card';
-  } else {
-    console.warn('Unknown userType:', userType);  // Helps debugging
-    return;
-  }
+    const card = document.querySelector(cardSelector);
+    if (!card) {
+      console.warn('Card not found for selector:', cardSelector);
+      return;
+    }
 
-  const card = document.querySelector(cardSelector);
-  if (!card) {
-    console.warn('Card not found for selector:', cardSelector);
-    return;
-  }
-
-  // Add animation class
-  card.classList.add('scale-95');
-  setTimeout(() => {
-    card.classList.remove('scale-95');
-    navigate('/auth', { state: { userType } });
-  }, 150);
-};
+    // Add animation class
+    card.classList.add('scale-95');
+    setTimeout(() => {
+      card.classList.remove('scale-95');
+      navigate('/auth', { state: { userType } });
+    }, 150);
+  };
 
 
 

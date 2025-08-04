@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Calendar, Clock, Plus, Edit2, Trash2, User, Save, X, CheckCircle, XCircle } from 'lucide-react';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../context/authContext';
 
 
 const TutorAvailabilityCalendar = () => {
+  const { userProfile, loading } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
@@ -20,10 +22,10 @@ const TutorAvailabilityCalendar = () => {
 
   // Tutor profile (you can customize this)
   const tutorProfile = {
-    name: 'Dr. Sarah Johnson',
-    subject: 'Mathematics & Physics',
-    avatar: '👩‍🏫',
-    email: 'sarah.johnson@example.com'
+    name: userProfile?.displayName || 'Loading...',
+    subject: userProfile?.subject || 'Subject not set',
+    avatar: userProfile?.avatar || '👩‍🏫',
+    email: userProfile?.email || 'Loading...'
   };
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -138,6 +140,14 @@ const TutorAvailabilityCalendar = () => {
   const selectedDateSlots = selectedDate ? getTimeSlotsForDate(selectedDate) : [];
   const totalSlots = timeSlots.length;
   const availableSlots = timeSlots.filter(slot => slot.isAvailable).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <>

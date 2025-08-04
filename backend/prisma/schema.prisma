@@ -3,20 +3,20 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
   id        Int       @id @default(autoincrement())
-  firebase_uid String   @unique @db.VarChar(128)
-  name      String    @db.VarChar(255)
-  email     String    @unique @db.VarChar(255)
+  firebase_uid String   @unique
+  name      String
+  email     String    @unique
   createdAt DateTime  @default(now())
   role      UserRole
-  photo_url String? @db.Text
+  photo_url String?
   bio       String
-  dob       DateTime? @db.Date
+  dob       DateTime?
   created_at  DateTime @default(now())
 }
 
