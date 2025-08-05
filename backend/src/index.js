@@ -91,13 +91,13 @@ app.get('/api/user/:uid', async (req, res) => {
   }
 });
 
-const formatToEnum = (value) => {
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-};
+// const formatToEnum = (value) => {
+//   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+// };
 
 app.post('/api/add-user', async (req, res) => {
   let { firebase_uid, email, role, name, photo_url, bio = '', dob = null } = req.body;
-  role = formatToEnum(role);
+  // role = formatToEnum(role);
 
   console.log("Received user data from frontend:", req.body);
 

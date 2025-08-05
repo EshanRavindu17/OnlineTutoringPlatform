@@ -5,8 +5,6 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
-  onAuthStateChanged,
-  signOut,
   sendPasswordResetEmail,
   sendEmailVerification
 } from 'firebase/auth';
@@ -14,8 +12,10 @@ import { auth } from '../firebase'; // Adjust path as needed
 import { useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/authContext';
 
 export default function AuthPage() {
+  const { currentUser, userProfile } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const { state } = useLocation();
@@ -37,27 +37,34 @@ export default function AuthPage() {
     password: '',
     confirmPassword: ''
   });
+  const [selectedRole, setSelectedRole] = useState('student');
 
-  // Monitor auth state
+  const roleOptions = [
+    { value: 'student', label: 'Student' },
+    { value: 'Individual', label: 'Individual Tutor' },
+    { value: 'Mass', label: 'Mass Tutor' }
+  ];
+
+  // Update the navigation effect
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        console.log('User signed in:', user);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    if (currentUser && userProfile) {
+      const dest = userProfile.role === 'student' ? '/studentprofile' : '/tutorprofile';
+      navigate(dest, { replace: true });
+    }
+  }, [currentUser, userProfile, navigate]);
 
   const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setFormData({
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
+    if (isLogin) {
+      navigate('/selectuser');
+    } else {
+      setIsLogin(true);
+      setError('');
+      setFormData({
+        email: '',
+        password: '',
+        confirmPassword: ''
+      });
+    }
   };
   
   const togglePasswordVisibility = () => {
@@ -105,26 +112,39 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const res = await fetch('http://localhost:5000/api/check-role', { // Updated port to 5000
+        const res = await fetch('/api/check-role', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, role: userType })
+          body: JSON.stringify({ 
+            email: formData.email, 
+            role: selectedRole
+          })
         });
 
         if (res.ok) {
-          const { user } = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+          const { user } = await signInWithEmailAndPassword(
+            auth, 
+            formData.email, 
+            formData.password
+          );
           console.log('User signed in successfully:', user);
+          
+          // Navigate based on role
+          if (selectedRole === 'student') {
+            navigate('/studentprofile');
+          } else {
+            navigate('/tutorprofile');
+          }
         } else {
-          await signOut(auth);
           const { detail } = await res.json();
-          setError(detail);
+          setError(detail || 'Invalid role for this account');
         }
       } else {
         const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         const firebaseAuthId = newUser.uid;
 
         
-        const response = await fetch('http://localhost:5000/api/add-user', {
+        const response = await fetch('/api/add-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -193,67 +213,66 @@ export default function AuthPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setError('');
+  if (selectedRole !== 'student') {
+    setError('Google sign-in is only available for students');
+    return;
+  }
 
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
+  setLoading(true);
+  setError('');
 
-      // Construct request body with required fields
-      const userPayload = {
-        firebase_uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        role: userType,
-        name: firebaseUser.displayName || 'Unnamed User',
-        photo_url: firebaseUser.photoURL || '',
-        bio: 'Signed up via Google',
-        dob: null // Optional field, handled in backend
-      };
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const firebaseUser = result.user;
 
-      const response = await fetch('http://localhost:5000/api/add-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userPayload)
-      });
+    const userPayload = {
+      firebase_uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      role: 'student',
+      name: firebaseUser.displayName || 'Unnamed User',
+      photo_url: firebaseUser.photoURL || '',
+      bio: 'Signed up via Google',
+      dob: null
+    };
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        await signOut(auth);
-        window.location.reload();
-        throw new Error(errJson.detail || "Failed to register/login");
-      }
+    const response = await fetch('http://localhost:5000/api/add-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userPayload)
+    });
 
-      const createdUser = await response.json();
-      console.log('✅ Saved Google user to DB:', createdUser);
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      await signOut(auth);
+      throw new Error(errJson.detail || "Failed to save user to database");
+    }
 
-      // Send verification email only if not verified (Google users usually are verified)
-      if (createdUser.created && !firebaseUser.emailVerified) {
-        await sendEmailVerification(firebaseUser, {
-          url: "https://learnconnect.com/finishSignUp",
-          handleCodeInApp: false
-        });
-        console.log("📩 Verification email sent to:", firebaseUser.email);
-        await signOut(auth);
-        setError("Verification email sent. Please verify your email before logging in.");
-      }
+    const savedUser = await response.json();
+    console.log('✅ Saved Google user to DB:', savedUser);
 
-      // ✅ You can redirect or set user state here if needed
+    // ✅ Set user type and role only — let useEffect handle redirection
+    setUserType('student');
+    setSelectedRole('student');
+    localStorage.setItem('userType', 'student'); // Optional: persist role
 
     } catch (err) {
       console.error('❌ Google sign-in error:', err);
       setError(err.message);
+      await signOut(auth);
     } finally {
       setLoading(false);
     }
   };
 
-
   const handleMicrosoftSignIn = async () => {
+    if (selectedRole !== 'student') {
+      setError('Microsoft sign-in is only available for students');
+      return;
+    }
+
     setLoading(true);
     setError('');
-
     
     try {
       const provider = new OAuthProvider('microsoft.com');
@@ -263,14 +282,14 @@ export default function AuthPage() {
       const userPayload = {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
-        role: userType,
+        role: 'student', // Force role to student for Microsoft auth
         name: firebaseUser.displayName || 'Unnamed User',
         photo_url: firebaseUser.photoURL || '',
-        bio: 'Signed up via Google',
-        dob: null // Optional field, handled in backend
+        bio: 'Signed up via Microsoft',
+        dob: null
       };
 
-      const response = await fetch('http://localhost:5000/api/add-user', { // Updated port to 5000
+      const response = await fetch('/api/add-user', { // Updated port to 5000
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload)
@@ -346,14 +365,6 @@ export default function AuthPage() {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      console.log('User is signed in:', userType);
-      const dest = userType === 'tutor' ? '/tutorprofile' : '/studentprofile';
-      navigate(dest, { replace: true });
-    }
-  }, [user, navigate]);
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left panel - Form */}
@@ -387,7 +398,7 @@ export default function AuthPage() {
 
           <div className="mt-6">
             <form className="space-y-6" onSubmit={handleSubmit}>
-              {!isLogin && (
+              {/* {!isLogin && (
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                     Full Name
@@ -409,6 +420,30 @@ export default function AuthPage() {
                     />
                   </div>
                 </div>
+              )} */}
+
+              {isLogin && ( // Add this section for login mode
+                <div className="mb-6 ">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Role
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {roleOptions.map((role) => (
+                      <label key={role.value} className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="role"
+                          value={role.value}
+                          checked={selectedRole === role.value}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-gray-900">{role.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
               )}
 
               <div>
@@ -471,7 +506,7 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {!isLogin && (
+              {/* {!isLogin && (
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                     Confirm Password
@@ -493,7 +528,7 @@ export default function AuthPage() {
                     />
                   </div>
                 </div>
-              )}
+              )} */}
 
               {isLogin && (
                 <div className="flex items-center justify-between">
@@ -537,7 +572,7 @@ export default function AuthPage() {
               </div>
             </form>
 
-            {isLogin && (
+            {isLogin && selectedRole === 'student' && (
               <div className="mt-8">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -553,18 +588,22 @@ export default function AuthPage() {
                     <button
                       onClick={handleGoogleSignIn}
                       disabled={loading}
-                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
-                      Google
+                      <span className="flex items-center justify-center">
+                        Google
+                      </span>
                     </button>
                   </div>
                   <div>
                     <button
                       onClick={handleMicrosoftSignIn}
                       disabled={loading}
-                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
-                      Microsoft
+                      <span className="flex items-center justify-center">
+                        Microsoft
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -659,7 +698,7 @@ export default function AuthPage() {
                   )}
 
                   <form onSubmit={handleForgotPassword}>
-                    <div className="mb-4">
+                    <div className="mb-4"></div>
                       <label htmlFor="forgotEmail" className="block text-sm font-medium text-gray-700 mb-2">
                         Email address
                       </label>
@@ -679,7 +718,7 @@ export default function AuthPage() {
                           required
                         />
                       </div>
-                    </div>
+                    {/* </div> */}
 
                     <div className="flex items-center justify-end space-x-3">
                       <button

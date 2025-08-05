@@ -11,33 +11,10 @@ export default function UserSelectionPage() {
   };
 
   const handleUserSelection = (userType) => {
-  let cardSelector = '';
-
-  // Decide which card to animate based on userType
-  if (userType === 'student') {
-    cardSelector = '.student-card';
-  } else if (userType === 'Individual' || userType === 'Mass') {
-    cardSelector = '.tutor-card';
-  } else {
-    console.warn('Unknown userType:', userType);  // Helps debugging
-    return;
-  }
-
-  const card = document.querySelector(cardSelector);
-  if (!card) {
-    console.warn('Card not found for selector:', cardSelector);
-    return;
-  }
-
-  // Add animation class
-  card.classList.add('scale-95');
-  setTimeout(() => {
-    card.classList.remove('scale-95');
-    navigate('/auth', { state: { userType } });
-  }, 150);
-};
-
-
+    // Convert userType to lowercase for URL and remove spaces
+    const path = userType.toLowerCase().replace(' ', '');
+    navigate(`/selectuser/${path}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -91,7 +68,9 @@ export default function UserSelectionPage() {
 
                 {/* Tutor Card */}
                 <div 
-                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                  onClick={() => handleUserSelection('Individual')}
+                >
                   <div className="text-center">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                       <UserCheck className="text-blue-600" size={40} />
@@ -114,20 +93,15 @@ export default function UserSelectionPage() {
                         <span>Build your reputation and earn more</span>
                       </div>
                     </div>
-                    <div className="mt-6 space-y-4">
-                      {/* Individual Tutor Button */}
-                      <button
-                        onClick={() => handleUserSelection('Individual')}
-                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
-                      >
-                        Get Started as Individual Tutor
-                        <ChevronRight size={16} className="ml-2" />
-                      </button>
-                    </div>
+                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
+                      Get Started as Individual Tutor <ChevronRight size={16} className="ml-2" />
+                    </button>
                   </div>
                 </div>
                 <div 
-                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                  onClick={() => handleUserSelection('Mass')}
+                  >
                   <div className="text-center">
                     <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                       <UserCheck className="text-blue-600" size={40} />
@@ -150,16 +124,9 @@ export default function UserSelectionPage() {
                         <span>Build your reputation and earn more</span>
                       </div>
                     </div>
-                    <div className="mt-6 space-y-4">
-                      {/* Mass Tutor Button */}
-                      <button
-                        onClick={() => handleUserSelection('Mass')}
-                        className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center"
-                      >
-                        Get Started as Mass Tutor
-                        <ChevronRight size={16} className="ml-2" />
-                      </button>
-                    </div>
+                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
+                      Get Started as Mass Tutor <ChevronRight size={16} className="ml-2" />
+                    </button>
                   </div>
                 </div>
               </div>

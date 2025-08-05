@@ -8,20 +8,20 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  firebase_uid String   @unique @db.VarChar(128)
-  name      String    @db.VarChar(255)
-  email     String    @unique @db.VarChar(255)
-  createdAt DateTime  @default(now())
-  role      UserRole
-  photo_url String? @db.Text
-  bio       String
-  dob       DateTime? @db.Date
-  created_at  DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(255)
+  email        String    @unique @db.VarChar(255)
+  createdAt    DateTime  @default(now())
+  role         UserRole
+  bio          String
+  dob          DateTime? @db.Date
+  created_at   DateTime  @default(now())
+  firebase_uid String    @unique
+  photo_url    String?
 }
 
 enum UserRole {
-  Student
+  student
   Individual
   Mass
   Admin
