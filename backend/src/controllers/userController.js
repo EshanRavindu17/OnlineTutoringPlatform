@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-exports.getUserByUid = async (req, res) => {
+export const getUserByUid = async (req, res) => {
   const { uid } = req.params;
   console.log("🔎 Fetching DB user for UID:", uid);
   
@@ -33,7 +33,7 @@ exports.getUserByUid = async (req, res) => {
 };
 
 
-exports.addUser = async (req, res) => {
+export const addUser = async (req, res) => {
   let { firebase_uid, email, role, name, photo_url, bio = '', dob = null } = req.body;
   // role = formatToEnum(role);
 
@@ -53,7 +53,7 @@ exports.addUser = async (req, res) => {
   }
 };
 
-exports.checkRole = async (req, res) => {
+export const checkRole = async (req, res) => {
   const { email, role } = req.body;
 
   try {
