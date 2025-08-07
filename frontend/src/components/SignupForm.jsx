@@ -78,22 +78,17 @@ export default function SignupForm({ role = 'student' }) {
         photo_url: '',
         bio: `New ${role} account`,
         dob: null
-      });
+      });      
 
-      // Send verification email
-      await sendEmailVerification(newUser, {
-        url: process.env.REACT_APP_VERIFICATION_URL || "http://localhost:3000/finishSignUp",
-        handleCodeInApp: false
-      });
-
-      // Sign out and show verification message
-      await signOut(auth);
-      setError("Verification email sent. Please verify your email before logging in.");
-      
-      // Navigate to login
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+      if (response.data.created === true) {
+        if (role === 'student') {
+          navigate('/studentprofile');
+        }else{
+          navigate('/tutorprofile');
+        }
+      } else {
+        setError("Failed to create user in database.");
+      }
 
     } catch (error) {
       console.error('Signup error:', error);

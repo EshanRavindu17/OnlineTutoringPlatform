@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
         }
 
         retries--;
-        await new Promise(res => setTimeout(res, 5000)); // wait 1 second before retry
+        await new Promise(res => setTimeout(res, 1000)); // wait 1 second before retry
       }
 
       if (profileData) {
@@ -80,6 +80,8 @@ export function AuthProvider({ children }) {
         console.error('Failed to fetch user profile after retries');
         setUserProfile(null);
       }
+
+  
 
     } else {
       setCurrentUser(null);
