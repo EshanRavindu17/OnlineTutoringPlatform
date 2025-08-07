@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import prisma from '../prisma/prismaClient.js';
-const userRoutes = require('./routes/userRoutes');
+import userRoutes from './routes/userRoutes.js';
 dotenv.config();
 
 // Get __dirname equivalent in ES6 modules
