@@ -14,12 +14,48 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setCurrentUser(user);
+  // useEffect(() => {
+  //   const unsubscribe = onAuthStateChanged(auth, async (user) => {
+  //     if (user) {
+  //       setCurrentUser(user);
         
-        // Fetch user profile from Node.js backend
+  //       // Fetch user profile from Node.js backend
+  //       try {
+  //         const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
+  //           method: 'GET',
+  //           headers: { 'Content-Type': 'application/json' }
+  //         });
+
+  //         if (response.ok) {
+  //           const profileData = await response.json();
+  //           setUserProfile(profileData);
+  //         } else {
+  //           console.error('Failed to fetch user profile:', await response.text());
+  //           setUserProfile(null);
+  //         }
+  //       } catch (error) {
+  //         console.error('Error fetching user profile:', error);
+  //         setUserProfile(null);
+  //       }
+  //     } else {
+  //       setCurrentUser(null);
+  //       setUserProfile(null);
+  //     }
+  //     setLoading(false);
+  //   });
+
+  //   return unsubscribe;
+  // }, []);
+
+  useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      setCurrentUser(user);
+
+      let retries = 5;
+      let profileData = null;
+
+      while (retries > 0) {
         try {
           const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
             method: 'GET',
@@ -27,25 +63,37 @@ export function AuthProvider({ children }) {
           });
 
           if (response.ok) {
-            const profileData = await response.json();
-            setUserProfile(profileData);
-          } else {
-            console.error('Failed to fetch user profile:', await response.text());
-            setUserProfile(null); // Fallback if profile not found
+            profileData = await response.json();
+            break;
           }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          setUserProfile(null);
+        } catch (err) {
+          console.error('Retrying fetch user profile failed:', err);
         }
+
+        retries--;
+        await new Promise(res => setTimeout(res, 1000)); // wait 1 second before retry
+      }
+
+      if (profileData) {
+        setUserProfile(profileData);
       } else {
-        setCurrentUser(null);
+        console.error('Failed to fetch user profile after retries');
         setUserProfile(null);
       }
-      setLoading(false);
-    });
 
-    return unsubscribe;
-  }, []);
+  
+
+    } else {
+      setCurrentUser(null);
+      setUserProfile(null);
+    }
+
+    setLoading(false);
+  });
+
+  return unsubscribe;
+}, []);
+
 
   const value = {
     currentUser,
