@@ -1,3 +1,16 @@
+import { execSync } from 'child_process';
+
+// Generate Prisma client when starting the server 
+try {
+  console.log('Running prisma generate …');
+  execSync('npx prisma generate', { stdio: 'inherit' }); 
+} catch (err) {
+  console.error('Could not run prisma generate:', err);
+  process.exit(1);
+}
+
+
+
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -62,6 +75,8 @@ app.get('/', (req, res) => {
   res.status(200).json({ message: 'Welcome to the Online Tutoring Platform API' });
 });
 
+
+//Routes for user management
 app.use('/api', userRoutes);
 
 // const formatToEnum = (value) => {
@@ -85,6 +100,7 @@ app.use('/api', userRoutes);
 // app.use('/api/courses', courseRoutes);
 
 // Error handling middleware
+
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
   

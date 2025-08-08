@@ -8,16 +8,144 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String    @db.VarChar(255)
-  email        String    @unique @db.VarChar(255)
-  createdAt    DateTime  @default(now())
-  role         UserRole
-  bio          String
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @db.VarChar(255)
+  email            String             @unique @db.VarChar(255)
+  role             UserRole
+  bio              String
+  dob              DateTime?          @db.Date
+  created_at       DateTime           @default(now())
+  firebase_uid     String             @unique
+  photo_url        String?
+  Individual_Tutor Individual_Tutor[]
+  Mass_Tutor       Mass_Tutor[]
+  Notifications    Notifications[]
+  Student          Student[]
+}
+
+model Admin {
+  admin_id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String? @db.VarChar
+  firebase_uid String?
+}
+
+model Candidates {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String?   @db.VarChar
+  email        String?   @db.VarChar
+  role         UserRole?
+  bio          String?
   dob          DateTime? @db.Date
-  created_at   DateTime  @default(now())
-  firebase_uid String    @unique
-  photo_url    String?
+  phone_number Int?
+}
+
+model Free_Time_Slots {
+  slot_id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  i_tutor_id       String?           @db.Uuid
+  date             DateTime?         @db.Date
+  time             DateTime?         @db.Time(6)
+  status           SlotStatus?
+  Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
+  Sessions         Sessions[]
+}
+
+model Individual_Payments {
+  i_payment_id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id        String?   @db.Uuid
+  session_id        String?   @db.Uuid
+  amount            Decimal?  @db.Decimal(10, 2)
+  payment_date_time DateTime? @db.Timestamp(6)
+  status            Status?
+  method            String?   @db.VarChar
+  Student           Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_i_pay_fk")
+}
+
+model Individual_Tutor {
+  i_tutor_id      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjects        String[]          @db.VarChar
+  titles          String[]          @db.VarChar
+  hourly_rate     Decimal?          @db.Decimal(10, 2)
+  raiting         Decimal?          @db.Decimal(3, 1)
+  user_id         String?           @db.Uuid
+  description     String?
+  Free_Time_Slots Free_Time_Slots[]
+  User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
+}
+
+model Mass_Tutor {
+  m_tutor_id  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjects    String[] @db.VarChar
+  raiting     Decimal? @db.Decimal(3, 1)
+  prices      Decimal? @db.Decimal(10, 2)
+  description String?
+  user_id     String   @db.Uuid
+  User        User     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
+}
+
+model Notifications {
+  notify_id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String?   @db.Uuid
+  message        String?
+  type           UserRole?
+  date_time_sent DateTime? @db.Timestamp(6)
+  status         Status?
+  User           User?     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "user_id_notification_fk")
+}
+
+model Rating_N_Review_Session {
+  r_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String?   @db.Uuid
+  session_id String?   @db.Uuid
+  raiting    Decimal?  @db.Decimal(3, 1)
+  review     String?
+  Sessions   Sessions? @relation(fields: [session_id], references: [session_id], onDelete: NoAction, map: "session_raiting_review")
+  Student    Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_rating_review")
+}
+
+model Reports {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id  String?    @db.Uuid
+  tutor_id    String?    @db.Uuid
+  tutor_type  TutorType?
+  description String?
+  Student     Student?   @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
+}
+
+model Sessions {
+  session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id              String?                   @db.Uuid
+  slot_id                 String?                   @db.Uuid
+  start_time              DateTime?                 @db.Time(6)
+  end_time                DateTime?                 @db.Time(6)
+  status                  SessionStatus?
+  materials               String[]                  @db.VarChar
+  Rating_N_Review_Session Rating_N_Review_Session[]
+  Free_Time_Slots         Free_Time_Slots?          @relation(fields: [slot_id], references: [slot_id], onDelete: NoAction, map: "slot_id")
+  Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
+}
+
+model Student {
+  student_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                 String                    @db.Uuid
+  points                  Int?                      @default(0)
+  Individual_Payments     Individual_Payments[]
+  Rating_N_Review_Session Rating_N_Review_Session[]
+  Reports                 Reports[]
+  Sessions                Sessions[]
+  User                    User                      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "student_user_Id_fk")
+}
+
+model Subjects {
+  sub_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name   String?  @db.VarChar
+  Titles Titles[]
+}
+
+model Titles {
+  title_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sub_id   String   @db.Uuid
+  name     String?  @db.VarChar
+  Subjects Subjects @relation(fields: [sub_id], references: [sub_id], onDelete: Cascade, map: "title_sub_id_fk")
 }
 
 enum UserRole {
@@ -25,4 +153,25 @@ enum UserRole {
   Individual
   Mass
   Admin
+}
+
+enum SessionStatus {
+  scheduled
+  ongoing
+  canceled
+}
+
+enum SlotStatus {
+  free
+  booked
+}
+
+enum Status {
+  success
+  fail
+}
+
+enum TutorType {
+  mass
+  individual
 }

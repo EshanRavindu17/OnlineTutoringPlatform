@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Users, Calendar, Award, ChevronRight, Search, Menu, X, UserCheck, GraduationCap } from 'lucide-react';
+import { BookOpen, Users, Calendar, Award, ChevronRight, Search, Menu, X, UserCheck, GraduationCap, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function UserSelectionPage() {
@@ -35,96 +35,125 @@ export default function UserSelectionPage() {
               <div className="grid md:grid-cols-3 gap-8">
                 {/* Student Card */}
                 <div 
-                  className="student-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                  className="group bg-white text-gray-900 rounded-2xl p-8 cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 border-2 border-transparent hover:border-blue-200 relative overflow-hidden"
                   onClick={() => handleUserSelection('student')}
                 >
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <GraduationCap className="text-blue-600" size={40} />
+                  {/* Decorative Background Element */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-transparent rounded-full transform translate-x-16 -translate-y-16 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  <div className="text-center relative z-10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                      <GraduationCap className="text-white" size={40} />
                     </div>
-                    <h3 className="text-2xl font-bold mb-4">I'm a Student</h3>
-                    <p className="text-gray-600 mb-6 text-lg">
-                      Find expert tutors, access quality resources, and achieve your academic goals with personalized learning.
+                    <h3 className="text-2xl font-bold mb-4 group-hover:text-blue-700 transition-colors">I'm a Student</h3>
+                    <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                      Discover expert tutors, access premium learning resources, and achieve your academic goals with personalized education.
                     </p>
                     <div className="space-y-3 mb-8">
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Search size={16} className="text-blue-600" />
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Search size={14} className="text-blue-600" />
+                        </div>
                         <span>Find tutors by subject and availability</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Calendar size={16} className="text-blue-600" />
-                        <span>Flexible scheduling that fits your life</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Calendar size={14} className="text-blue-600" />
+                        </div>
+                        <span>Flexible scheduling that fits your lifestyle</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <BookOpen size={16} className="text-blue-600" />
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <BookOpen size={14} className="text-blue-600" />
+                        </div>
                         <span>Interactive learning tools and resources</span>
                       </div>
                     </div>
-                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
+                    <button className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl group-hover:scale-105">
                       Get Started as Student <ChevronRight size={16} className="ml-2" />
                     </button>
                   </div>
                 </div>
 
-                {/* Tutor Card */}
+                {/* Individual Tutor Card */}
                 <div 
-                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                  className="group bg-white text-gray-900 rounded-2xl p-8 cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:bg-gradient-to-br hover:from-emerald-50 hover:to-teal-50 border-2 border-transparent hover:border-emerald-200 relative overflow-hidden"
                   onClick={() => handleUserSelection('Individual')}
                 >
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <UserCheck className="text-blue-600" size={40} />
+                  {/* Decorative Background Element */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-transparent rounded-full transform translate-x-16 -translate-y-16 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  <div className="text-center relative z-10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                      <User className="text-white" size={40} />
                     </div>
-                    <h3 className="text-2xl font-bold mb-4">I'm a Tutor</h3>
-                    <p className="text-gray-600 mb-6 text-lg">
-                      Share your knowledge, connect with students worldwide, and build a flexible teaching career.
+                    <h3 className="text-2xl font-bold mb-4 group-hover:text-emerald-700 transition-colors">Individual Tutor</h3>
+                    <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                      Provide personalized one-to-one tutoring, build meaningful connections with students, and create tailored learning experiences.
                     </p>
                     <div className="space-y-3 mb-8">
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Users size={16} className="text-blue-600" />
-                        <span>Connect with students globally</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                          <User size={14} className="text-emerald-600" />
+                        </div>
+                        <span>One-to-one personalized teaching</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Calendar size={16} className="text-blue-600" />
-                        <span>Set your own schedule and rates</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                          <Calendar size={14} className="text-emerald-600" />
+                        </div>
+                        <span>Flexible scheduling and premium rates</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Award size={16} className="text-blue-600" />
-                        <span>Build your reputation and earn more</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                          <Award size={14} className="text-emerald-600" />
+                        </div>
+                        <span>Build strong mentor relationships</span>
                       </div>
                     </div>
-                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
+                    <button className="w-full px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl group-hover:scale-105">
                       Get Started as Individual Tutor <ChevronRight size={16} className="ml-2" />
                     </button>
                   </div>
                 </div>
+
+                {/* Mass Tutor Card */}
                 <div 
-                  className="tutor-card bg-white text-gray-900 rounded-lg p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                  className="group bg-white text-gray-900 rounded-2xl p-8 cursor-pointer transform transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:bg-gradient-to-br hover:from-purple-50 hover:to-violet-50 border-2 border-transparent hover:border-purple-200 relative overflow-hidden"
                   onClick={() => handleUserSelection('Mass')}
-                  >
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <UserCheck className="text-blue-600" size={40} />
+                >
+                  {/* Decorative Background Element */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-transparent rounded-full transform translate-x-16 -translate-y-16 opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  <div className="text-center relative z-10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                      <Users className="text-white" size={40} />
                     </div>
-                    <h3 className="text-2xl font-bold mb-4">I'm a Tutor</h3>
-                    <p className="text-gray-600 mb-6 text-lg">
-                      Share your knowledge, connect with students worldwide, and build a flexible teaching career.
+                    <h3 className="text-2xl font-bold mb-4 group-hover:text-purple-700 transition-colors">Mass Tutor</h3>
+                    <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                      Teach large groups of students, create courses for many learners, and maximize your impact through scalable education.
                     </p>
                     <div className="space-y-3 mb-8">
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Users size={16} className="text-blue-600" />
-                        <span>Connect with students globally</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <Users size={14} className="text-purple-600" />
+                        </div>
+                        <span>Teach multiple students simultaneously</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Calendar size={16} className="text-blue-600" />
-                        <span>Set your own schedule and rates</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <BookOpen size={14} className="text-purple-600" />
+                        </div>
+                        <span>Create courses and group sessions</span>
                       </div>
-                      <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                        <Award size={16} className="text-blue-600" />
-                        <span>Build your reputation and earn more</span>
+                      <div className="flex items-center justify-center space-x-3 text-sm text-gray-600 group-hover:text-gray-700">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <Award size={14} className="text-purple-600" />
+                        </div>
+                        <span>Scale your teaching business</span>
                       </div>
                     </div>
-                    <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors inline-flex items-center justify-center">
+                    <button className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-violet-700 transition-all duration-300 inline-flex items-center justify-center shadow-lg hover:shadow-xl group-hover:scale-105">
                       Get Started as Mass Tutor <ChevronRight size={16} className="ml-2" />
                     </button>
                   </div>
