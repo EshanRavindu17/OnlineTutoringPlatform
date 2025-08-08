@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase'; // Adjust path as needed
 import { useLocation } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, ChevronRight, X } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, Users, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
 
@@ -423,24 +423,60 @@ export default function AuthPage() {
               )} */}
 
               {isLogin && ( // Add this section for login mode
-                <div className="mb-6 ">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Role
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-800 mb-4">
+                    Select Your Role
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {roleOptions.map((role) => (
-                      <label key={role.value} className="flex items-center space-x-2">
+                      <label 
+                        key={role.value} 
+                        className={`relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 ${
+                          selectedRole === role.value 
+                            ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg ring-2 ring-blue-200' 
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
                         <input
                           type="radio"
                           name="role"
                           value={role.value}
                           checked={selectedRole === role.value}
                           onChange={(e) => setSelectedRole(e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          className="absolute opacity-0 w-full h-full cursor-pointer"
                         />
-                        <span className="text-gray-900">{role.label}</span>
+                        <div className="text-center">
+                          <div className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
+                            selectedRole === role.value 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {role.value === 'student' && <BookOpen size={24} />}
+                            {role.value === 'Individual' && <User size={24} />}
+                            {role.value === 'Mass' && <Users size={24} />}
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            selectedRole === role.value 
+                              ? 'text-blue-700' 
+                              : 'text-gray-700'
+                          }`}>
+                            {role.label}
+                          </span>
+                          {selectedRole === role.value && (
+                            <div className="absolute top-2 right-2">
+                              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </label>
                     ))}
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500 text-center">
+                    Choose the role that best describes your learning or teaching needs
                   </div>
                 </div>
 

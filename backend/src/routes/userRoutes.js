@@ -1,11 +1,15 @@
 // routes/userRoutes.js
 import express from 'express';
-import { getUserByUid, addUser, checkRole } from '../controllers/userController.js'; // add .js
+import { getUserByUid, addUser, checkRole, getUsers } from '../controllers/userController.js'; // add .js
 
 const router = express.Router();
 
-router.get('/user/:uid', getUserByUid);
-router.post('/add-user', addUser);
-router.post('/check-role', checkRole);
+// GET routes
+router.get('/users', getUsers); // Get all users (admin only)
+router.get('/user/:uid', getUserByUid); // Get user by Firebase UID
+
+// POST routes
+router.post('/add-user', addUser); // Create or update user
+router.post('/check-role', checkRole); // Validate user role and email
 
 export default router;
