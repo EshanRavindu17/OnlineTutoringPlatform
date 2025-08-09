@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import logo from '../assets/logo.png'; // Assuming you have a logo image in your assets
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -107,7 +108,7 @@ export default function Navbar() {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <span className="text-blue-600 font-bold text-xl">
-                  LearnConnect
+                  <img src={logo} alt="LearnConnect" className="h-30" />
                 </span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -140,6 +141,7 @@ export default function Navbar() {
                 <>
                   <button
                     onClick={() => navigate('/auth')}
+  //  onClick={() => navigate('/auth')}
                     className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                   >
                     Log in
