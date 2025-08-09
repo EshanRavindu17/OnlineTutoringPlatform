@@ -22,15 +22,19 @@ import { TutorRoute } from './context/protectRoute.jsx';
 import { StudentRoute } from './context/protectRoute.jsx';
 import LesssonUpload from './tutor/anotherLessonUpload.jsx';
 import TutorCalendar from './tutor/tutorCalender.jsx';
+import SignupForm from './components/SignupForm';
 
 const App = () => {
   return (
     <Router>
       <div>
-        <Routes>
+        <Routes> 
           <Route path="/" element={<WelcomePage />} />
-          <Route path="/auth" element={<Auth/>} />
+          <Route path="/auth" element={<Auth/>} />   
           <Route path="/selectuser" element={<SelectUser />} />
+          <Route path="/selectuser/student" element={<SignupForm role="student" />} />
+          <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
+          <Route path="/selectuser/mass" element={<SignupForm role="Mass" />} />
 
           
           <Route path="/tutorlists" element={<TutorList/>} />
@@ -40,8 +44,7 @@ const App = () => {
 
 
           
-        <Route element={<StudentRoute />}>
-          
+        <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
           <Route path="/stripe-payment" element={<StripePaymentPage />} />
           

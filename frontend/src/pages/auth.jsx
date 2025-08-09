@@ -2,27 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
-  onAuthStateChanged,
-  signOut,
   sendPasswordResetEmail,
-  sendEmailVerification, 
-  signInWithPopup
+  sendEmailVerification
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase'; // Adjust path as needed
+import { auth } from '../firebase'; // Adjust path as needed
 import { useLocation } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, ChevronRight, X } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, Users, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/authContext';
 
 export default function AuthPage() {
+  const { currentUser, userProfile } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const { state } = useLocation();
-  const initialType = state?.userType || 'student';
-  console.log('Initial userType from location:', initialType);
+  const initialType = state?.userType;
+  // console.log('Initial userType from location:', initialType);
   const [userType, setUserType] = useState(initialType);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,28 +37,34 @@ export default function AuthPage() {
     password: '',
     confirmPassword: ''
   });
+  const [selectedRole, setSelectedRole] = useState('student');
 
-  // Monitor auth state
+  const roleOptions = [
+    { value: 'student', label: 'Student' },
+    { value: 'Individual', label: 'Individual Tutor' },
+    { value: 'Mass', label: 'Mass Tutor' }
+  ];
+
+  // Update the navigation effect
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        // User is signed in, redirect to dashboard or update UI
-        console.log('User signed in:', user);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    if (currentUser && userProfile) {
+      const dest = userProfile.role === 'student' ? '/studentprofile' : '/tutorprofile';
+      navigate(dest, { replace: true });
+    }
+  }, [currentUser, userProfile, navigate]);
 
   const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setFormData({
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
+    if (isLogin) {
+      navigate('/selectuser');
+    } else {
+      setIsLogin(true);
+      setError('');
+      setFormData({
+        email: '',
+        password: '',
+        confirmPassword: ''
+      });
+    }
   };
   
   const togglePasswordVisibility = () => {
@@ -107,71 +111,74 @@ export default function AuthPage() {
     setError('');
 
     try {
-      if (isLogin){
-            const res = await fetch('http://localhost:8000/api/check-role/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: formData.email, role: userType })
-            })
+      if (isLogin) {
+        const res = await fetch('/api/check-role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: formData.email, 
+            role: selectedRole
+          })
+        });
 
-            if (res.ok) {
-              const { user } = await signInWithEmailAndPassword(auth, formData.email, formData.password);
-              console.log('User signed in successfully:', user);
-            }
-            else {
-              await signOut(auth)
-              const { detail } = await res.json()
-              setError(detail)
-}        
+        if (res.ok) {
+          const { user } = await signInWithEmailAndPassword(
+            auth, 
+            formData.email, 
+            formData.password
+          );
+          console.log('User signed in successfully:', user);
+          
+          // Navigate based on role
+          if (selectedRole === 'student') {
+            navigate('/studentprofile');
+          } else {
+            navigate('/tutorprofile');
+          }
+        } else {
+          const { detail } = await res.json();
+          setError(detail || 'Invalid role for this account');
+        }
       } else {
-  // Step 1: Create user with email/password
-  const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-  const firebaseAuthId = newUser.uid;
+        const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const firebaseAuthId = newUser.uid;
 
-  // Step 2: Save to Firestore
-  await setDoc(doc(db, "users", firebaseAuthId), {
-    displayName: formData.name,
-    email: newUser.email,
-    role: userType,
-    createdAt: Date.now()
-  });
+        
+        const response = await fetch('/api/add-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firebase_uid: firebaseAuthId,
+            email: newUser.email,
+            role: userType,
+            name: formData.name,
+            photo_url: '',       
+            bio: 'New user bio',  
+            dob: null    
+          })
+        });
 
-  // Step 3: Save to Django backend
-  const response = await fetch('http://localhost:8000/api/add-user/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      firebase_uid: firebaseAuthId,
-      email: newUser.email,
-      role: userType,
-      display_name: formData.name
-    })
-  });
+        console.log("Received new user:", req.body);
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.detail || 'Failed to save user to DB');
-  }
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || 'Failed to save user to DB');
+        }
 
-  // Step 4: Send verification email
-  await sendEmailVerification(newUser, {
-    url: "https://learnconnect.com/finishSignUp",
-    handleCodeInApp: false
-  });
+        await sendEmailVerification(newUser, {
+          url: "https://learnconnect.com/finishSignUp",
+          handleCodeInApp: false
+        });
 
-  console.log("Verification email sent to:", newUser.email);
+        console.log("Verification email sent to:", newUser.email);
 
-  // Step 5: Sign out and inform the user
-  await signOut(auth);
-  setIsLogin(true); // switch to login form
-  setError("Verification email sent. Please verify your email before logging in.");
-  return;
-}
-
+        await signOut(auth);
+        setIsLogin(true);
+        setError("Verification email sent. Please verify your email before logging in.");
+      }
     } catch (error) {
       console.error('Authentication error:', error);
       
-      // Handle specific Firebase auth errors
       switch (error.code) {
         case 'auth/email-already-in-use':
           setError('An account with this email already exists');
@@ -206,6 +213,11 @@ export default function AuthPage() {
   };
 
   const handleGoogleSignIn = async () => {
+  if (selectedRole !== 'student') {
+    setError('Google sign-in is only available for students');
+    return;
+  }
+
   setLoading(true);
   setError('');
 
@@ -214,72 +226,81 @@ export default function AuthPage() {
     const result = await signInWithPopup(auth, provider);
     const firebaseUser = result.user;
 
-    
-    const fullName = firebaseUser.displayName || '';
-    console.log('Full name:', fullName);
+    const userPayload = {
+      firebase_uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      role: 'student',
+      name: firebaseUser.displayName || 'Unnamed User',
+      photo_url: firebaseUser.photoURL || '',
+      bio: 'Signed up via Google',
+      dob: null
+    };
 
-    const response = await fetch('http://localhost:8000/api/add-user/',{
+    const response = await fetch('http://localhost:5000/api/add-user', {
       method: 'POST',
-      headers: { "Content-Type": "application/json"
-                
-      },
-      body: JSON.stringify({
-        firebase_uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        role: userType,
-        display_name: fullName,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userPayload)
     });
-     
+
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
       await signOut(auth);
-      window.location.reload();
-      throw new Error(errJson.detail || "Failed to register/login");
+      throw new Error(errJson.detail || "Failed to save user to database");
     }
-      await setDoc(doc(db, "users", firebaseUser.uid), {
-      displayName: firebaseUser.displayName,
-      email:       firebaseUser.email,
-      role:        userType,
-      photoURL:    firebaseUser.photoURL,
-      createdAt:   Date.now()
-    }, { merge: true }); 
 
-    const createdUser = await response.json();
-    console.log('Saved Google user to DB:', createdUser);
-    
+    const savedUser = await response.json();
+    console.log('✅ Saved Google user to DB:', savedUser);
 
-    if (createdUser.created && !firebaseUser.emailVerified) {
-  await sendEmailVerification(firebaseUser, {
-    url: "https://learnconnect.com/finishSignUp",
-    handleCodeInApp: false,
-  });
-  console.log("Verification email sent to:", firebaseUser.email);
-  await signOut(auth);
-  setError("Verification email sent. Please verify your email before logging in.");
-  return;
-}
+    // ✅ Set user type and role only — let useEffect handle redirection
+    setUserType('student');
+    setSelectedRole('student');
+    localStorage.setItem('userType', 'student'); // Optional: persist role
 
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err) {
+      console.error('❌ Google sign-in error:', err);
+      setError(err.message);
+      await signOut(auth);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-
-
-  
   const handleMicrosoftSignIn = async () => {
+    if (selectedRole !== 'student') {
+      setError('Microsoft sign-in is only available for students');
+      return;
+    }
+
     setLoading(true);
     setError('');
     
-    const provider = new OAuthProvider('microsoft.com');
-    
     try {
+      const provider = new OAuthProvider('microsoft.com');
       const result = await signInWithPopup(auth, provider);
-      await createUserProfile(result.user);
+      const firebaseUser = result.user;
+
+      const userPayload = {
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        role: 'student', // Force role to student for Microsoft auth
+        name: firebaseUser.displayName || 'Unnamed User',
+        photo_url: firebaseUser.photoURL || '',
+        bio: 'Signed up via Microsoft',
+        dob: null
+      };
+
+      const response = await fetch('/api/add-user', { // Updated port to 5000
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userPayload)
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        await signOut(auth);
+        throw new Error(errJson.detail || 'Failed to register/login');
+      }
+
       console.log('Microsoft sign in successful:', result.user);
     } catch (error) {
       console.error('Microsoft sign in error:', error);
@@ -311,7 +332,6 @@ export default function AuthPage() {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotEmail)) {
       setResetError('Please enter a valid email address');
@@ -344,51 +364,6 @@ export default function AuthPage() {
       setResetLoading(false);
     }
   };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      console.log('User signed out successfully');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
-
-  // If user is already signed in, show a different UI
-  // if (user) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
-  //         <h2 className="text-2xl font-bold text-center mb-4">Welcome!</h2>
-  //         <p className="text-center text-gray-600 mb-6">You are already signed in as:</p>
-  //         <div className="text-center mb-6">
-  //           <p className="font-medium">{user.displayName || user.email}</p>
-  //           <p className="text-sm text-gray-500">{user.email}</p>
-  //         </div>
-  //         <button
-  //           onClick={handleSignOut}
-  //           className="w-full py-2 px-4 border border-transparent rounded-md font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-  //         >
-  //           Sign Out
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-    useEffect(() => {
-    if (user) {
-      console.log('User is signed in:', userType);
-      // pick your route based on their role or just send to a dashboard
-      // e.g. user.photoURL or custom claims, or fetch from Firestore...
-      // For now, if you store their role in Firestore, you'd fetch it here,
-      // but let's assume you know it in state or in userProfile:
-      const dest = userType === 'tutor'
-        ? '/tutorprofile'
-        : '/studentprofile';
-      navigate(dest, { replace: true });
-    }
-  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -423,33 +398,90 @@ export default function AuthPage() {
 
           <div className="mt-6">
             <form className="space-y-6" onSubmit={handleSubmit}>
-                  {!isLogin && (
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Full Name
-                    </label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="text-gray-400" size={18} />
-                      </div>
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                        className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                        placeholder="Enter your full name"
-                      />
+              {/* {!isLogin && (
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    Full Name
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="text-gray-400" size={18} />
                     </div>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      disabled={loading}
+                      className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
+                      placeholder="Enter your full name"
+                    />
                   </div>
-                )}
+                </div>
+              )} */}
 
+              {isLogin && ( // Add this section for login mode
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-800 mb-4">
+                    Select Your Role
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {roleOptions.map((role) => (
+                      <label 
+                        key={role.value} 
+                        className={`relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 ${
+                          selectedRole === role.value 
+                            ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg ring-2 ring-blue-200' 
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="role"
+                          value={role.value}
+                          checked={selectedRole === role.value}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="absolute opacity-0 w-full h-full cursor-pointer"
+                        />
+                        <div className="text-center">
+                          <div className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
+                            selectedRole === role.value 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {role.value === 'student' && <BookOpen size={24} />}
+                            {role.value === 'Individual' && <User size={24} />}
+                            {role.value === 'Mass' && <Users size={24} />}
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            selectedRole === role.value 
+                              ? 'text-blue-700' 
+                              : 'text-gray-700'
+                          }`}>
+                            {role.label}
+                          </span>
+                          {selectedRole === role.value && (
+                            <div className="absolute top-2 right-2">
+                              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500 text-center">
+                    Choose the role that best describes your learning or teaching needs
+                  </div>
+                </div>
 
+              )}
 
-              
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email address
@@ -510,7 +542,7 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {!isLogin && (
+              {/* {!isLogin && (
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                     Confirm Password
@@ -532,7 +564,7 @@ export default function AuthPage() {
                     />
                   </div>
                 </div>
-              )}
+              )} */}
 
               {isLogin && (
                 <div className="flex items-center justify-between">
@@ -576,7 +608,7 @@ export default function AuthPage() {
               </div>
             </form>
 
-            {isLogin && (
+            {isLogin && selectedRole === 'student' && (
               <div className="mt-8">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -592,18 +624,22 @@ export default function AuthPage() {
                     <button
                       onClick={handleGoogleSignIn}
                       disabled={loading}
-                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
-                      Google
+                      <span className="flex items-center justify-center">
+                        Google
+                      </span>
                     </button>
                   </div>
                   <div>
                     <button
                       onClick={handleMicrosoftSignIn}
                       disabled={loading}
-                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                     >
-                      Microsoft
+                      <span className="flex items-center justify-center">
+                        Microsoft
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -698,7 +734,7 @@ export default function AuthPage() {
                   )}
 
                   <form onSubmit={handleForgotPassword}>
-                    <div className="mb-4">
+                    <div className="mb-4"></div>
                       <label htmlFor="forgotEmail" className="block text-sm font-medium text-gray-700 mb-2">
                         Email address
                       </label>
@@ -718,7 +754,7 @@ export default function AuthPage() {
                           required
                         />
                       </div>
-                    </div>
+                    {/* </div> */}
 
                     <div className="flex items-center justify-end space-x-3">
                       <button

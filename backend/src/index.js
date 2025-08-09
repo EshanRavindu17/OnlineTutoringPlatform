@@ -1,7 +1,28 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+import { execSync } from 'child_process';
+
+// Generate Prisma client when starting the server 
+try {
+  console.log('Running prisma generate …');
+  execSync('npx prisma generate', { stdio: 'inherit' }); 
+} catch (err) {
+  console.error('Could not run prisma generate:', err);
+  process.exit(1);
+}
+
+
+
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import prisma from '../prisma/prismaClient.js';
+import userRoutes from './routes/userRoutes.js';
+dotenv.config();
+
+// Get __dirname equivalent in ES6 modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Express app
 const app = express();
@@ -12,8 +33,10 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -39,20 +62,45 @@ app.get('/api', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/health',
-      api: '/api'
+      api: '/api',
+      'add-user': '/api/add-user',
+      'check-role': '/api/check-role',
+      'user': '/api/user/:uid'
     }
   });
 });
 
+app.get('/', (req, res) => {
+  console.log('Welcome to the Online Tutoring Platform API');
+  res.status(200).json({ message: 'Welcome to the Online Tutoring Platform API' });
+});
+
+
+//Routes for user management
+app.use('/api', userRoutes);
+
+// const formatToEnum = (value) => {
+//   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+// };
+
+
 // TODO: Import and use route modules
-// app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/users', require('./routes/users'));
-// app.use('/api/tutors', require('./routes/tutors'));
-// app.use('/api/students', require('./routes/students'));
-// app.use('/api/sessions', require('./routes/sessions'));
-// app.use('/api/courses', require('./routes/courses'));
+// import authRoutes from './routes/auth.js';
+// import userRoutes from './routes/users.js';
+// import tutorRoutes from './routes/tutors.js';
+// import studentRoutes from './routes/students.js';
+// import sessionRoutes from './routes/sessions.js';
+// import courseRoutes from './routes/courses.js';
+// 
+// app.use('/api/auth', authRoutes);
+// app.use('/api/users', userRoutes);
+// app.use('/api/tutors', tutorRoutes);
+// app.use('/api/students', studentRoutes);
+// app.use('/api/sessions', sessionRoutes);
+// app.use('/api/courses', courseRoutes);
 
 // Error handling middleware
+
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
   
@@ -88,14 +136,22 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received. Shutting down gracefully...');
+  await prisma.$disconnect();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received. Shutting down gracefully...');
+  await prisma.$disconnect();
   process.exit(0);
 });
 
-module.exports = app;
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+export default app;
