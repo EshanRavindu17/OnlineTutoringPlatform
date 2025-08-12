@@ -33,10 +33,16 @@ export default function Navbar() {
     { to: '/tutorcalender',     label: 'Schedule Meeting'},
   ];
 
+  const IndividualLinks = [
+    { to: '/addnewcourse', label: 'Create Course' },
+    { to: '/mycourses',     label: 'My Courses'},
+    { to: '/tutorcalender',     label: 'Schedule Meeting'},
+  ];
+
   // Pick the right extras
   let extraLinks = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
-  if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
+  if (userProfile?.role === 'Individual')   extraLinks = IndividualLinks;
   if (userProfile?.role === 'Mass')   extraLinks = tutorLinks;
 
   // Profile path
