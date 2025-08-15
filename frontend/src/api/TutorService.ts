@@ -54,6 +54,7 @@ export interface TutorFilters {
 export const tutorService = {
   // Get individual tutors with filters
   getIndividualTutors: async (filters: TutorFilters = {}): Promise<IndividualTutor[]> => {
+    console.log('Fetching individual tutors with filters:', filters);
     try {
       const params = new URLSearchParams();
       
@@ -89,6 +90,7 @@ export const tutorService = {
 
   // Get titles for a specific subject
   getTitlesBySubject: async (subjectId: string): Promise<Title[]> => {
+    console.log('Fetching titles for subject:', subjectId);
     try {
       const response = await apiClient.get(`/individual-tutor/titles/${subjectId}`);
       return response.data;
