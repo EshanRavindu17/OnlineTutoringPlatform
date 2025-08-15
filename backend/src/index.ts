@@ -14,7 +14,12 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 import prisma from './prismaClient';
+
+
+//importing routes
 import userRoutes from './routes/userRoutes';
+import studentRoutes from './routes/studentsRoutes';
+import individualTutorRoutes from './routes/individualTutorRouter';
 
 dotenv.config();
 
@@ -79,6 +84,12 @@ app.use('/api', userRoutes);
 
 // Register routes
 app.use('/api', userRoutes);
+
+//Student Routes
+app.use('/student', studentRoutes);
+
+//Individual Tutor Routes
+app.use('/individual-tutor', individualTutorRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
