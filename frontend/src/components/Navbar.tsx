@@ -1,7 +1,7 @@
 // src/components/Navbar
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -16,6 +16,70 @@ export default function Navbar() {
 
   const toggleMenu = () => setIsMenuOpen(open => !open);
 
+  // Helper function to get user's initials
+  const getUserInitials = (name: string) => {
+    if (!name) return 'U'; // Default to 'U' for User
+    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Helper function to generate a consistent color based on name
+  const getInitialsColor = (name: string) => {
+    const colors = [
+      'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 
+      'bg-indigo-500', 'bg-red-500', 'bg-yellow-500', 'bg-teal-500'
+    ];
+    const index = name ? name.charCodeAt(0) % colors.length : 0;
+    return colors[index];
+  };
+
+  // Profile Image Component for Navbar
+  const ProfileImage = ({ 
+    src, 
+    alt, 
+    name, 
+    className = "w-8 h-8", 
+    textClassName = "text-sm",
+    showPlaceholder = false 
+  }: {
+    src?: string;
+    alt: string;
+    name: string;
+    className?: string;
+    textClassName?: string;
+    showPlaceholder?: boolean;
+  }) => {
+    const [imageError, setImageError] = useState(false);
+    const hasValidImage = src && !imageError;
+    
+    // If we have a valid image, show it
+    if (hasValidImage) {
+      return (
+        <img
+          src={src}
+          alt={alt}
+          className={`${className} rounded-full object-cover border-2 border-gray-200`}
+          onError={() => setImageError(true)}
+        />
+      );
+    }
+    
+    // If showPlaceholder is true, show placeholder icon instead of initials
+    if (showPlaceholder) {
+      return (
+        <div className={`${className} rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200`}>
+          <User className="w-4 h-4 text-gray-400" />
+        </div>
+      );
+    }
+    
+    // Otherwise show initials
+    return (
+      <div className={`${className} rounded-full ${getInitialsColor(name)} flex items-center justify-center text-white font-bold ${textClassName} border-2 border-gray-200`}>
+        {getUserInitials(name)}
+      </div>
+    );
+  };
+
   // Common navigation items
   const commonLinks = [
     { to: '/',        label: 'Home'       },
@@ -24,7 +88,6 @@ export default function Navbar() {
 
   // Role-specific items
   const studentLinks = [
-    { to: '/studentcourses', label: 'My Courses' },
     { to: '/stripe-payment', label: 'Payments'   },
   ];
 
@@ -108,7 +171,7 @@ export default function Navbar() {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <span className="text-blue-600 font-bold text-xl">
-                  <img src={logo} alt="LearnConnect" className="h-30" />
+                  <a href="/"><img src={logo} alt="LearnConnect" className="h-30" /></a>
                 </span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -126,9 +189,16 @@ export default function Navbar() {
                 <>
                   <NavLink
                     to={profilePath}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                   >
-                    Profile
+                    <ProfileImage
+                      src={userProfile?.photo_url || currentUser?.photoURL || undefined}
+                      alt="Profile"
+                      name={userProfile?.name || currentUser?.displayName || 'User'}
+                      className="w-8 h-8"
+                      textClassName="text-sm"
+                    />
+                    <span>Profile</span>
                   </NavLink>
                   <button
                     onClick={handleSignOutClick}
@@ -192,9 +262,16 @@ export default function Navbar() {
                         navigate(profilePath);
                         setIsMenuOpen(false);
                       }}
-                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                      className="flex items-center space-x-3 flex-1 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                     >
-                      Profile
+                      <ProfileImage
+                        src={userProfile?.photo_url || currentUser?.photoURL || undefined}
+                        alt="Profile"
+                        name={userProfile?.name || currentUser?.displayName || 'User'}
+                        className="w-8 h-8"
+                        textClassName="text-sm"
+                      />
+                      <span>Profile</span>
                     </button>
                     <button
                       onClick={handleSignOutClick}

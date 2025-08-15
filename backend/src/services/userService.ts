@@ -165,3 +165,15 @@ export const validateUserRoleAndEmail = async (email: string, role: string) => {
     throw new Error(`Failed to validate user: ${error.message}`);
   }
 };
+
+  // export const updateStudentProfile = async (id:string ,name: string, img: string) => {
+  //     try{
+  //         const updatedProfile = await prisma.user.update({
+  //             where: { id },
+  //             data: { name, photo_url: img }
+  //         });
+  //         return updatedProfile;
+  //     } catch (error) {
+  //         throw new Error('Failed to update student profile');
+  //     }
+  // };
