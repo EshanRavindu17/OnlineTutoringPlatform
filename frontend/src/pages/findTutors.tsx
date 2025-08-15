@@ -124,8 +124,20 @@ export default function FindTutorsPage() {
     setError(null);
     
     try {
+      // Convert subject IDs to subject names for the API
+      const selectedSubjectNames = selectedSubjects.length > 0 
+        ? subjects
+            .filter(subject => selectedSubjects.includes(subject.sub_id))
+            .map(subject => subject.name)
+            .join(',')
+        : undefined;
+      
+      console.log('Selected subject IDs:', selectedSubjects);
+      console.log('Converted subject names for API:', selectedSubjectNames);
+      console.log('Selected title names:', selectedTitles);
+      
       const filters = {
-        subjects: selectedSubjects.length > 0 ? selectedSubjects.join(',') : undefined,
+        subjects: selectedSubjectNames,
         titles: selectedTitles.length > 0 ? selectedTitles.join(',') : undefined,
         min_hourly_rate: hourlyRateRange[0],
         max_hourly_rate: hourlyRateRange[1],
