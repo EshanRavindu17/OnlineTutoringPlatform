@@ -1,8 +1,9 @@
 // routes/userRoutes
 import express from 'express';
-import { getUserByUid, addUser, checkRole, getUsers } from '../controllers/userController'; 
+import { getUserByUid, addUser, checkRole, getUsers, updateUser, uploadImage } from '../controllers/userController'; 
 import { verifyFirebaseTokenSimple } from '../middleware/authMiddlewareSimple';
 import { bypassAuth } from '../middleware/authBypass';
+import upload from '../config/multer';
 
 const router = express.Router();
 
@@ -23,5 +24,10 @@ router.get('/user/:uid', bypassAuth, getUserByUid); // Get user by Firebase UID 
 // POST routes
 router.post('/add-user', addUser); // Create or update user
 router.post('/check-role', checkRole); // Validate user role and email
+
+router.post('/update-profile/:uid', bypassAuth, upload.single('profileImage'), updateUser); // Update user profile with optional image
+
+// Alternative route for uploading image only
+router.post('/upload-image/:uid', bypassAuth, upload.single('profileImage'), uploadImage); // Upload profile image only
 
 export default router;
