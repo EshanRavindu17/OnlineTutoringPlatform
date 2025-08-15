@@ -84,9 +84,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       while (retries > 0) {
         try {
+          // Get the ID token from Firebase for backend verification
+          const idToken = await user.getIdToken();
+          console.log('🔑 Got Firebase ID token, length:', idToken.length);
+          console.log('🔑 Token preview:', idToken.substring(0, 100) + '...');
+          
           const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            }
           });
 
           if (response.ok) {
