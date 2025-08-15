@@ -65,9 +65,10 @@ model Individual_Tutor {
   subjects        String[]          @db.VarChar
   titles          String[]          @db.VarChar
   hourly_rate     Decimal?          @db.Decimal(10, 2)
-  raiting         Decimal?          @db.Decimal(3, 1)
+  rating         Decimal?          @db.Decimal(3, 1)
   user_id         String?           @db.Uuid
   description     String?
+  heading         String?
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
 }
@@ -75,9 +76,10 @@ model Individual_Tutor {
 model Mass_Tutor {
   m_tutor_id  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subjects    String[] @db.VarChar
-  raiting     Decimal? @db.Decimal(3, 1)
+  rating     Decimal? @db.Decimal(3, 1)
   prices      Decimal? @db.Decimal(10, 2)
   description String?
+  heading     String?
   user_id     String   @db.Uuid
   User        User     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
@@ -96,9 +98,9 @@ model Rating_N_Review_Session {
   r_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id String?   @db.Uuid
   session_id String?   @db.Uuid
-  raiting    Decimal?  @db.Decimal(3, 1)
+  rating    Decimal?  @db.Decimal(3, 1)
   review     String?
-  Sessions   Sessions? @relation(fields: [session_id], references: [session_id], onDelete: NoAction, map: "session_raiting_review")
+  Sessions   Sessions? @relation(fields: [session_id], references: [session_id], onDelete: NoAction, map: "session_rating_review")
   Student    Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_rating_review")
 }
 
