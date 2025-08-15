@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/authBypass';
 import {
   findUserByFirebaseUid,
   createOrUpdateUser,
@@ -15,7 +16,7 @@ import {
  * Get user by Firebase UID
  * GET /api/users/:uid
  */
-export const getUserByUid = async (req: Request, res: Response): Promise<Response> => {
+export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
     const { uid } = req.params;
     console.log("🔎 Fetching DB user for UID:", uid);
@@ -23,6 +24,13 @@ export const getUserByUid = async (req: Request, res: Response): Promise<Respons
     if (!uid) {
       return res.status(400).json({ 
         error: 'Firebase UID is required' 
+      });
+    }
+
+    // Verify the requesting user matches the UID or has admin privileges
+    if (req.user?.uid !== uid) {
+      return res.status(403).json({ 
+        error: 'Access denied: You can only access your own profile' 
       });
     }
 
