@@ -131,6 +131,9 @@ export default function AuthPage() {
           );
           console.log('User signed in successfully:', user);
           
+          // Store userType in localStorage for persistence
+          localStorage.setItem('userType', selectedRole);
+          
           // Navigate based on role
           if (selectedRole === 'student') {
             navigate('/studentprofile');
@@ -171,6 +174,9 @@ export default function AuthPage() {
           const err = await response.json();
           throw new Error(err.detail || 'Failed to save user to DB');
         }
+
+        // Store userType in localStorage for persistence
+        localStorage.setItem('userType', userType);
 
         await sendEmailVerification(newUser, {
           url: "https://learnconnect.com/finishSignUp",
@@ -258,10 +264,10 @@ export default function AuthPage() {
     const savedUser = await response.json();
     console.log('✅ Saved Google user to DB:', savedUser);
 
-    // ✅ Set user type and role only — let useEffect handle redirection
+    // ✅ Set user type and role — persist for better UX
     setUserType('student');
     setSelectedRole('student');
-    localStorage.setItem('userType', 'student'); // Optional: persist role
+    localStorage.setItem('userType', 'student'); // Persist role for user experience
 
     } catch (err: any) {
       console.error('❌ Google sign-in error:', err);
@@ -307,6 +313,9 @@ export default function AuthPage() {
         await signOut(auth);
         throw new Error(errJson.detail || 'Failed to register/login');
       }
+
+      // Store userType in localStorage for persistence
+      localStorage.setItem('userType', 'student');
 
       console.log('Microsoft sign in successful:', result.user);
     } catch (error) {
