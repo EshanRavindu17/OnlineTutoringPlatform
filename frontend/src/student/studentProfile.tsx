@@ -12,16 +12,20 @@ import {
   XCircle,
   AlertCircle,
   CreditCard,
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/authContext';
 import { updateStudentProfile } from '../api/Student';
+import { useToast } from '../components/Toast';
 
 const StudentProfile: React.FC = () => {
   const { currentUser, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const { showToast, ToastContainer } = useToast();
 
   const [image, setImage] = useState<File | null>(null);
 
@@ -96,32 +100,54 @@ const StudentProfile: React.FC = () => {
     firebase_uid: userProfile?.firebase_uid || currentUser?.uid || "",
     name: userProfile?.name || currentUser?.displayName || "",
     email: userProfile?.email || currentUser?.email || "",
-    dateOfBirth: userProfile?.dob || "",
-    bio: userProfile?.bio || "",
     photo_url: userProfile?.photo_url || "",
     role: userProfile?.role || "student"
   });
 
 
   //For update Student Profile 
-
   const updateStudent = async () => {
-    console.log('Updating student profile...',studentData);
+    console.log('Updating student profile...', studentData);
+    
+    // Validation
+    if (!studentData.name.trim()) {
+      showToast('Please enter your name', 'error');
+      return;
+    }
+
+    setUpdateLoading(true);
+    
     try {
       const updatedProfile = await updateStudentProfile({
         firebase_uid: studentData.firebase_uid,
         name: studentData.name,
         email: studentData.email,
-        dob: studentData.dateOfBirth,
-        bio: studentData.bio,
         profileImage: image,
         role: studentData.role
       });
+      
       console.log('Profile updated successfully:', updatedProfile);
-      alert('Profile updated successfully!');
-    } catch (error) {
+      
+      // Update local state with new data if photo was uploaded
+      if (image && updatedProfile.photo_url) {
+        setStudentData(prev => ({
+          ...prev,
+          photo_url: updatedProfile.photo_url || ""
+        }));
+        setImage(null); // Clear the file input
+      }
+      
+      showToast('Profile updated successfully! 🎉', 'success');
+      
+    } catch (error: any) {
       console.error('Failed to update profile:', error);
-      alert('Failed to update profile. Please try again.');
+      
+      // Show specific error message or generic fallback
+      const errorMessage = error.message || 'Failed to update profile. Please try again.';
+      showToast(errorMessage, 'error');
+      
+    } finally {
+      setUpdateLoading(false);
     }
   }
 
@@ -300,11 +326,21 @@ const StudentProfile: React.FC = () => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // TODO: Upload to Cloudinary and get URL
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select a valid image file', 'error');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image size must be less than 5MB', 'error');
+        return;
+      }
+      
       console.log('File selected:', file);
       setImage(file);
-      // For now, we'll just log the file
-      // You'll need to implement Cloudinary upload here
+      showToast('Image selected. Click Save Changes to upload.', 'info');
     }
   };
 
@@ -316,8 +352,6 @@ const StudentProfile: React.FC = () => {
         firebase_uid: userProfile?.firebase_uid || currentUser?.uid || "",
         name: userProfile?.name || currentUser?.displayName || "",
         email: userProfile?.email || currentUser?.email || "",
-        dateOfBirth: userProfile?.dob || "",
-        bio: userProfile?.bio || "",
         photo_url: userProfile?.photo_url || currentUser?.photoURL || "https://t3.ftcdn.net/jpg/06/33/54/78/240_F_633547842_AugYzexTpMJ9z1YcpTKUBoqBF0CUCk10.jpg",
         role: userProfile?.role || "student"
       });
@@ -662,6 +696,7 @@ const StudentProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Navbar />
+      <ToastContainer />
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <ProfileHeader />
         
@@ -768,13 +803,20 @@ const StudentProfile: React.FC = () => {
                   Profile Picture
                 </label>
                 <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                  <ProfileImage
-                    src={studentData.photo_url}
-                    alt="Profile"
-                    name={studentData.name || currentUser?.displayName || 'User'}
-                    className="w-20 h-20 sm:w-24 sm:h-24"
-                    textClassName="text-xl sm:text-2xl"
-                  />
+                  <div className="relative">
+                    <ProfileImage
+                      src={image ? URL.createObjectURL(image) : studentData.photo_url}
+                      alt="Profile"
+                      name={studentData.name || currentUser?.displayName || 'User'}
+                      className="w-20 h-20 sm:w-24 sm:h-24"
+                      textClassName="text-xl sm:text-2xl"
+                    />
+                    {image && (
+                      <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                        New
+                      </div>
+                    )}
+                  </div>
                   <div className="text-center sm:text-left">
                     <input
                       type="file"
@@ -782,14 +824,24 @@ const StudentProfile: React.FC = () => {
                       onChange={handleImageUpload}
                       className="hidden"
                       id="profile-upload"
+                      disabled={updateLoading}
                     />
                     <label
                       htmlFor="profile-upload"
-                      className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 border-2 border-blue-300 rounded-xl shadow-md text-sm sm:text-lg font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 cursor-pointer transition-all duration-300"
+                      className={`inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 border-2 rounded-xl shadow-md text-sm sm:text-lg font-semibold cursor-pointer transition-all duration-300 ${
+                        updateLoading 
+                          ? 'border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed' 
+                          : 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400'
+                      }`}
                     >
                       <Camera className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                      Choose Photo
+                      {image ? 'Change Photo' : 'Choose Photo'}
                     </label>
+                    {image && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        Selected: {image.name}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -800,10 +852,24 @@ const StudentProfile: React.FC = () => {
                   onClick={() => {
                     updateStudent(); 
                   }}
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl text-base sm:text-lg font-semibold"
+                  disabled={updateLoading}
+                  className={`w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl text-base sm:text-lg font-semibold flex items-center justify-center ${
+                    updateLoading 
+                      ? 'bg-gray-400 cursor-not-allowed text-white' 
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+                  }`}
                 >
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 inline mr-2" />
-                  Save Changes
+                  {updateLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </button>
               </div>
             </div>
