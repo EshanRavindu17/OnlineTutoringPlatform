@@ -18,7 +18,8 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 
-// Set persistence - change to browserSessionPersistence for session-only auth
+// Set persistence to localStorage for better user experience
+// Firebase will store refresh tokens and handle automatic token refresh
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error('Failed to set auth persistence:', error);
 });

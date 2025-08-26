@@ -75,59 +75,89 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // }, []);
 
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      setCurrentUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
 
-      let retries = 5;
-      let profileData = null;
+        let retries = 3;
+        let profileData = null;
 
-      while (retries > 0) {
-        try {
-          // Get the ID token from Firebase for backend verification
-          const idToken = await user.getIdToken();
-          console.log('🔑 Got Firebase ID token, length:', idToken.length);
-          console.log('🔑 Token preview:', idToken.substring(0, 100) + '...');
-          
-          const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
-            method: 'GET',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`
+        while (retries > 0) {
+          try {
+            // Check if we need fresh token or can use cached one
+            let idToken;
+            try {
+              // First try with cached token
+              idToken = await user.getIdToken(false);
+              
+              // Validate token expiration
+              const payload = JSON.parse(atob(idToken.split('.')[1]));
+              const currentTime = Date.now() / 1000;
+              
+              // If token expires in next 5 minutes, get fresh one
+              if (payload.exp <= (currentTime + 300)) {
+                console.log('🔄 Token expiring soon, refreshing...');
+                idToken = await user.getIdToken(true);
+              }
+            } catch {
+              // If validation fails, get fresh token
+              idToken = await user.getIdToken(true);
             }
-          });
 
-          if (response.ok) {
-            profileData = await response.json();
-            break;
+            console.log('🔑 Using Firebase ID token, expires at:', 
+              new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
+            
+            const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
+              method: 'GET',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+              }
+            });
+
+            if (response.ok) {
+              profileData = await response.json();
+              console.log('✅ User profile loaded successfully');
+              break;
+            } else if (response.status === 401) {
+              console.warn('🚫 Authentication failed, will retry with fresh token...');
+              // Force refresh on next retry
+              await user.getIdToken(true);
+            } else {
+              console.error('❌ Profile fetch failed:', response.status, response.statusText);
+            }
+          } catch (err) {
+            console.error('❌ Retry fetch user profile failed:', err);
           }
-        } catch (err) {
-          console.error('Retrying fetch user profile failed:', err);
+
+          retries--;
+          if (retries > 0) {
+            await new Promise(res => setTimeout(res, 1000)); // wait 1 second before retry
+          }
         }
 
-        retries--;
-        await new Promise(res => setTimeout(res, 1000)); // wait 1 second before retry
-      }
-
-      if (profileData) {
-        setUserProfile(profileData);
+        if (profileData) {
+          setUserProfile(profileData);
+          // Store userType in localStorage for persistence
+          localStorage.setItem('userType', profileData.role);
+          console.log('✅ User profile loaded and userType stored:', profileData.role);
+        } else {
+          console.error('❌ Failed to fetch user profile after retries');
+          setUserProfile(null);
+        }
       } else {
-        console.error('Failed to fetch user profile after retries');
+        setCurrentUser(null);
         setUserProfile(null);
+        // Clear userType from localStorage when user signs out
+        localStorage.removeItem('userType');
+        console.log('👋 User signed out, userType cleared');
       }
 
-  
+      setLoading(false);
+    });
 
-    } else {
-      setCurrentUser(null);
-      setUserProfile(null);
-    }
-
-    setLoading(false);
-  });
-
-  return unsubscribe;
-}, []);
+    return unsubscribe;
+  }, []);
 
 
   const value = {
