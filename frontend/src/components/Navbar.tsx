@@ -84,12 +84,12 @@ export default function Navbar() {
   const commonLinks = [
     { to: '/',        label: 'Home'       },
     { to: '/findtutors', label: 'Find Tutors' },
-    { to: '/about', label: 'About Us' }
   ];
 
   // Role-specific items
   const studentLinks = [
     { to: '/stripe-payment', label: 'Payments'   },
+    { to: '/mycalendar', label: 'My Calendar' },
   ];
 
   const tutorLinks = [
@@ -97,6 +97,10 @@ export default function Navbar() {
     { to: '/mycourses',     label: 'My Courses'},
     { to: '/tutorcalender',     label: 'Schedule Meeting'},
   ];
+
+  const LastLink =[
+    { to: '/about', label: 'About Us' }
+  ]
 
   // Pick the right extras
   let extraLinks: { to: string; label: string }[] = [];
@@ -183,6 +187,13 @@ export default function Navbar() {
               {/* Navigation Links */}
               <div className="flex items-center space-x-1 mr-8">
                 {commonLinks.concat(extraLinks).map(({ to, label }) => (
+                  <NavLink key={to} to={to} className={desktopClass}>
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+              <div className="hidden lg:flex lg:items-center lg:space-x-2">
+                {LastLink.map(({ to, label }) => (
                   <NavLink key={to} to={to} className={desktopClass}>
                     {label}
                   </NavLink>

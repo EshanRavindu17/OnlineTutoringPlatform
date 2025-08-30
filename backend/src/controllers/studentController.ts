@@ -13,6 +13,8 @@ export const getAllIndividualTutorsController = async (req: Request, res: Respon
         rating,
         description,
         sort,
+        page,
+        limit
     } = req.query;
 
     const tutors = await getAllIndividualTutors(
@@ -22,7 +24,10 @@ export const getAllIndividualTutorsController = async (req: Request, res: Respon
         Number(max_hourly_rate),
         Number(rating),
         sort as string
+        ,Number(page),
+        Number(limit)
     );
 
+    console.log('Fetched tutors:', tutors);
     return res.json(tutors);
 };
