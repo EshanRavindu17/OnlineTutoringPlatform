@@ -23,6 +23,7 @@ import { StudentRoute } from './context/protectRoute';
 import LesssonUpload from './tutor/anotherLessonUpload';
 import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
+import AboutUs from './pages/aboutUs';
 
 const App = () => {
   return (
@@ -35,6 +36,7 @@ const App = () => {
           <Route path="/selectuser/student" element={<SignupForm role="student" />} />
           <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
           <Route path="/selectuser/mass" element={<SignupForm role="Mass" />} />
+          <Route path= "/about" element={<AboutUs />} />
 
           
           <Route path="/tutorlists" element={<TutorList/>} />
