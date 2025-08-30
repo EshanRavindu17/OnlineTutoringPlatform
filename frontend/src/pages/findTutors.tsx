@@ -53,6 +53,11 @@ export default function FindTutorsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalTutors, setTotalTutors] = useState(0);
+  const [tutorsPerPage] = useState(6); // Fixed number of tutors per page
+  
   // Data from API
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [titles, setTitles] = useState<TitleWithSubject[]>([]);
@@ -144,12 +149,23 @@ export default function FindTutorsPage() {
         rating: minRating > 0 ? minRating : undefined,
         sort: (sortBy === 'rating' ? 'rating_desc' : 
               sortBy === 'hourly_rate_asc' ? 'price_asc' : 
-              sortBy === 'hourly_rate_desc' ? 'price_desc' : 'rating_desc') as 'rating_desc' | 'price_asc' | 'price_desc' | 'rating_asc' | 'all'
+              sortBy === 'hourly_rate_desc' ? 'price_desc' : 'rating_desc') as 'rating_desc' | 'price_asc' | 'price_desc' | 'rating_asc' | 'all',
+        page: currentPage,
+        limit: tutorsPerPage
       };
 
       const backendTutors = await tutorService.getIndividualTutors(filters);
       const convertedTutors = convertBackendToFrontend(backendTutors);
       setTutors(convertedTutors);
+      
+      // If we got fewer tutors than requested, we're on the last page
+      // This is a simple way to handle pagination without total count from backend
+      if (backendTutors.length < tutorsPerPage) {
+        setTotalTutors((currentPage - 1) * tutorsPerPage + backendTutors.length);
+      } else {
+        // Estimate total based on current page - this is not perfect but works for basic pagination
+        setTotalTutors(currentPage * tutorsPerPage + 1); // +1 to indicate there might be more
+      }
     } catch (err) {
       setError('Failed to fetch tutors. Please try again.');
       console.error('Error fetching tutors:', err);
@@ -222,6 +238,13 @@ export default function FindTutorsPage() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage]);
+
+  // Effect to reset to page 1 when filters change (excluding currentPage itself)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy]);
 
   // Effect to fetch subjects on component mount
@@ -283,6 +306,7 @@ export default function FindTutorsPage() {
     setMinRating(0);
     setSortBy('rating');
     setSearchQuery('');
+    setCurrentPage(1);
   };
 
   const toggleSaveTutor = (tutorId: string) => {
@@ -309,12 +333,13 @@ export default function FindTutorsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
-      
-      <div className="container mx-auto px-4 py-8">
+
+       {/* heading section */}
+      <div className="container mx-auto px-4 py-8 ">
         {/* Page Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Find Your Perfect Tutor</h1>
-          <p className="text-xl text-gray-600">Connect with qualified tutors for personalized learning</p>
+        <div className="text-center mb-8 bg-gradient-to-bl from-blue-500 to-purple-500 p-10 rounded-lg">
+          <h1 className="text-4xl font-bold text-white mb-4">Find Your Perfect Tutor</h1>
+          <p className="text-xl text-white">Connect with qualified tutors for personalized learning</p>
         </div>
 
         {/* Tutor Type Selection */}
@@ -551,7 +576,12 @@ export default function FindTutorsPage() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800">
-                {filteredTutors.length} {tutorType} Tutor{filteredTutors.length !== 1 ? 's' : ''} Found
+                {loading ? 'Loading...' : `${filteredTutors.length} ${tutorType} Tutor${filteredTutors.length !== 1 ? 's' : ''} Found`}
+                {!loading && totalTutors > tutorsPerPage && (
+                  <span className="text-lg font-normal text-gray-600 ml-2">
+                    (Page {currentPage})
+                  </span>
+                )}
               </h2>
               <div className="flex items-center space-x-2">
                 <SlidersHorizontal className="w-5 h-5 text-gray-400" />
@@ -699,6 +729,92 @@ export default function FindTutorsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && !error && filteredTutors.length > 0 && (
+              <div className="mt-8 flex justify-center">
+                <div className="flex items-center space-x-2">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                      currentPage === 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-300'
+                    }`}
+                  >
+                    Previous
+                  </button>
+
+                  {/* Page Numbers */}
+                  {(() => {
+                    const maxPages = Math.ceil(totalTutors / tutorsPerPage);
+                    const pages = [];
+                    const startPage = Math.max(1, currentPage - 2);
+                    const endPage = Math.min(maxPages, startPage + 4);
+
+                    // Show first page if not in range
+                    if (startPage > 1) {
+                      pages.push(1);
+                      if (startPage > 2) {
+                        pages.push('...');
+                      }
+                    }
+
+                    // Show page numbers in range
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(i);
+                    }
+
+                    // Show last page if not in range
+                    if (endPage < maxPages) {
+                      if (endPage < maxPages - 1) {
+                        pages.push('...');
+                      }
+                      pages.push(maxPages);
+                    }
+
+                    return pages.map((page, index) => (
+                      <button
+                        key={index}
+                        onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                        disabled={page === '...' || page === currentPage}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                          page === currentPage
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : page === '...'
+                            ? 'bg-transparent text-gray-400 cursor-default'
+                            : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ));
+                  })()}
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={tutors.length < tutorsPerPage}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                      tutors.length < tutorsPerPage
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-300'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Results Info */}
+            {!loading && !error && filteredTutors.length > 0 && (
+              <div className="mt-6 text-center text-sm text-gray-600">
+                Showing {((currentPage - 1) * tutorsPerPage) + 1} to {Math.min(currentPage * tutorsPerPage, totalTutors)} of {totalTutors}+ results
               </div>
             )}
           </div>

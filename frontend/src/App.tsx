@@ -24,6 +24,7 @@ import LesssonUpload from './tutor/anotherLessonUpload';
 import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
+import MyCalendarPage from './pages/myCalender';
 
 const App = () => {
   return (
@@ -49,10 +50,10 @@ const App = () => {
         <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
           <Route path="/stripe-payment" element={<StripePaymentPage />} />
-          
+          <Route path="/mycalendar" element={<MyCalendarPage />} />
         </Route>
 
-
+       
         <Route element={<TutorRoute />}>
           <Route path="/addnewcourse" element={<AddNewCourse/>}/>
           <Route path="/tutorprofile" element={<TutorProfile/>}/>
