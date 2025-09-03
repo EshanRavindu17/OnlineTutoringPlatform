@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Filter, 
@@ -18,6 +19,8 @@ import NavBar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { tutorService, IndividualTutor, Subject, Title, TitleWithSubject } from '../api/TutorService';
 
+import { useAuth } from '../context/authContext';
+
 interface Tutor {
   id: string;
   name: string;
@@ -35,6 +38,10 @@ interface Tutor {
 }
 
 export default function FindTutorsPage() {
+  const navigate = useNavigate();
+
+  const { currentUser } = useAuth();
+
   // Main filters
   const [tutorType, setTutorType] = useState<'Individual' | 'Mass'>('Individual');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -718,10 +725,16 @@ export default function FindTutorsPage() {
 
                         {/* Action Buttons */}
                         <div className="flex flex-col sm:flex-row gap-3">
-                          <button className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold">
+                          <button 
+                            onClick={() => {navigate(`/tutor-profile/${tutor.id}`)}}
+                            className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                          >
                             View Profile
                           </button>
-                          <button className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                          <button 
+                            onClick={() => {currentUser? navigate(`/book-session/${tutor.id}`) : navigate('/auth')}}
+                            className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                          >
                             {tutor.type === 'Individual' ? 'Book Session' : 'Join Class'}
                           </button>
                         </div>

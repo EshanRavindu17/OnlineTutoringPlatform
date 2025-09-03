@@ -14,9 +14,9 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import NavBar from '../components/Navbar';
-import Footer from '../components/Footer';
-import { useAuth } from '../context/authContext';
+import NavBar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import { useAuth } from '../../context/authContext';
 
 // Types for calendar events
 interface CalendarEvent {
