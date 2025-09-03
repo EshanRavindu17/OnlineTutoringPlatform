@@ -8,7 +8,7 @@ import FindTutors from './pages/findTutors'
 import AddNewCourse from './tutor/createNewCourse'
 import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
-import StudentProfile from './student/studentProfile';
+import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
@@ -24,12 +24,17 @@ import LesssonUpload from './tutor/anotherLessonUpload';
 import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
-import MyCalendarPage from './pages/myCalender';
+import MyCalendarPage from './pages/student/myCalender';
+import TutorProfilePage from './pages/student/tutorProfile';
+import BookSessionPage from './pages/student/bookSession';
+import ReportTutorPage from './pages/student/reportTutor';
+import ScrollToTop from './components/scrollToUp';
 
 const App = () => {
   return (
     <Router>
       <div>
+        <ScrollToTop/>
         <Routes> 
           <Route path="/" element={<WelcomePage />} />
           <Route path="/auth" element={<Auth/>} />   
@@ -43,6 +48,9 @@ const App = () => {
           <Route path="/tutorlists" element={<TutorList/>} />
           <Route path="/studentlists" element={<StudentLists/>}/>
           <Route path="/findtutors" element={<FindTutors/>}/>
+          <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
+          <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
+          <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
           <Route path="/courses" element={<Courses/>}/>
 
 

@@ -13,13 +13,16 @@ import {
   AlertCircle,
   CreditCard,
   MapPin,
-  Loader2
+  Loader2,
+  Flag,
+  FileText,
+  Eye
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import { useAuth } from '../context/authContext';
-import { updateStudentProfile } from '../api/Student';
-import { useToast } from '../components/Toast';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import { useAuth } from '../../context/authContext';
+import { updateStudentProfile } from '../../api/Student';
+import { useToast } from '../../components/Toast';
 
 const StudentProfile: React.FC = () => {
   const { currentUser, userProfile, loading: authLoading } = useAuth();
@@ -317,6 +320,46 @@ const StudentProfile: React.FC = () => {
       reason: "Tutor was sick",
       cancelledBy: "Tutor",
       refunded: true
+    }
+  ]);
+
+  // Reports Data - Reports submitted by student
+  const [submittedReports] = useState([
+    {
+      id: 1,
+      tutorName: "Dr. Amanda Wilson",
+      tutorId: "tutor-123",
+      reportReason: "Inappropriate behavior",
+      reportDate: "2025-08-20",
+      description: "The tutor was consistently late to sessions and showed unprofessional behavior during our mathematics tutoring sessions. They were often distracted and did not provide the quality of instruction expected.",
+      status: "Under Review",
+      adminResponse: null,
+      resolvedDate: null,
+      reportId: "RPT-2025-001"
+    },
+    {
+      id: 2,
+      tutorName: "Prof. John Smith",
+      tutorId: "tutor-456",
+      reportReason: "No-show for scheduled sessions",
+      reportDate: "2025-07-15",
+      description: "The tutor failed to show up for three consecutive scheduled physics sessions without any prior notice or communication. This caused significant disruption to my study schedule.",
+      status: "Resolved",
+      adminResponse: "We have investigated this matter and taken appropriate action. The tutor has been suspended pending review. You have been refunded for the missed sessions.",
+      resolvedDate: "2025-07-25",
+      reportId: "RPT-2025-002"
+    },
+    {
+      id: 3,
+      tutorName: "Ms. Sarah Davis",
+      tutorId: "tutor-789",
+      reportReason: "Poor teaching quality",
+      reportDate: "2025-06-10",
+      description: "The chemistry tutor seemed unprepared for sessions and could not adequately explain basic concepts. The teaching methodology was ineffective and did not help improve my understanding.",
+      status: "Closed",
+      adminResponse: "Thank you for your feedback. We have provided additional training to the tutor and implemented quality monitoring measures. We appreciate your patience as we work to improve our services.",
+      resolvedDate: "2025-06-20",
+      reportId: "RPT-2025-003"
     }
   ]);
 
@@ -727,6 +770,17 @@ const StudentProfile: React.FC = () => {
               Sessions
             </button>
             <button
+              onClick={() => setActiveTab('reports')}
+              className={`px-4 sm:px-6 lg:px-8 py-3 sm:py-4 font-semibold text-sm sm:text-base lg:text-lg transition-all duration-300 whitespace-nowrap ${
+                activeTab === 'reports'
+                  ? 'border-b-4 border-blue-600 text-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Flag className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              Reports
+            </button>
+            <button
               onClick={() => setActiveTab('profile')}
               className={`px-4 sm:px-6 lg:px-8 py-3 sm:py-4 font-semibold text-sm sm:text-base lg:text-lg transition-all duration-300 whitespace-nowrap ${
                 activeTab === 'profile'
@@ -772,6 +826,139 @@ const StudentProfile: React.FC = () => {
                 type="cancelled"
               />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center mb-6">
+              <Flag className="w-6 h-6 text-red-600 mr-3" />
+              <h2 className="text-2xl font-bold text-gray-800">My Reports</h2>
+            </div>
+            
+            {submittedReports.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
+                <Flag className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500 text-lg">No reports submitted</p>
+                <p className="text-gray-400 text-sm mt-2">You haven't submitted any tutor reports yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {submittedReports.map((report) => (
+                  <div key={report.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
+                    {/* Report Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                            <Flag className="w-6 h-6 text-red-600" />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800">{report.tutorName}</h3>
+                          <p className="text-sm text-gray-600">Report ID: {report.reportId}</p>
+                          <p className="text-sm text-gray-500">Submitted: {new Date(report.reportDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 sm:mt-0">
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                          report.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                          report.status === 'Resolved' ? 'bg-green-100 text-green-800' :
+                          report.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {report.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Report Reason */}
+                    <div className="mb-4">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-red-800 mb-2">Report Reason</h4>
+                        <p className="text-red-700 font-medium">{report.reportReason}</p>
+                      </div>
+                    </div>
+
+                    {/* Report Description */}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <FileText className="w-4 h-4 mr-1" />
+                        Description
+                      </h4>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-gray-700 leading-relaxed">{report.description}</p>
+                      </div>
+                    </div>
+
+                    {/* Admin Response (if available) */}
+                    {report.adminResponse && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-blue-700 mb-2 flex items-center">
+                          <Eye className="w-4 h-4 mr-1" />
+                          Admin Response
+                        </h4>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <p className="text-blue-800 leading-relaxed">{report.adminResponse}</p>
+                          {report.resolvedDate && (
+                            <p className="text-blue-600 text-sm mt-2 font-medium">
+                              Resolved on: {new Date(report.resolvedDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status Timeline */}
+                    <div className="border-t pt-4">
+                      <div className="flex items-center text-sm text-gray-500 space-x-4">
+                        <span className="flex items-center">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                          Submitted: {new Date(report.reportDate).toLocaleDateString()}
+                        </span>
+                        {report.status === 'Under Review' && (
+                          <span className="flex items-center">
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                            Under Review
+                          </span>
+                        )}
+                        {report.resolvedDate && (
+                          <span className="flex items-center">
+                            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                            {report.status}: {new Date(report.resolvedDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Report Statistics */}
+            {submittedReports.length > 0 && (
+              <div className="mt-8 bg-gray-50 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Report Summary</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-gray-800">{submittedReports.length}</div>
+                    <div className="text-gray-600 text-sm">Total Reports</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {submittedReports.filter(r => r.status === 'Resolved' || r.status === 'Closed').length}
+                    </div>
+                    <div className="text-gray-600 text-sm">Resolved</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {submittedReports.filter(r => r.status === 'Under Review').length}
+                    </div>
+                    <div className="text-gray-600 text-sm">Pending</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
