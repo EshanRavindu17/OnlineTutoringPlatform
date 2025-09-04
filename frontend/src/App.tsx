@@ -15,12 +15,12 @@ import Auth from './pages/auth';
 import FindTutors from './pages/findTutors';
 import AddNewCourse from './tutor/createNewCourse';
 import Courses from './pages/showcourses';
-import StudentProfile from './student/studentProfile';
+import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
 import SheduleMeeting from './tutor/scheduleMeeting';
-import StripePaymentPage from './student/stripePaymentPage';
+// import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from './tutor/uploadvideo';
 import MyCourses from './tutor/mycourses';
@@ -29,6 +29,14 @@ import { TutorRoute, StudentRoute } from './context/protectRoute';
 import LesssonUpload from './tutor/anotherLessonUpload';
 import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
+import AboutUs from './pages/aboutUs';
+import MyCalendarPage from './pages/student/myCalender';
+import TutorProfilePage from './pages/student/tutorProfile';
+import BookSessionPage from './pages/student/bookSession';
+import ReportTutorPage from './pages/student/reportTutor';
+import PaymentDemoPage from './pages/student/paymentDemo';
+import ScrollToTop from './components/scrollToUp';
+import PaymentHistoryPage from './pages/student/paymentHistory';
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
@@ -58,6 +66,7 @@ const App = () => {
       {/* Enable this if you plan to use admin.localhost */}
       { <HostRedirectToAdmin /> }
 
+        <ScrollToTop/>
       <Routes>
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
@@ -66,18 +75,25 @@ const App = () => {
         <Route path="/selectuser/student" element={<SignupForm role="student" />} />
         <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
         <Route path="/selectuser/mass" element={<SignupForm role="Mass" />} />
+          <Route path= "/about" element={<AboutUs />} />
         <Route path="/tutorlists" element={<TutorList />} />
         <Route path="/studentlists" element={<StudentLists />} />
         <Route path="/findtutors" element={<FindTutors />} />
+          <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
+          <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
+          <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
         <Route path="/courses" element={<Courses />} />
 
-        {/* Student-protected routes */}
-        <Route element={<StudentRoute />}>
-          <Route path="/studentprofile" element={<StudentProfile />} />
-          <Route path="/stripe-payment" element={<StripePaymentPage />} />
+          
+        <Route element={<StudentRoute />}>          
+          <Route path="/studentprofile" element={<StudentProfile/>}/>
+          {/* <Route path="/stripe-payment" element={<StripePaymentPage />} /> */}
+          <Route path="/payment-history" element={<PaymentHistoryPage />} />
+          <Route path="/mycalendar" element={<MyCalendarPage />} />
+          <Route path="/payment-demo" element={<PaymentDemoPage />} />
         </Route>
 
-        {/* Tutor-protected routes */}
+       
         <Route element={<TutorRoute />}>
           <Route path="/addnewcourse" element={<AddNewCourse />} />
           <Route path="/tutorprofile" element={<TutorProfile />} />

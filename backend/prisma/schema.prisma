@@ -8,7 +8,6 @@ datasource db {
 }
 
 model User {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name             String             @db.VarChar(255)
   email            String             @unique @db.VarChar(255)
   role             UserRole
@@ -17,6 +16,7 @@ model User {
   created_at       DateTime           @default(now())
   firebase_uid     String             @unique
   photo_url        String?
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   Individual_Tutor Individual_Tutor[]
   Mass_Tutor       Mass_Tutor[]
   Notifications    Notifications[]
@@ -49,8 +49,9 @@ model Free_Time_Slots {
   slot_id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   i_tutor_id       String?           @db.Uuid
   date             DateTime?         @db.Date
-  time             DateTime?         @db.Time(6)
   status           SlotStatus?
+  end_time         DateTime?         @db.Time(6)
+  start_time       DateTime?         @db.Time(6)
   Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
   Sessions         Sessions[]
 }
@@ -63,6 +64,7 @@ model Individual_Payments {
   payment_date_time DateTime? @db.Timestamp(6)
   status            Status?
   method            String?   @db.VarChar
+  payment_intent_id String?
   Student           Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_i_pay_fk")
 }
 
@@ -71,10 +73,12 @@ model Individual_Tutor {
   subjects        String[]          @db.VarChar
   titles          String[]          @db.VarChar
   hourly_rate     Decimal?          @db.Decimal(10, 2)
-  rating         Decimal?          @db.Decimal(3, 1)
   user_id         String?           @db.Uuid
   description     String?
+  rating          Decimal?          @db.Decimal(3, 1)
   heading         String?
+  qualifications  String[]
+  location        String?
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
 }
@@ -82,11 +86,11 @@ model Individual_Tutor {
 model Mass_Tutor {
   m_tutor_id  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subjects    String[] @db.VarChar
-  rating     Decimal? @db.Decimal(3, 1)
   prices      Decimal? @db.Decimal(10, 2)
   description String?
-  heading     String?
   user_id     String   @db.Uuid
+  rating      Decimal? @db.Decimal(3, 1)
+  heading     String?
   User        User     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
 
@@ -104,19 +108,24 @@ model Rating_N_Review_Session {
   r_id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id String?   @db.Uuid
   session_id String?   @db.Uuid
-  rating    Decimal?  @db.Decimal(3, 1)
   review     String?
+  rating     Decimal?  @db.Decimal(3, 1)
   Sessions   Sessions? @relation(fields: [session_id], references: [session_id], onDelete: NoAction, map: "session_rating_review")
   Student    Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_rating_review")
 }
 
 model Reports {
-  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  student_id  String?    @db.Uuid
-  tutor_id    String?    @db.Uuid
-  tutor_type  TutorType?
-  description String?
-  Student     Student?   @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id     String?       @db.Uuid
+  tutor_id       String?       @db.Uuid
+  tutor_type     TutorType?
+  description    String?
+  reason         String?
+  status         ReportStatus?
+  response       String?
+  submitted_date DateTime?     @db.Date
+  resolve_date   DateTime?     @db.Date
+  Student        Student?      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
 }
 
 model Sessions {
@@ -127,6 +136,7 @@ model Sessions {
   end_time                DateTime?                 @db.Time(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
+  price                   Float?
   Rating_N_Review_Session Rating_N_Review_Session[]
   Free_Time_Slots         Free_Time_Slots?          @relation(fields: [slot_id], references: [slot_id], onDelete: NoAction, map: "slot_id")
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
@@ -177,9 +187,15 @@ enum SlotStatus {
 enum Status {
   success
   fail
+  refund
 }
 
 enum TutorType {
   mass
   individual
+}
+
+enum ReportStatus {
+  under_review @map("under review")
+  solve
 }

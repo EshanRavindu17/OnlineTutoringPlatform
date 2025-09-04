@@ -13,13 +13,19 @@ import {
   AlertCircle,
   CreditCard,
   MapPin,
-  Loader2
+  Loader2,
+  Flag,
+  FileText,
+  Eye,
+  MessageSquare,
+  X,
+  Send
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import { useAuth } from '../context/authContext';
-import { updateStudentProfile } from '../api/Student';
-import { useToast } from '../components/Toast';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import { useAuth } from '../../context/authContext';
+import { updateStudentProfile } from '../../api/Student';
+import { useToast } from '../../components/Toast';
 
 const StudentProfile: React.FC = () => {
   const { currentUser, userProfile, loading: authLoading } = useAuth();
@@ -261,7 +267,7 @@ const StudentProfile: React.FC = () => {
     }
   ]);
 
-  const [previousSessions] = useState([
+  const [previousSessions, setPreviousSessions] = useState([
     {
       id: 1,
       subject: "Advanced Mathematics",
@@ -300,6 +306,45 @@ const StudentProfile: React.FC = () => {
       status: "Completed",
       rating: 5,
       feedback: "Great group session with lots of practice tests."
+    },
+    {
+      id: 4,
+      subject: "Chemistry",
+      tutor: "Dr. Emily Johnson",
+      date: "2025-07-28",
+      time: "4:00 PM",
+      duration: "1 hour",
+      type: "Individual",
+      location: "Online - Zoom",
+      status: "Completed",
+      rating: null,
+      feedback: null
+    },
+    {
+      id: 5,
+      subject: "English Literature",
+      tutor: "Prof. James Anderson",
+      date: "2025-07-25",
+      time: "1:00 PM",
+      duration: "2 hours",
+      type: "Individual",
+      location: "Online - Google Meet",
+      status: "Completed",
+      rating: null,
+      feedback: null
+    },
+    {
+      id: 6,
+      subject: "Biology",
+      tutor: "Dr. Lisa Parker",
+      date: "2025-07-22",
+      time: "11:00 AM",
+      duration: "1.5 hours",
+      type: "Group",
+      location: "Online - Zoom",
+      status: "Completed",
+      rating: null,
+      feedback: null
     }
   ]);
 
@@ -320,7 +365,54 @@ const StudentProfile: React.FC = () => {
     }
   ]);
 
+  // Reports Data - Reports submitted by student
+  const [submittedReports] = useState([
+    {
+      id: 1,
+      tutorName: "Dr. Amanda Wilson",
+      tutorId: "tutor-123",
+      reportReason: "Inappropriate behavior",
+      reportDate: "2025-08-20",
+      description: "The tutor was consistently late to sessions and showed unprofessional behavior during our mathematics tutoring sessions. They were often distracted and did not provide the quality of instruction expected.",
+      status: "Under Review",
+      adminResponse: null,
+      resolvedDate: null,
+      reportId: "RPT-2025-001"
+    },
+    {
+      id: 2,
+      tutorName: "Prof. John Smith",
+      tutorId: "tutor-456",
+      reportReason: "No-show for scheduled sessions",
+      reportDate: "2025-07-15",
+      description: "The tutor failed to show up for three consecutive scheduled physics sessions without any prior notice or communication. This caused significant disruption to my study schedule.",
+      status: "Resolved",
+      adminResponse: "We have investigated this matter and taken appropriate action. The tutor has been suspended pending review. You have been refunded for the missed sessions.",
+      resolvedDate: "2025-07-25",
+      reportId: "RPT-2025-002"
+    },
+    {
+      id: 3,
+      tutorName: "Ms. Sarah Davis",
+      tutorId: "tutor-789",
+      reportReason: "Poor teaching quality",
+      reportDate: "2025-06-10",
+      description: "The chemistry tutor seemed unprepared for sessions and could not adequately explain basic concepts. The teaching methodology was ineffective and did not help improve my understanding.",
+      status: "Closed",
+      adminResponse: "Thank you for your feedback. We have provided additional training to the tutor and implemented quality monitoring measures. We appreciate your patience as we work to improve our services.",
+      resolvedDate: "2025-06-20",
+      reportId: "RPT-2025-003"
+    }
+  ]);
+
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Rating and Review Modal State
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -367,6 +459,75 @@ const StudentProfile: React.FC = () => {
         className={`w-4 h-4 ${
           i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
         }`}
+      />
+    ));
+  };
+
+  // Rating and Review Functions
+  const openRatingModal = (session: any) => {
+    setSelectedSession(session);
+    setRating(0);
+    setReview('');
+    setShowRatingModal(true);
+  };
+
+  const closeRatingModal = () => {
+    setShowRatingModal(false);
+    setSelectedSession(null);
+    setRating(0);
+    setReview('');
+  };
+
+  const handleRatingClick = (ratingValue: number) => {
+    setRating(ratingValue);
+  };
+
+  const submitRating = async () => {
+    if (!selectedSession || rating === 0) {
+      showToast('Please provide a rating', 'error');
+      return;
+    }
+
+    if (review.trim().length < 10) {
+      showToast('Please provide a review with at least 10 characters', 'error');
+      return;
+    }
+
+    setSubmittingRating(true);
+    
+    try {
+      // Here you would typically call an API to submit the rating
+      // For now, we'll simulate the API call and update the local state
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      
+      // Update the session with the new rating and review
+      setPreviousSessions(prev => 
+        prev.map(session => 
+          session.id === selectedSession.id 
+            ? { ...session, rating: rating, feedback: review }
+            : session
+        )
+      );
+
+      showToast('Rating and review submitted successfully!', 'success');
+      closeRatingModal();
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      showToast('Failed to submit rating. Please try again.', 'error');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
+  // Render interactive stars for rating modal
+  const renderInteractiveStars = () => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-8 h-8 cursor-pointer transition-colors ${
+          i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300 hover:text-yellow-300'
+        }`}
+        onClick={() => handleRatingClick(i + 1)}
       />
     ));
   };
@@ -603,6 +764,24 @@ const StudentProfile: React.FC = () => {
                 </div>
               )}
 
+              {showRating && !session.rating && session.status === 'Completed' && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-t border-blue-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Share Your Experience</h4>
+                      <p className="text-sm text-gray-600">Rate and review this session to help other students</p>
+                    </div>
+                    <button
+                      onClick={() => openRatingModal(session)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      <Star className="w-4 h-4 mr-2" />
+                      Rate & Review
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {session.reason && (
                 <div className="bg-red-50 rounded-lg p-4 border-t border-red-200">
                   <div className="flex items-center space-x-2 mb-2">
@@ -693,6 +872,123 @@ const StudentProfile: React.FC = () => {
     );
   }
 
+  // Rating Modal Component
+  const RatingModal = () => {
+    if (!showRatingModal || !selectedSession) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Rate & Review Session</h3>
+              <p className="text-sm text-gray-600 mt-1">{selectedSession.subject} with {selectedSession.tutor}</p>
+            </div>
+            <button
+              onClick={closeRatingModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-6">
+            {/* Session Info */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Date:</span>
+                  <div className="font-medium">{new Date(selectedSession.date).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Duration:</span>
+                  <div className="font-medium">{selectedSession.duration}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Type:</span>
+                  <div className="font-medium">{selectedSession.type}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Location:</span>
+                  <div className="font-medium">{selectedSession.location}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rating Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                How would you rate this session?
+              </label>
+              <div className="flex items-center justify-center space-x-2 py-4">
+                {renderInteractiveStars()}
+              </div>
+              {rating > 0 && (
+                <div className="text-center mt-2">
+                  <span className="text-sm text-gray-600">
+                    {rating === 1 && "Poor"}
+                    {rating === 2 && "Fair"}
+                    {rating === 3 && "Good"}
+                    {rating === 4 && "Very Good"}
+                    {rating === 5 && "Excellent"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Review Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Share your experience (optional)
+              </label>
+              <textarea
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                placeholder="Tell other students about your experience with this tutor. What did you like? What could be improved?"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                maxLength={500}
+              />
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {review.length}/500 characters
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="flex flex-col sm:flex-row gap-3 p-6 border-t border-gray-200">
+            <button
+              onClick={closeRatingModal}
+              disabled={submittingRating}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitRating}
+              disabled={submittingRating || rating === 0}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {submittingRating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Review
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Navbar />
@@ -725,6 +1021,17 @@ const StudentProfile: React.FC = () => {
             >
               <Calendar className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
               Sessions
+            </button>
+            <button
+              onClick={() => setActiveTab('reports')}
+              className={`px-4 sm:px-6 lg:px-8 py-3 sm:py-4 font-semibold text-sm sm:text-base lg:text-lg transition-all duration-300 whitespace-nowrap ${
+                activeTab === 'reports'
+                  ? 'border-b-4 border-blue-600 text-blue-600 bg-blue-50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Flag className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              Reports
             </button>
             <button
               onClick={() => setActiveTab('profile')}
@@ -772,6 +1079,139 @@ const StudentProfile: React.FC = () => {
                 type="cancelled"
               />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center mb-6">
+              <Flag className="w-6 h-6 text-red-600 mr-3" />
+              <h2 className="text-2xl font-bold text-gray-800">My Reports</h2>
+            </div>
+            
+            {submittedReports.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl">
+                <Flag className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-gray-500 text-lg">No reports submitted</p>
+                <p className="text-gray-400 text-sm mt-2">You haven't submitted any tutor reports yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {submittedReports.map((report) => (
+                  <div key={report.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300">
+                    {/* Report Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                            <Flag className="w-6 h-6 text-red-600" />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800">{report.tutorName}</h3>
+                          <p className="text-sm text-gray-600">Report ID: {report.reportId}</p>
+                          <p className="text-sm text-gray-500">Submitted: {new Date(report.reportDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 sm:mt-0">
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                          report.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                          report.status === 'Resolved' ? 'bg-green-100 text-green-800' :
+                          report.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {report.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Report Reason */}
+                    <div className="mb-4">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-red-800 mb-2">Report Reason</h4>
+                        <p className="text-red-700 font-medium">{report.reportReason}</p>
+                      </div>
+                    </div>
+
+                    {/* Report Description */}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <FileText className="w-4 h-4 mr-1" />
+                        Description
+                      </h4>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-gray-700 leading-relaxed">{report.description}</p>
+                      </div>
+                    </div>
+
+                    {/* Admin Response (if available) */}
+                    {report.adminResponse && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-blue-700 mb-2 flex items-center">
+                          <Eye className="w-4 h-4 mr-1" />
+                          Admin Response
+                        </h4>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <p className="text-blue-800 leading-relaxed">{report.adminResponse}</p>
+                          {report.resolvedDate && (
+                            <p className="text-blue-600 text-sm mt-2 font-medium">
+                              Resolved on: {new Date(report.resolvedDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status Timeline */}
+                    <div className="border-t pt-4">
+                      <div className="flex items-center text-sm text-gray-500 space-x-4">
+                        <span className="flex items-center">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                          Submitted: {new Date(report.reportDate).toLocaleDateString()}
+                        </span>
+                        {report.status === 'Under Review' && (
+                          <span className="flex items-center">
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                            Under Review
+                          </span>
+                        )}
+                        {report.resolvedDate && (
+                          <span className="flex items-center">
+                            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                            {report.status}: {new Date(report.resolvedDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Report Statistics */}
+            {submittedReports.length > 0 && (
+              <div className="mt-8 bg-gray-50 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Report Summary</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-gray-800">{submittedReports.length}</div>
+                    <div className="text-gray-600 text-sm">Total Reports</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {submittedReports.filter(r => r.status === 'Resolved' || r.status === 'Closed').length}
+                    </div>
+                    <div className="text-gray-600 text-sm">Resolved</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {submittedReports.filter(r => r.status === 'Under Review').length}
+                    </div>
+                    <div className="text-gray-600 text-sm">Pending</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -876,6 +1316,10 @@ const StudentProfile: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Rating Modal */}
+      <RatingModal />
+      
       <Footer />
     </div>
   );
