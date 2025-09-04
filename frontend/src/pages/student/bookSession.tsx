@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -21,12 +21,30 @@ export default function BookSessionPage() {
   const [notes, setNotes] = useState('');
   const [bookingStatus, setBookingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  // Mock available time slots (each slot is 1 hour)
-  const availableSlots = [
-    '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'
-  ];
+  // Available time slots with last access time tracking
+  const [availableSlots, setAvailableSlots] = useState([
+    { time: '09:00', lastAccessTime: null as Date | null },
+    { time: '10:00', lastAccessTime: new Date(Date.now() - 3 * 60 * 1000) }, // 3 mins ago
+    { time: '11:00', lastAccessTime: new Date(Date.now() - 7 * 60 * 1000) }, // 7 mins ago  
+    { time: '13:00', lastAccessTime: null },
+    { time: '14:00', lastAccessTime: new Date(Date.now() - 2 * 60 * 1000) }, // 2 mins ago
+    { time: '15:00', lastAccessTime: null },
+    { time: '16:00', lastAccessTime: new Date(Date.now() - 6 * 60 * 1000) }, // 6 mins ago
+    { time: '17:00', lastAccessTime: null }
+  ]);
 
   const subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
+
+  // Update slot access time when selected (keeping for data structure)
+  const updateSlotAccess = (timeSlot: string) => {
+    setAvailableSlots(prev => 
+      prev.map(slot => 
+        slot.time === timeSlot 
+          ? { ...slot, lastAccessTime: new Date() }
+          : slot
+      )
+    );
+  };
 
   // Check if slots are consecutive
   const areConsecutive = (slots: string[]): boolean => {
@@ -44,15 +62,16 @@ export default function BookSessionPage() {
   };
 
   const handleSlotSelection = (slot: string) => {
-    let newSelectedSlots: string[];
-    
+    // If slot is already selected, allow unselection
     if (selectedSlots.includes(slot)) {
-      // Remove slot if already selected
-      newSelectedSlots = selectedSlots.filter(s => s !== slot);
-    } else {
-      // Add slot
-      newSelectedSlots = [...selectedSlots, slot];
+      const newSelectedSlots = selectedSlots.filter(s => s !== slot);
+      setSelectedSlots(newSelectedSlots);
+      return;
     }
+
+    // Add slot and update its access time
+    const newSelectedSlots = [...selectedSlots, slot];
+    updateSlotAccess(slot);
     
     // Check if the new selection maintains consecutive slots
     if (areConsecutive(newSelectedSlots)) {
@@ -168,25 +187,25 @@ export default function BookSessionPage() {
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {availableSlots.map((time) => {
-                      const isSelected = selectedSlots.includes(time);
-                      const isDisabled = !isSelected && selectedSlots.length > 0 && !areConsecutive([...selectedSlots, time]);
+                    {availableSlots.map((slot) => {
+                      const isSelected = selectedSlots.includes(slot.time);
+                      const isDisabled = !isSelected && selectedSlots.length > 0 && !areConsecutive([...selectedSlots, slot.time]);
                       
                       return (
                         <button
-                          key={time}
-                          onClick={() => handleSlotSelection(time)}
+                          key={slot.time}
+                          onClick={() => handleSlotSelection(slot.time)}
                           disabled={isDisabled}
                           className={`p-3 border rounded-lg transition-colors relative ${
                             isSelected
-                              ? 'bg-blue-600 text-white border-blue-600'
+                              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                               : isDisabled
                               ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                               : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
                           }`}
                         >
                           <div className="text-center">
-                            <div className="font-medium">{time}</div>
+                            <div className="font-medium">{slot.time}</div>
                             <div className="text-xs opacity-80">1 hour</div>
                           </div>
                           {isSelected && (
@@ -201,6 +220,7 @@ export default function BookSessionPage() {
                   <div className="mt-3 text-sm text-gray-500">
                     <p>• Each slot represents 1 hour (e.g., 9:00 = 9:00-10:00)</p>
                     <p>• You can select multiple consecutive slots for longer sessions</p>
+                    <p>• Click a selected slot again to unselect it</p>
                     <p>• Minimum session duration is 1 hour</p>
                   </div>
                 </div>

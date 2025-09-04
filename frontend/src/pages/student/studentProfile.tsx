@@ -16,7 +16,10 @@ import {
   Loader2,
   Flag,
   FileText,
-  Eye
+  Eye,
+  MessageSquare,
+  X,
+  Send
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -264,7 +267,7 @@ const StudentProfile: React.FC = () => {
     }
   ]);
 
-  const [previousSessions] = useState([
+  const [previousSessions, setPreviousSessions] = useState([
     {
       id: 1,
       subject: "Advanced Mathematics",
@@ -303,6 +306,45 @@ const StudentProfile: React.FC = () => {
       status: "Completed",
       rating: 5,
       feedback: "Great group session with lots of practice tests."
+    },
+    {
+      id: 4,
+      subject: "Chemistry",
+      tutor: "Dr. Emily Johnson",
+      date: "2025-07-28",
+      time: "4:00 PM",
+      duration: "1 hour",
+      type: "Individual",
+      location: "Online - Zoom",
+      status: "Completed",
+      rating: null,
+      feedback: null
+    },
+    {
+      id: 5,
+      subject: "English Literature",
+      tutor: "Prof. James Anderson",
+      date: "2025-07-25",
+      time: "1:00 PM",
+      duration: "2 hours",
+      type: "Individual",
+      location: "Online - Google Meet",
+      status: "Completed",
+      rating: null,
+      feedback: null
+    },
+    {
+      id: 6,
+      subject: "Biology",
+      tutor: "Dr. Lisa Parker",
+      date: "2025-07-22",
+      time: "11:00 AM",
+      duration: "1.5 hours",
+      type: "Group",
+      location: "Online - Zoom",
+      status: "Completed",
+      rating: null,
+      feedback: null
     }
   ]);
 
@@ -365,6 +407,13 @@ const StudentProfile: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Rating and Review Modal State
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -410,6 +459,75 @@ const StudentProfile: React.FC = () => {
         className={`w-4 h-4 ${
           i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
         }`}
+      />
+    ));
+  };
+
+  // Rating and Review Functions
+  const openRatingModal = (session: any) => {
+    setSelectedSession(session);
+    setRating(0);
+    setReview('');
+    setShowRatingModal(true);
+  };
+
+  const closeRatingModal = () => {
+    setShowRatingModal(false);
+    setSelectedSession(null);
+    setRating(0);
+    setReview('');
+  };
+
+  const handleRatingClick = (ratingValue: number) => {
+    setRating(ratingValue);
+  };
+
+  const submitRating = async () => {
+    if (!selectedSession || rating === 0) {
+      showToast('Please provide a rating', 'error');
+      return;
+    }
+
+    if (review.trim().length < 10) {
+      showToast('Please provide a review with at least 10 characters', 'error');
+      return;
+    }
+
+    setSubmittingRating(true);
+    
+    try {
+      // Here you would typically call an API to submit the rating
+      // For now, we'll simulate the API call and update the local state
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      
+      // Update the session with the new rating and review
+      setPreviousSessions(prev => 
+        prev.map(session => 
+          session.id === selectedSession.id 
+            ? { ...session, rating: rating, feedback: review }
+            : session
+        )
+      );
+
+      showToast('Rating and review submitted successfully!', 'success');
+      closeRatingModal();
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      showToast('Failed to submit rating. Please try again.', 'error');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
+  // Render interactive stars for rating modal
+  const renderInteractiveStars = () => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-8 h-8 cursor-pointer transition-colors ${
+          i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300 hover:text-yellow-300'
+        }`}
+        onClick={() => handleRatingClick(i + 1)}
       />
     ));
   };
@@ -646,6 +764,24 @@ const StudentProfile: React.FC = () => {
                 </div>
               )}
 
+              {showRating && !session.rating && session.status === 'Completed' && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-t border-blue-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">Share Your Experience</h4>
+                      <p className="text-sm text-gray-600">Rate and review this session to help other students</p>
+                    </div>
+                    <button
+                      onClick={() => openRatingModal(session)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      <Star className="w-4 h-4 mr-2" />
+                      Rate & Review
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {session.reason && (
                 <div className="bg-red-50 rounded-lg p-4 border-t border-red-200">
                   <div className="flex items-center space-x-2 mb-2">
@@ -735,6 +871,123 @@ const StudentProfile: React.FC = () => {
       </div>
     );
   }
+
+  // Rating Modal Component
+  const RatingModal = () => {
+    if (!showRatingModal || !selectedSession) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Rate & Review Session</h3>
+              <p className="text-sm text-gray-600 mt-1">{selectedSession.subject} with {selectedSession.tutor}</p>
+            </div>
+            <button
+              onClick={closeRatingModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-6">
+            {/* Session Info */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Date:</span>
+                  <div className="font-medium">{new Date(selectedSession.date).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Duration:</span>
+                  <div className="font-medium">{selectedSession.duration}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Type:</span>
+                  <div className="font-medium">{selectedSession.type}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Location:</span>
+                  <div className="font-medium">{selectedSession.location}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rating Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                How would you rate this session?
+              </label>
+              <div className="flex items-center justify-center space-x-2 py-4">
+                {renderInteractiveStars()}
+              </div>
+              {rating > 0 && (
+                <div className="text-center mt-2">
+                  <span className="text-sm text-gray-600">
+                    {rating === 1 && "Poor"}
+                    {rating === 2 && "Fair"}
+                    {rating === 3 && "Good"}
+                    {rating === 4 && "Very Good"}
+                    {rating === 5 && "Excellent"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Review Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Share your experience (optional)
+              </label>
+              <textarea
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                placeholder="Tell other students about your experience with this tutor. What did you like? What could be improved?"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                maxLength={500}
+              />
+              <div className="text-right text-xs text-gray-500 mt-1">
+                {review.length}/500 characters
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="flex flex-col sm:flex-row gap-3 p-6 border-t border-gray-200">
+            <button
+              onClick={closeRatingModal}
+              disabled={submittingRating}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitRating}
+              disabled={submittingRating || rating === 0}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {submittingRating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Review
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -1063,6 +1316,10 @@ const StudentProfile: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Rating Modal */}
+      <RatingModal />
+      
       <Footer />
     </div>
   );

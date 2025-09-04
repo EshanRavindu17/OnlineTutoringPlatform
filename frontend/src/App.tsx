@@ -13,7 +13,7 @@ import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
 import SheduleMeeting from './tutor/scheduleMeeting';
-import StripePaymentPage from './student/stripePaymentPage';
+// import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from  './tutor/uploadvideo';
 import MyCourses from './tutor/mycourses';
@@ -28,7 +28,9 @@ import MyCalendarPage from './pages/student/myCalender';
 import TutorProfilePage from './pages/student/tutorProfile';
 import BookSessionPage from './pages/student/bookSession';
 import ReportTutorPage from './pages/student/reportTutor';
+import PaymentDemoPage from './pages/student/paymentDemo';
 import ScrollToTop from './components/scrollToUp';
+import PaymentHistoryPage from './pages/student/paymentHistory';
 
 const App = () => {
   return (
@@ -57,8 +59,10 @@ const App = () => {
           
         <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
-          <Route path="/stripe-payment" element={<StripePaymentPage />} />
+          {/* <Route path="/stripe-payment" element={<StripePaymentPage />} /> */}
+          <Route path="/payment-history" element={<PaymentHistoryPage />} />
           <Route path="/mycalendar" element={<MyCalendarPage />} />
+          <Route path="/payment-demo" element={<PaymentDemoPage />} />
         </Route>
 
        
