@@ -58,6 +58,7 @@ model Individual_Payments {
   payment_date_time DateTime? @db.Timestamp(6)
   status            Status?
   method            String?   @db.VarChar
+  payment_intent_id String?
   Student           Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_i_pay_fk")
 }
 
@@ -129,6 +130,7 @@ model Sessions {
   end_time                DateTime?                 @db.Time(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
+  price                   Float?
   Rating_N_Review_Session Rating_N_Review_Session[]
   Free_Time_Slots         Free_Time_Slots?          @relation(fields: [slot_id], references: [slot_id], onDelete: NoAction, map: "slot_id")
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
@@ -179,6 +181,7 @@ enum SlotStatus {
 enum Status {
   success
   fail
+  refund
 }
 
 enum TutorType {

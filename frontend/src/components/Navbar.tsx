@@ -88,8 +88,8 @@ export default function Navbar() {
 
   // Role-specific items
   const studentLinks = [
-    { to: '/stripe-payment', label: 'Payments'   },
     { to: '/mycalendar', label: 'My Calendar' },
+    { to: '/payment-history', label: 'Payments'   },
   ];
 
   const tutorLinks = [
