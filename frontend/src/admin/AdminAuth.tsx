@@ -16,7 +16,7 @@ export default function AdminAuth() {
     setLoading(true);
     setError(undefined);
     try {
-      // TODO: wire Firebase + backend. For now, just navigate.
+      // TODO: wire backend. For now, just navigate.
       await new Promise((r) => setTimeout(r, 500));
       navigate('/admin');
     } catch (err: any) {

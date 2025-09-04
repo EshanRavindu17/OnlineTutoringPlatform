@@ -74,14 +74,6 @@ app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({ message: 'Welcome to the Online Tutoring Platform API' });
 });
 
-//Routes for user management
-app.use('/api', userRoutes);
-
-// const formatToEnum = (value) => {
-//   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-// };
-
-
 // Register routes
 app.use('/api', userRoutes);
 
