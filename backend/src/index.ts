@@ -23,7 +23,10 @@ import prisma from './prismaClient';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+
 import scheduleRoutes from './routes/scheduleRoutes';
+
+import paymentRoutes from './routes/paymentRoutes';
 
 dotenv.config();
 
@@ -98,6 +101,8 @@ app.use('/individual-tutor', individualTutorRoutes);
 
 //Schedule Routes
 app.use('/api/schedule', scheduleRoutes);
+//Payment Routes
+app.use('/payment', paymentRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
