@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../firebase.tsx';
 import logo from '../assets/logo.png'; // Assuming you have a logo image in your assets
 
 export default function Navbar() {
@@ -94,7 +94,7 @@ export default function Navbar() {
   const tutorLinks = [
     { to: '/addnewcourse', label: 'Create Course' },
     { to: '/mycourses',     label: 'My Courses'},
-    { to: '/tutorcalender',     label: 'Schedule Meeting'},
+    { to: '/manageSchedule',     label: 'Manage Schedule'},
   ];
 
   // Pick the right extras
