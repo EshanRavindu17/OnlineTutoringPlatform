@@ -28,7 +28,9 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
       
       // Decode the JWT payload (middle part)
       const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-      
+
+      console.log("🔍 Decoded token payload:", payload);
+
       console.log('🔍 Decoded token payload:', {
         uid: payload.sub || payload.uid,
         email: payload.email,
