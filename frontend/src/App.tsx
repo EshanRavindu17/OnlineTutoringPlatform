@@ -12,8 +12,8 @@ import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
-import SheduleMeeting from './tutor/scheduleMeeting';
-// import StripePaymentPage from './student/stripePaymentPage';
+import ScheduleMeeting from './tutor/ScheduleMeeting';
+import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from  './tutor/uploadvideo';
 import MyCourses from './tutor/mycourses';
@@ -21,7 +21,6 @@ import NotFound from './pages/notfoundpage';
 import { TutorRoute } from './context/protectRoute';
 import { StudentRoute } from './context/protectRoute';
 import LesssonUpload from './tutor/anotherLessonUpload';
-import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -71,11 +70,11 @@ const App = () => {
           <Route path="/tutorprofile" element={<TutorProfile/>}/>
           <Route path="/createtutorprofile" element={<CreateTutorProfile/>}/>
           <Route path="/startzoom" element={<StartZoom/>}/>
-          <Route path="/schedulemeeting" element={<SheduleMeeting/>}/>
+          {/* <Route path="/schedulemeeting" element={<SheduleMeeting/>}/> */}
           <Route path="/uploadvideo" element={<UploadVideo/>} />
           <Route path="/mycourses" element={<MyCourses/>} />
           <Route path="/anotherLessonUpload" element={<LesssonUpload/>} />
-          <Route path="/tutorcalender" element={<TutorCalendar/>} />
+          <Route path="/manageSchedule" element={<ScheduleMeeting/>} />
         </Route>  
           
 
