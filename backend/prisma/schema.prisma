@@ -46,8 +46,8 @@ model Free_Time_Slots {
   status           SlotStatus?
   end_time         DateTime?         @db.Time(6)
   start_time       DateTime?         @db.Time(6)
+  last_access_time DateTime?         @db.Timestamp(6)
   Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
-  Sessions         Sessions[]
 }
 
 model Individual_Payments {
@@ -73,8 +73,10 @@ model Individual_Tutor {
   heading         String?
   qualifications  String[]
   location        String?
+  phone_number    String?           @db.VarChar
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
+  Sessions        Sessions[]
 }
 
 model Mass_Tutor {
@@ -125,14 +127,19 @@ model Reports {
 model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
-  slot_id                 String?                   @db.Uuid
-  start_time              DateTime?                 @db.Time(6)
-  end_time                DateTime?                 @db.Time(6)
+  slots                   DateTime[]                @db.Time
+  start_time              DateTime?                 @db.Timestamp(6)
+  end_time                DateTime?                 @db.Timestamp(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
   price                   Float?
+  i_tutor_id              String?                   @db.Uuid
+  meeting_urls            String[]
+  date                    DateTime?                 @db.Date
+  created_at              DateTime?                 @db.Timestamp(6)
+  title                   String?
   Rating_N_Review_Session Rating_N_Review_Session[]
-  Free_Time_Slots         Free_Time_Slots?          @relation(fields: [slot_id], references: [slot_id], onDelete: NoAction, map: "slot_id")
+  Individual_Tutor        Individual_Tutor?         @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, onUpdate: NoAction)
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
 }
 
@@ -171,6 +178,7 @@ enum SessionStatus {
   scheduled
   ongoing
   canceled
+  completed
 }
 
 enum SlotStatus {
