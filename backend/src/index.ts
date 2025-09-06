@@ -14,12 +14,15 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 import prisma from './prismaClient';
-
+import cookieParser from 'cookie-parser';
 
 //importing routes
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+
+import adminRoutes from './routes/admin.routes';
+import adminTutorsRoutes from './routes/admin.tutors.routes';
 
 dotenv.config();
 
@@ -31,15 +34,27 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
+// CORS — allow admin subdomain in dev
+const allowlist: (string | RegExp)[] = [
+  process.env.CLIENT_URL || '',
+  'http://localhost:5173',
+  'http://admin.localhost:5173',
+  /^http:\/\/localhost:\d+$/i,
+].filter(Boolean);
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    const ok = allowlist.some(o => typeof o === 'string' ? o === origin : o.test(origin));
+    cb(ok ? null : new Error(`Not allowed by CORS: ${origin}`), ok);
+  },
+  credentials: false, // we're sending tokens in headers, not cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Static files (for file uploads, profile pictures, etc.)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -82,6 +97,10 @@ app.use('/student', studentRoutes);
 
 //Individual Tutor Routes
 app.use('/individual-tutor', individualTutorRoutes);
+
+// Admin Routes
+app.use('/Admin', adminRoutes);
+app.use('/Admin/tutors', adminTutorsRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

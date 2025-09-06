@@ -1,1 +1,33 @@
+
 @import "tailwindcss";
+
+/* === Admin theme tokens & utilities === */
+:root{
+  --brand-50:#eef4ff;
+  --brand-100:#d9e3ff;
+  --brand-200:#b9ccff;
+  --brand-300:#8fb2ff;
+  --brand-400:#5e93ff;
+  --brand-500:#2d74ff;
+  --brand-600:#1f5cf0;
+  --brand-700:#1a49c4;
+  --ink-900:#0b1220;
+}
+
+.admin-hero {
+  background: radial-gradient(1200px 400px at 65% -10%, rgba(255,255,255,.12), transparent 50%),
+              linear-gradient(180deg, var(--brand-500), var(--brand-600));
+}
+
+.admin-card { @apply bg-white rounded-2xl shadow-sm ring-1 ring-gray-200; }
+
+.admin-btn { @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition; }
+.admin-btn-primary { background: var(--brand-500); color:#fff; }
+.admin-btn-primary:hover { background: var(--brand-600); }
+.admin-btn-ghost  { @apply border border-gray-200 bg-white; }
+.admin-btn-ghost:hover { @apply bg-gray-50; }
+
+.admin-badge { @apply px-2 py-0.5 rounded-full text-xs font-semibold; }
+.badge-green { @apply bg-green-100 text-green-700; }
+.badge-red   { @apply bg-red-100 text-red-600; }
+.badge-gray  { @apply bg-gray-100 text-gray-700; }

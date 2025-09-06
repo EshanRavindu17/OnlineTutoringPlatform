@@ -32,6 +32,7 @@ import SignupForm from './components/SignupForm';
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
+import AdminGate from './admin/AdminGate';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/Dashboard';
 import TutorApproval from './admin/TutorApproval';
@@ -39,6 +40,7 @@ import TutorSuspend from './admin/TutorSuspend';
 import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
 import Policies from './admin/Policies';
+import AdminProfile from './admin/Profile';
 
 // (Optional) If you want http://admin.localhost:5173 to auto-redirect to /admin
 function HostRedirectToAdmin() {
@@ -96,14 +98,18 @@ const App = () => {
 
         {/* Admin routes (Dashboard + feature pages) */}
         {/* Later we can wrap this with an <AdminGate /> to enforce Admin-only access */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="tutors/approval" element={<TutorApproval />} />
-          <Route path="tutors/suspend" element={<TutorSuspend />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="broadcast" element={<Broadcast />} />
-          <Route path="policies" element={<Policies />} />
+        <Route path="/admin" element={<AdminGate />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="tutors/approval" element={<TutorApproval />} />
+            <Route path="tutors/suspend" element={<TutorSuspend />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="broadcast" element={<Broadcast />} />
+            <Route path="policies" element={<Policies />} />
+            <Route path="profile" element={<AdminProfile />} />
+          </Route>
         </Route>
+
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
