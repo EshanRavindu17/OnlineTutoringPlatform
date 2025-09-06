@@ -392,20 +392,30 @@ export default function BookSessionPage() {
             return slotDate === selectedDate;
           });
 
-          // Convert API response to processed time slots
-          const processedSlots: ProcessedTimeSlot[] = dateFilteredSlots.map((slot: TimeSlot) => {
-            // Extract time from start_time (format: "1970-01-01T09:00:00.000Z")
-            // Split by 'T' and get the time part, then split by ':' to get hours and minutes
-            const timePart = slot.start_time.split('T')[1]; // Gets "09:00:00.000Z"
-            const timeString = timePart.split(':').slice(0, 2).join(':'); // Gets "09:00"
-            
-            return {
-              time: timeString,
-              lastAccessTime: slot.last_access_time ? new Date(slot.last_access_time) : null,
-              slot_id: slot.slot_id
-            };
-          });
+          // Convert API response to processed time slots and apply 5-minute access control
+          const processedSlots: ProcessedTimeSlot[] = dateFilteredSlots
+            .map((slot: TimeSlot) => {
+              // Extract time from start_time (format: "1970-01-01T09:00:00.000Z")
+              // Split by 'T' and get the time part, then split by ':' to get hours and minutes
+              const timePart = slot.start_time.split('T')[1]; // Gets "09:00:00.000Z"
+              const timeString = timePart.split(':').slice(0, 2).join(':'); // Gets "09:00"
+              
+              return {
+                time: timeString,
+                lastAccessTime: slot.last_access_time ? new Date(slot.last_access_time) : null,
+                slot_id: slot.slot_id
+              };
+            })
+            .filter((slot: ProcessedTimeSlot) => {
+              // Apply 5-minute access control - only show slots that should be rendered
+              const shouldShow = shouldRenderSlot(slot.lastAccessTime);
+              if (!shouldShow) {
+                console.log(`Slot ${slot.time} hidden due to recent access (within 5 minutes)`);
+              }
+              return shouldShow;
+            });
 
+          console.log(`Showing ${processedSlots.length} available slots after 5-minute access control`);
           setAvailableSlots(processedSlots.sort((a, b) => a.time.localeCompare(b.time)));
         } else {
           // Fallback to empty array if no data
@@ -448,6 +458,32 @@ export default function BookSessionPage() {
       return Number(value);
     }
     return fallback;
+  };
+
+  // Helper function to check if a slot should be rendered based on 5-minute access control
+  const shouldRenderSlot = (lastAccessTime: Date | null): boolean => {
+    // If last_access_time is null, the slot should be rendered
+    if (!lastAccessTime) {
+      return true;
+    }
+
+    // Calculate the time difference between current time and last access time
+    const currentTime = new Date();
+    const timeDifferenceMs = currentTime.getTime() - lastAccessTime.getTime();
+    const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60); // Convert to minutes
+
+    // Slot should be rendered if the gap is greater than 5 minutes
+    const shouldRender = timeDifferenceMinutes > 5;
+    
+    // Log detailed information for debugging
+    console.log(`Access control check:`, {
+      lastAccessTime: lastAccessTime.toISOString(),
+      currentTime: currentTime.toISOString(),
+      timeDifferenceMinutes: timeDifferenceMinutes.toFixed(2),
+      shouldRender
+    });
+
+    return shouldRender;
   };
 
   // Update slot access time when selected (keeping for data structure)
@@ -715,7 +751,12 @@ export default function BookSessionPage() {
                     <div className="text-center py-8 text-gray-500">
                       <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p>No available time slots for the selected date</p>
-                      <p className="text-sm mt-1">Please try selecting a different date</p>
+                      <p className="text-sm mt-1">
+                        Some slots might be temporarily unavailable due to recent activity.
+                      </p>
+                      <p className="text-sm">
+                        Please try selecting a different date or refresh the page in a few minutes.
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-3 gap-3">
@@ -755,7 +796,26 @@ export default function BookSessionPage() {
                     <p>• You can select multiple consecutive slots for longer sessions</p>
                     <p>• Click a selected slot again to unselect it</p>
                     <p>• Minimum session duration is 1 hour</p>
+                    <p>• Slots may be temporarily hidden if accessed by others recently</p>
                   </div>
+                  
+                  {/* Refresh button for time slots */}
+                  {selectedDate && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => {
+                          console.log('Refreshing time slots...');
+                          // Trigger useEffect to refetch slots by clearing and resetting the date
+                          const currentDate = selectedDate;
+                          setSelectedDate('');
+                          setTimeout(() => setSelectedDate(currentDate), 100);
+                        }}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                      >
+                        🔄 Refresh Available Slots
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Subject */}
