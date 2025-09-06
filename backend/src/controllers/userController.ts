@@ -4,7 +4,7 @@ import {
   findUserByFirebaseUid,
   createOrUpdateUser,
   validateUserRoleAndEmail,
-  getAllUsers
+  getAllUsers,
 } from '../services/userService';
 
 /**
@@ -276,3 +276,33 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<Resp
     });
   }
 };
+
+// export const getUserByUidController = async (req: AuthRequest, res: Response): Promise<Response> => {
+//   try {
+//     const { uid } = req.params;
+
+//     if (!uid) {
+//       return res.status(400).json({ 
+//         error: 'User ID is required' 
+//       });
+//     }
+
+//     const user = await getUserByUid(uid);
+//     if (!user) {
+//       return res.status(404).json({ 
+//         error: 'User not found' 
+//       });
+//     }
+
+//     return res.status(200).json({
+//       message: 'User retrieved successfully',
+//       user: user
+//     });
+//   } catch (error: any) {
+//     console.error('❌ Error in getUserByUidController:', error);
+//     return res.status(500).json({ 
+//       error: 'Failed to retrieve user',
+//       detail: error.message 
+//     });
+//   }
+// };

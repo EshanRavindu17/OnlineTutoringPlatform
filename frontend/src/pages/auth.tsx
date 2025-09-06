@@ -14,6 +14,7 @@ import { useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, Users, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
+import { addStudent } from '../api/Student.ts';
 
 export default function AuthPage() {
   const { currentUser, userProfile } = useAuth();
@@ -178,6 +179,23 @@ export default function AuthPage() {
           const err = await response.json();
           throw new Error(err.detail || 'Failed to save user to DB');
         }
+        else {
+          if (userType === 'student') {
+            // Add to student table
+            console.log("I'm a student");
+            const addUserResponse = await response.json();
+            console.log("Add user response:", addUserResponse);
+            const userId = addUserResponse.user_id;
+
+            const student = await addStudent({
+              user_id: userId,
+              points: 0
+            });
+
+            console.log("New student added:", student);
+          }
+
+        }
 
         // Store userType in localStorage for persistence
         localStorage.setItem('userType', userType);
@@ -259,6 +277,8 @@ export default function AuthPage() {
       body: JSON.stringify(userPayload)
     });
 
+    
+
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));
       await signOut(auth);
@@ -266,6 +286,21 @@ export default function AuthPage() {
     }
 
     const savedUser = await response.json();
+    const user_id = savedUser.user.id;
+
+    const student = await addStudent({
+      user_id,
+      points: 0
+    }).then(
+      (student) => {
+        console.log('Student Add to Student Table', student);
+      }
+    ).catch((error) => {
+      console.error('Error adding student:', error);
+    });
+
+
+    console.log('Student Add to Student Table', student);
     console.log('✅ Saved Google user to DB:', savedUser);
 
     // ✅ Set user type and role — persist for better UX
@@ -392,14 +427,14 @@ export default function AuthPage() {
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center mb-8">
             <a href="#" className="flex items-center justify-center mb-6">
-              <span className="text-blue-600 font-bold text-2xl">LearnConnect</span>
+              <span className="text-blue-600 font-bold text-2xl">Tutorly</span>
             </a>
             
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
               {isLogin ? 'Sign in to your account' : 'Create your account'}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              {isLogin ? 'New to LearnConnect? ' : 'Already have an account? '}
+              {isLogin ? 'New to Tutorly? ' : 'Already have an account? '}
               <button 
                 onClick={toggleAuthMode}
                 className="font-medium text-blue-600 hover:text-blue-500"

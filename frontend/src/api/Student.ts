@@ -76,8 +76,30 @@ interface SessionData{
     date: string; // Date of the session
 }
 
+interface Student{
+    user_id:string;
+    points:number;
+}
+
 const baseUrl = 'http://localhost:5000/api';
 const baseUrl2 = 'http://localhost:5000/student';
+
+
+export const addStudent = async (studentData: Student): Promise<Student> => {
+    console.log('Adding new student...', studentData);
+
+    try {
+        const response = await axios.post<Student>(
+            `${baseUrl2}/addStudent`,
+            studentData
+        );
+        console.log('✅ Student added successfully:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Error adding student:', error);
+        throw error;
+    }
+};
 
 export const updateStudentProfile = async (
     profileData: Partial<StudentProfile>
