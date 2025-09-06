@@ -98,6 +98,10 @@ export default function Navbar() {
     { to: '/manageSchedule',     label: 'Manage Schedule'},
   ];
 
+  const massTutorLinks = [
+    { to: '/mass-tutor-dashboard', label: 'Dashboard' },
+  ];
+
   const LastLink =[
     { to: '/about', label: 'About Us' }
   ]
@@ -106,12 +110,16 @@ export default function Navbar() {
   let extraLinks: { to: string; label: string }[] = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
   if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
-  if (userProfile?.role === 'Mass')   extraLinks = tutorLinks;
+  if (userProfile?.role === 'Mass')   extraLinks = massTutorLinks;
 
   // Profile path
-  const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
-    ? '/tutorprofile'
-    : '/studentprofile';
+  // const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
+  //   ? '/tutorprofile'
+  //   : '/studentprofile';
+
+  const profilePath = userProfile?.role === 'student' ? '/studentprofile' 
+  : userProfile?.role === 'Individual' ? '/tutorprofile' 
+  : '/mass-tutor-dashboard';
 
   const handleSignOutClick = () => {
     setShowSignOutModal(true);
