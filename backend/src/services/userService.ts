@@ -177,3 +177,29 @@ export const validateUserRoleAndEmail = async (email: string, role: string) => {
   //         throw new Error('Failed to update student profile');
   //     }
   // };
+
+
+  export const getUserByUid = async (uid: string) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        firebase_uid: uid
+      },
+      select: {
+        id: true,
+        firebase_uid: true,
+        email: true,
+        name: true,
+        role: true,
+        photo_url: true,
+        bio: true,
+        dob: true,
+        created_at: true
+      }
+    });
+    return user;
+  } catch (error: any) {
+    console.error('Error finding user by UID:', error);
+    throw new Error(`Failed to find user: ${error.message}`);
+  }
+};

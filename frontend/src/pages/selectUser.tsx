@@ -24,7 +24,7 @@ export default function UserSelectionPage() {
         <div className="bg-blue-600 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
             <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold mb-6">Welcome to LearnConnect</h1>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">Welcome to Tutorly</h1>
               <p className="text-xl mb-8 max-w-3xl mx-auto">Join our community of learners and educators. Choose your role to get started on your learning journey.</p>
             </div>
 
@@ -242,7 +242,7 @@ export default function UserSelectionPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-white font-bold text-lg mb-4">LearnConnect</h3>
+              <h3 className="text-white font-bold text-lg mb-4">Tutorly</h3>
               <p className="text-sm">Connecting tutors and students for personalized learning experiences since 2024.</p>
             </div>
             <div>
@@ -266,7 +266,7 @@ export default function UserSelectionPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Contact Us</h4>
               <ul className="space-y-2 text-sm">
-                <li>support@learnconnect.com</li>
+                <li>support@tutorly.com</li>
                 <li>1-800-LEARN-NOW</li>
                 <li>
                   <div className="flex space-x-3 mt-3">
@@ -281,7 +281,7 @@ export default function UserSelectionPage() {
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-sm text-center">
-            <p>&copy; 2025 LearnConnect. All rights reserved.</p>
+            <p>&copy; 2025 Tutorly. All rights reserved.</p>
           </div>
         </div>
       </footer>

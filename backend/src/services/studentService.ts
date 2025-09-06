@@ -16,6 +16,44 @@ interface Individual{
     } | null;
 }
 
+// export const addStudent = async (data: any) => {
+
+//     const user_id = data.user_id;
+//     const points = Number(data.points);
+//     const student = await prisma.student.create({
+//         data: {
+//             user_id,
+//             points
+//         }
+//     });
+//     return student;
+// };
+
+export const addStudent = async (data: any) => {
+    const user_id = data.user_id;
+    const points = Number(data.points);
+    
+    const existingStudent = await prisma.student.findFirst({
+        where: { user_id }
+    });
+
+    let student;
+    if (existingStudent) {
+        student = await prisma.student.update({
+            where: { student_id: existingStudent.student_id },
+            data: { points :existingStudent.points }
+        });
+    } else {
+        student = await prisma.student.create({
+            data: {
+                user_id,
+                points
+            }
+        });
+    }
+    return student;
+};
+
 export const getAllIndividualTutors = async (subjects:string,titles:string,min_hourly_rate:number,max_hourly_rate:number, rating:number,sort:string,page:number=1,limit:number=10) => {
     const tutors = await prisma.individual_Tutor.findMany({
         where: {

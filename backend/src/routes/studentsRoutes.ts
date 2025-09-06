@@ -1,8 +1,21 @@
 import express from 'express';
-import { createASessionController, createPaymentRecordController, findTimeSlotsController, getAllIndividualTutorsController , getAllSessionsByStudentIdController, getIndividualTutorByIdController,getSlotsOfIndividualTutorByIdController, getStudentIDByUserIDController, updateAccessTimeinFreeSlotsController, updateSlotStatusController} from '../controllers/studentController';
+import { addStudentController, 
+         createASessionController,
+         createPaymentRecordController, 
+         findTimeSlotsController, 
+         getAllIndividualTutorsController ,
+         getAllSessionsByStudentIdController,
+         getIndividualTutorByIdController,
+         getSlotsOfIndividualTutorByIdController,
+         getStudentIDByUserIDController,
+         updateAccessTimeinFreeSlotsController,
+         updateSlotStatusController} 
+from '../controllers/studentController';
 
 
 const router = express.Router();
+
+router.post('/addStudent', addStudentController);
 
 router.get('/getStudentIDByUserID/:userId', getStudentIDByUserIDController);
 

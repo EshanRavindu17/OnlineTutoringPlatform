@@ -1,5 +1,6 @@
 import { Request,Response } from "express";
 import {
+    addStudent,
     createASession,
     findTimeSlots,
     getAllIndividualTutors
@@ -12,6 +13,13 @@ import {
 import { createPaymentRecord } from "../services/paymentService";
 import { DateTime } from "luxon";
 
+export const addStudentController = async (req: Request, res: Response) => {
+    const studentData = req.body;
+    console.log("Adding new student:", studentData);
+    const student = await addStudent(studentData);
+
+    return res.json(student);
+};
 
 export const getAllIndividualTutorsController = async (req: Request, res: Response) => {
     const {

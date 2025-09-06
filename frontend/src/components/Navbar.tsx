@@ -83,11 +83,12 @@ export default function Navbar() {
   // Common navigation items
   const commonLinks = [
     { to: '/',        label: 'Home'       },
-    { to: '/findtutors', label: 'Find Tutors' },
+    // { to: '/findtutors', label: 'Find Tutors' },
   ];
 
   // Role-specific items
   const studentLinks = [
+    { to: '/findtutors', label: 'Find Tutors' },
     { to: '/mycalendar', label: 'My Calendar' },
     { to: '/payment-history', label: 'Payments'   },
   ];
@@ -109,8 +110,9 @@ export default function Navbar() {
   // Pick the right extras
   let extraLinks: { to: string; label: string }[] = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
-  if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
-  if (userProfile?.role === 'Mass')   extraLinks = massTutorLinks;
+  else if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
+  else if (userProfile?.role === 'Mass')   extraLinks = massTutorLinks;
+  else    extraLinks = [{ to: '/findtutors', label: 'Find Tutors' }];
 
   // Profile path
   // const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
@@ -365,7 +367,7 @@ export default function Navbar() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Join LearnConnect
+                Join Tutorly
               </h3>
               <p className="text-gray-600 mb-6">
                 Choose how you'd like to get started
