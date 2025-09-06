@@ -88,7 +88,8 @@ export default function Navbar() {
 
   // Role-specific items
   const studentLinks = [
-    { to: '/stripe-payment', label: 'Payments'   },
+    { to: '/mycalendar', label: 'My Calendar' },
+    { to: '/payment-history', label: 'Payments'   },
   ];
 
   const tutorLinks = [
@@ -96,6 +97,10 @@ export default function Navbar() {
     { to: '/mycourses',     label: 'My Courses'},
     { to: '/tutorcalender',     label: 'Schedule Meeting'},
   ];
+
+  const LastLink =[
+    { to: '/about', label: 'About Us' }
+  ]
 
   // Pick the right extras
   let extraLinks: { to: string; label: string }[] = [];
@@ -148,91 +153,104 @@ export default function Navbar() {
 
   // helpers for active styling
   const desktopClass = ({ isActive }: { isActive: boolean }) =>
-    `inline-flex items-center px-1 pt-1 text-sm font-medium ${
+    `inline-flex items-center px-4 py-2 text-base font-semibold transition-all duration-300 relative group ${
       isActive
-        ? 'font-bold text-gray-900 border-b-2 border-blue-500'
-        : 'text-gray-500 hover:text-gray-700'
+        ? 'text-blue-600'
+        : 'text-gray-700 hover:text-blue-600'
     }`;
 
   const mobileClass = ({ isActive }: { isActive: boolean }) =>
-    `block pl-3 pr-4 py-2 text-base font-medium ${
+    `block pl-4 pr-6 py-3 text-lg font-semibold transition-all duration-300 ${
       isActive
-        ? 'font-bold text-blue-700 bg-blue-50 border-l-4 border-blue-500'
-        : 'text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+        ? 'text-blue-700 bg-blue-100 border-l-4 border-blue-600 font-bold'
+        : 'text-gray-700 hover:text-blue-600 border-l-4 border-transparent'
     }`;
 
   return (
     <>
-      <nav className="bg-white shadow">
+      {/* <nav className="bg-gradient-to-r from-white via-pink-500 to-white-500 shadow-lg border-b border-gray-100 backdrop-blur-sm"> */}
+      <nav className="bg-white-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+          <div className="flex justify-between items-center h-20">
 
-            {/* Brand + desktop nav */}
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <span className="text-blue-600 font-bold text-xl">
-                  <a href="/"><img src={logo} alt="LearnConnect" className="h-30" /></a>
-                </span>
-              </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            {/* Brand Logo */}
+            <div className="flex-shrink-0 flex items-center">
+              <span className="text-blue-600 font-bold text-xl">
+                <a href="/" className="hover:opacity-80 transition-opacity duration-300">
+                  <img src={logo} alt="LearnConnect" className="h-24 w-auto" />
+                </a>
+              </span>
+            </div>
+
+            {/* Desktop Navigation - Right Aligned */}
+            <div className="hidden lg:flex lg:items-center lg:space-x-2">
+              {/* Navigation Links */}
+              <div className="flex items-center space-x-1 mr-8">
                 {commonLinks.concat(extraLinks).map(({ to, label }) => (
                   <NavLink key={to} to={to} className={desktopClass}>
                     {label}
                   </NavLink>
                 ))}
               </div>
-            </div>
-
-            {/* Desktop auth/profile */}
-            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
-              {currentUser ? (
-                <>
-                  <NavLink
-                    to={profilePath}
-                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <ProfileImage
-                      src={userProfile?.photo_url || currentUser?.photoURL || undefined}
-                      alt="Profile"
-                      name={userProfile?.name || currentUser?.displayName || 'User'}
-                      className="w-8 h-8"
-                      textClassName="text-sm"
-                    />
-                    <span>Profile</span>
+              <div className="hidden lg:flex lg:items-center lg:space-x-2">
+                {LastLink.map(({ to, label }) => (
+                  <NavLink key={to} to={to} className={desktopClass}>
+                    {label}
                   </NavLink>
-                  <button
-                    onClick={handleSignOutClick}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
-                  >
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => navigate('/auth')}
-  //  onClick={() => navigate('/auth')}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                  >
-                    Log in
-                  </button>
-                  <button
-                    onClick={() => navigate('/selectuser')}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-                  >
-                    Sign up
-                  </button>
-                </>
-              )}
+                ))}
+              </div>
+
+              {/* Auth/Profile Section */}
+              <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+                {currentUser ? (
+                  <>
+                    <NavLink
+                      to={profilePath}
+                      className="flex items-center space-x-2 px-4 py-2 text-base font-semibold text-gray-700 hover:text-blue-600 transition-all duration-300"
+                    >
+                      <ProfileImage
+                        src={userProfile?.photo_url || currentUser?.photoURL || undefined}
+                        alt="Profile"
+                        name={userProfile?.name || currentUser?.displayName || 'User'}
+                        className="w-8 h-8"
+                        textClassName="text-sm"
+                      />
+                      <span>{userProfile?.name.split(' ')[0]}</span>
+
+                    </NavLink>
+                    <button
+                      onClick={handleSignOutClick}
+                      className="px-6 py-2 text-base font-semibold text-white bg-red-500 hover:bg-red-600 transition-all duration-300"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => navigate('/auth')}
+                      className="px-6 py-2 text-base font-semibold text-gray-700 hover:text-blue-600 transition-all duration-300"
+                    >
+                      Log in
+                    </button>
+                    <button
+                      onClick={() => navigate('/selectuser')}
+                      className="px-6 py-2 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all duration-300"
+                    >
+                      Sign up
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Mobile toggle */}
-            <div className="flex items-center sm:hidden">
+            <div className="flex items-center lg:hidden">
               <button
                 onClick={toggleMenu}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                className="inline-flex items-center justify-center p-3 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300"
               >
-                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
               </button>
             </div>
           </div>
@@ -240,8 +258,8 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="sm:hidden">
-            <div className="pt-2 pb-3 space-y-1">
+          <div className="lg:hidden bg-gradient-to-r from-white via-blue-50 to-purple-50 border-t border-gray-100">
+            <div className="pt-4 pb-4 space-y-2 px-4">
               {commonLinks.concat(extraLinks).map(({ to, label }) => (
                 <NavLink
                   key={to}
@@ -253,8 +271,8 @@ export default function Navbar() {
                 </NavLink>
               ))}
             </div>
-            <div className="pt-4 pb-3 border-t border-gray-200">
-              <div className="flex items-center px-4 space-x-3">
+            <div className="pt-4 pb-6 border-t border-gray-200">
+              <div className="flex flex-col space-y-3 px-4">
                 {currentUser ? (
                   <>
                     <button
@@ -262,7 +280,7 @@ export default function Navbar() {
                         navigate(profilePath);
                         setIsMenuOpen(false);
                       }}
-                      className="flex items-center space-x-3 flex-1 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      className="flex items-center space-x-3 w-full px-4 py-3 text-lg font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-300"
                     >
                       <ProfileImage
                         src={userProfile?.photo_url || currentUser?.photoURL || undefined}
@@ -275,7 +293,7 @@ export default function Navbar() {
                     </button>
                     <button
                       onClick={handleSignOutClick}
-                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+                      className="w-full px-4 py-3 text-lg font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-all duration-300"
                     >
                       Sign Out
                     </button>
@@ -287,13 +305,13 @@ export default function Navbar() {
                         handleLoginClick();
                         setIsMenuOpen(false);
                       }}
-                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      className="w-full px-4 py-3 text-lg font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-300"
                     >
                       Log in
                     </button>
                     <button
                       onClick={handleSignUpClick}
-                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                      className="w-full px-4 py-3 text-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300"
                     >
                       Sign up
                     </button>

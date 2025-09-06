@@ -214,13 +214,11 @@ enum ReportStatus {
   solve
 }
 
-/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 enum TutorStatus {
   active
   suspended
 }
 
-/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 enum CandidateStatus {
   pending
   approved

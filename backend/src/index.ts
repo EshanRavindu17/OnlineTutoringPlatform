@@ -20,6 +20,7 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+import paymentRoutes from './routes/paymentRoutes';
 
 import adminRoutes from './routes/admin.routes';
 import adminTutorsRoutes from './routes/admin.tutors.routes';
@@ -97,6 +98,9 @@ app.use('/student', studentRoutes);
 
 //Individual Tutor Routes
 app.use('/individual-tutor', individualTutorRoutes);
+
+//Payment Routes
+app.use('/payment', paymentRoutes);
 
 // Admin Routes
 app.use('/Admin', adminRoutes);
