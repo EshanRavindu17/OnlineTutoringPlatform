@@ -96,7 +96,7 @@ router.post('/create-payment-intent', async (req: Request, res: Response) => {
   }
 });
 
-// Confirm payment and create session booking
+// Confirm payment and create session booking This is only for individual Session booking 
 router.post('/confirm-payment', async (req: Request, res: Response) => {
 
 console.log('Confirm payment request received:', req.body);
@@ -144,7 +144,37 @@ console.log('Confirm payment request received:', req.body);
 
     console.log('Session Date:', sessionDate);
 
-    // Set the title for the session
+
+
+    const timeSlots = await prisma.free_Time_Slots.findMany({
+      where: {
+        i_tutor_id: i_tutor_id,
+        date: sessionDate,
+        start_time: {
+          in: slotsAsDate
+        },
+        status: 'free' // Only update free slots
+      }
+    });
+
+    if(timeSlots.length === slotsAsDate.length) {
+      console.log(`Found ${timeSlots.length} time slots to update`);
+    }
+    else{
+        return res.status(404).json({ error: 'One of your selected time slots is not available now' });
+    }
+
+
+    // Update each slot status to 'booked'
+    const updatePromises = timeSlots.map(slot => 
+      updateSlotStatus(slot.slot_id, 'booked' as any)
+    );
+
+    await Promise.all(updatePromises);
+
+    console.log('Time slots updated successfully');
+
+
 
     // Create the session using the service function
     const session = await createASession(
@@ -183,27 +213,27 @@ console.log('Confirm payment request received:', req.body);
 
     // Update the status of each time slot to 'booked'
     // First, we need to get the slot_ids for the selected slots
-    const timeSlots = await prisma.free_Time_Slots.findMany({
-      where: {
-        i_tutor_id: i_tutor_id,
-        date: sessionDate,
-        start_time: {
-          in: slotsAsDate
-        },
-        status: 'free' // Only update free slots
-      }
-    });
+    // const timeSlots = await prisma.free_Time_Slots.findMany({
+    //   where: {
+    //     i_tutor_id: i_tutor_id,
+    //     date: sessionDate,
+    //     start_time: {
+    //       in: slotsAsDate
+    //     },
+    //     status: 'free' // Only update free slots
+    //   }
+    // });
 
-    console.log(`Found ${timeSlots.length} time slots to update`);
+    // console.log(`Found ${timeSlots.length} time slots to update`);
 
-    // Update each slot status to 'booked'
-    const updatePromises = timeSlots.map(slot => 
-      updateSlotStatus(slot.slot_id, 'booked' as any)
-    );
+    // // Update each slot status to 'booked'
+    // const updatePromises = timeSlots.map(slot => 
+    //   updateSlotStatus(slot.slot_id, 'booked' as any)
+    // );
 
-    await Promise.all(updatePromises);
+    // await Promise.all(updatePromises);
 
-    console.log('Time slots updated successfully');
+    // console.log('Time slots updated successfully');
 
     
 

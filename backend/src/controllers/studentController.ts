@@ -1,13 +1,16 @@
 import { Request,Response } from "express";
 import {
     createASession,
+    findTimeSlots,
     getAllIndividualTutors
     ,getAllSessionByStudentId,getIndividualTutorById
     ,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
+    updateAccessTimeinFreeSlots,
     updateSlotStatus
 } from "../services/studentService";
 import { createPaymentRecord } from "../services/paymentService";
+import { DateTime } from "luxon";
 
 
 export const getAllIndividualTutorsController = async (req: Request, res: Response) => {
@@ -134,6 +137,7 @@ export const updateSlotStatusController = async (req: Request, res: Response) =>
     return res.json(updatedSlot);
 };
 
+
 export const createPaymentRecordController = async (req: Request, res: Response) => {
     const paymentData = req.body;
 
@@ -150,4 +154,37 @@ export const createPaymentRecordController = async (req: Request, res: Response)
         console.error("Error creating payment record:", error);
         return res.status(500).json({ error: "Failed to create payment record" });
     }
+};
+
+
+// To Find time slots for comparing  conflicts 
+export const findTimeSlotsController = async (req: Request, res: Response) => {
+    const { tutorId, sessionDate, slotsAsDate } = req.body;
+
+    console.log("Finding time slots for tutor_ID:", tutorId);
+    console.log("Finding time slots for sessionDate:", sessionDate);
+    console.log("Finding time slots for slotsAsDate:", slotsAsDate);
+
+    const timeSlots = await findTimeSlots(tutorId, new Date(sessionDate), slotsAsDate.map((slot: string) => new Date(slot)));
+
+    return res.json(timeSlots);
+};
+
+// This function for change the access time in free slots
+export const updateAccessTimeinFreeSlotsController = async (req: Request, res: Response) => {
+    const { slot_id, last_access_time } = req.body;
+
+    console.log("Updating last access time for slot_ID:", slot_id);
+    console.log("Updating last access time to:", last_access_time);
+
+    const lastAccessTime = new Date(last_access_time);
+
+
+    const updatedSlot = await updateAccessTimeinFreeSlots(slot_id, lastAccessTime);
+
+    if (!updatedSlot) {
+        return res.status(404).json({ message: "Slot not found" });
+    }
+
+    return res.json(updatedSlot);
 };
