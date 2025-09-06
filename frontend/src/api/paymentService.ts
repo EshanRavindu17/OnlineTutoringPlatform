@@ -64,9 +64,13 @@ class PaymentService {
         sessionDetails
       });
       return response.data;
-    } catch (error) {
-      console.error('Error confirming payment:', error);
-      throw new Error('Failed to confirm payment');
+    } catch (error: any) {
+      console.error('Error confirming payment:', error.response?.data || error);
+      if(error.response?.data?.error === "One of your selected time slots is not available now") {
+        throw new Error('Sorry! One of your selected time slots is not available now . Please go back and reload the page and select again');
+      }else{
+        throw new Error('Payment processing failed. Please try again.');
+      }
     }
   }
 

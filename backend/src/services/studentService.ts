@@ -1,5 +1,6 @@
 import { SessionStatus, SlotStatus } from "@prisma/client";
 import prisma from "../prismaClient";
+import  {DateTime} from "luxon";
 
 interface Individual{
     i_tutor_id : string;
@@ -124,6 +125,8 @@ export const createASession = async (
     price: number,
     date: Date,
 ) => {
+
+    const time = DateTime.now().setZone("Asia/Colombo").toJSDate();
     const session = await prisma.sessions.create({
         data: {
             student_id,
@@ -132,7 +135,7 @@ export const createASession = async (
             status,
             price,
             date,
-            created_at: new Date(),
+            created_at: time,
         }
     });
     return session;
@@ -142,6 +145,33 @@ export const updateSlotStatus = async (slot_id: string, status: SlotStatus) => {
     const updatedSlot = await prisma.free_Time_Slots.update({
         where: { slot_id },
         data: { status }
+    });
+    return updatedSlot;
+};
+
+
+export const findTimeSlots = async (i_tutor_id: string, sessionDate: Date, slotsAsDate: Date[]) => {
+    const timeSlots = await prisma.free_Time_Slots.findMany({
+      where: {
+        i_tutor_id: i_tutor_id,
+        date: sessionDate,
+        start_time: {
+          in: slotsAsDate
+        },
+        status: 'free' // Only update free slots
+      }
+    });
+
+    return timeSlots;
+};
+
+
+export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_time: Date) => {
+    const updatedSlot = await prisma.free_Time_Slots.update({
+        where: { slot_id },
+        data: { 
+            last_access_time
+        }
     });
     return updatedSlot;
 };

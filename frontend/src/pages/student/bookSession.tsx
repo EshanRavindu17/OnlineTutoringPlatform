@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { getFreeTimeSlotsByTutorId, getIndividualTutorById, getStudentIDByUserID } from '../../api/Student';
+import { getFreeTimeSlotsByTutorId, getIndividualTutorById, getStudentIDByUserID ,findTimeSlots, updateAccessTimeinFreeSlots} from '../../api/Student';
 import { paymentService } from '../../api/paymentService';
 import { useAuth } from '../../context/authContext';
 
@@ -147,6 +147,23 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
         return;
       }
 
+      const formattedSlots = sessionData.selectedSlots.map(timeSlot => {
+          const [hours, minutes] = timeSlot.split(':');
+          return `1970-01-01T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00.000Z`;
+        });
+
+
+      const timeSlots = await findTimeSlots(sessionData.selectedDate,sessionData.tutorId,formattedSlots);
+      console.log("Time Slots:", timeSlots);
+
+      if(timeSlots.length < formattedSlots.length) {
+        setErrorMessage('Some selected time slots are unavailable now . Please go back and reload and try again.');
+        setPaymentStatus('error');
+        return;
+      }
+
+      
+
       // Confirm payment with Stripe
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
@@ -162,10 +179,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
         setPaymentStatus('error');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Convert selected time slots to proper format for the backend
-        const formattedSlots = sessionData.selectedSlots.map(timeSlot => {
-          const [hours, minutes] = timeSlot.split(':');
-          return `1970-01-01T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00.000Z`;
-        });
+        // const formattedSlots = sessionData.selectedSlots.map(timeSlot => {
+        //   const [hours, minutes] = timeSlot.split(':');
+        //   return `1970-01-01T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00.000Z`;
+        // });
 
         // Prepare session details for backend
         const sessionDetails = {
@@ -184,10 +201,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
           onSuccess(paymentIntent.id);
         }, 2000);
       }
-    } catch (error) {
-      setErrorMessage('Payment processing failed. Please try again.');
+    } catch (error: any) {
+      setErrorMessage( error.message);
       setPaymentStatus('error');
-    }
+    } 
   };
 
   const cardElementOptions = {
@@ -505,8 +522,46 @@ export default function BookSessionPage() {
       return;
     }
 
-    // Show payment form
-    setBookingStatus('payment');
+    try {
+      setBookingStatus('loading');
+
+      // Update last access time for selected slots
+      console.log('Updating last access time for selected slots...');
+      const currentTime = new Date();
+      
+      // Get slot_ids for the selected time slots
+      const selectedSlotIds = availableSlots
+        .filter(slot => selectedSlots.includes(slot.time))
+        .map(slot => slot.slot_id);
+
+      console.log('Selected slot IDs:', selectedSlotIds);
+      console.log('Updating access time to:', currentTime);
+
+      // Update access time for each selected slot
+      const updatePromises = selectedSlotIds.map(slotId => 
+        updateAccessTimeinFreeSlots(slotId, currentTime)
+      );
+
+      await Promise.all(updatePromises);
+      
+      console.log('Successfully updated access time for all selected slots');
+
+      // Update local state to reflect the change
+      setAvailableSlots(prev => 
+        prev.map(slot => 
+          selectedSlots.includes(slot.time) 
+            ? { ...slot, lastAccessTime: currentTime }
+            : slot
+        )
+      );
+
+      // Show payment form
+      setBookingStatus('payment');
+      
+    } catch (error) {
+      console.error('Failed to update slot access times:', error);
+      setBookingStatus('error');
+    }
   };
 
   const calculateCost = () => {
