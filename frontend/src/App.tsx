@@ -12,13 +12,13 @@ import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
-import ScheduleMeeting from './tutor/ScheduleMeeting';
-import StripePaymentPage from './student/stripePaymentPage';
+import ScheduleMeeting from './tutor/scheduleMeeting';
+// import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from  './tutor/uploadvideo';
 import MyCourses from './tutor/mycourses';
 import NotFound from './pages/notfoundpage';
-import { TutorRoute } from './context/protectRoute';
+import { MassTutorRoute, TutorRoute } from './context/protectRoute';
 import { StudentRoute } from './context/protectRoute';
 import LesssonUpload from './tutor/anotherLessonUpload';
 import SignupForm from './components/SignupForm';
@@ -30,6 +30,7 @@ import ReportTutorPage from './pages/student/reportTutor';
 import PaymentDemoPage from './pages/student/paymentDemo';
 import ScrollToTop from './components/scrollToUp';
 import PaymentHistoryPage from './pages/student/paymentHistory';
+import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 
 const App = () => {
   return (
@@ -75,9 +76,13 @@ const App = () => {
           <Route path="/mycourses" element={<MyCourses/>} />
           <Route path="/anotherLessonUpload" element={<LesssonUpload/>} />
           <Route path="/manageSchedule" element={<ScheduleMeeting/>} />
-        </Route>  
-          
+        </Route>
 
+        <Route element={<MassTutorRoute />}>
+          {/* <Route path="/mass-tutor-profile" element={<MassTutorProfile />} />
+          <Route path="/mass-tutor-sessions" element={<MassTutorSessions />} /> */}
+          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
+        </Route>
         <Route path="*" element={<NotFound/>} />  
           
           {/* Add more routes as needed */}

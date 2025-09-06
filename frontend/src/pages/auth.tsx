@@ -137,8 +137,10 @@ export default function AuthPage() {
           // Navigate based on role
           if (selectedRole === 'student') {
             navigate('/studentprofile');
-          } else {
+          } else if (selectedRole === 'Individual') {
             navigate('/tutorprofile');
+          } else if (selectedRole === 'Mass') {
+            navigate('/mass-tutor-dashboard');
           }
         } else {
           const { detail } = await res.json();
@@ -162,6 +164,8 @@ export default function AuthPage() {
             dob: null    
           })
         });
+
+        // function for updaing role base adding for tables 
 
         console.log("Sending new user data:", {
           firebase_uid: firebaseAuthId,

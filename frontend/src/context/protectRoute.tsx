@@ -11,6 +11,14 @@ export function TutorRoute() {
   return <Outlet />;
 }
 
+export function MassTutorRoute(){
+  const { userProfile } = useAuth();
+  if (userProfile?.role !== 'Mass') {
+    return <Navigate to="/" replace />;
+  }
+  return <Outlet />;
+}
+
 export function StudentRoute() {
   const { userProfile } = useAuth();
   if (userProfile?.role !== 'student') {
