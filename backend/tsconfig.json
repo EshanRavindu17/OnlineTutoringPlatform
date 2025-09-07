@@ -17,9 +17,10 @@
     "allowImportingTsExtensions": false,
     "noEmit": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts","src/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"],
   "ts-node": {
+    "files": true,
     "esm": false
   }
 }

@@ -76,8 +76,30 @@ interface SessionData{
     date: string; // Date of the session
 }
 
+interface Student{
+    user_id:string;
+    points:number;
+}
+
 const baseUrl = 'http://localhost:5000/api';
 const baseUrl2 = 'http://localhost:5000/student';
+
+
+export const addStudent = async (studentData: Student): Promise<Student> => {
+    console.log('Adding new student...', studentData);
+
+    try {
+        const response = await axios.post<Student>(
+            `${baseUrl2}/addStudent`,
+            studentData
+        );
+        console.log('✅ Student added successfully:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Error adding student:', error);
+        throw error;
+    }
+};
 
 export const updateStudentProfile = async (
     profileData: Partial<StudentProfile>
@@ -263,3 +285,35 @@ export const getStudentIDByUserID = async (userId: string) => {
 //         throw new Error(`Failed to create session: ${error.message || 'Unknown error occurred'}`);
 //     }
 // };
+
+
+export const findTimeSlots = async (sessionDate: string, tutorId: string, slotsAsDate: string[]) => {
+    try {
+        const response = await axios.post<FreeTimeSlot[]>(
+            `${baseUrl2}/findTimeSlots`,
+            {
+                sessionDate,
+                tutorId,
+                slotsAsDate
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch time slots:', error);
+        throw new Error(`Failed to fetch time slots: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+
+export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_time: Date) => {
+    try {
+        const response = await axios.put<FreeTimeSlot>(
+            `${baseUrl2}/updateAccessTimeinFreeSlots`,
+            { slot_id, last_access_time }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to update access time in free slots:', error);
+        throw new Error(`Failed to update access time: ${error.message || 'Unknown error occurred'}`);
+    }
+};

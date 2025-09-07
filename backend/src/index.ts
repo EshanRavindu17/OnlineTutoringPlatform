@@ -17,7 +17,7 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 import prisma from './prismaClient';
-
+import cookieParser from 'cookie-parser';
 
 //importing routes
 import userRoutes from './routes/userRoutes';
@@ -27,6 +27,9 @@ import individualTutorRoutes from './routes/individualTutorRouter';
 import scheduleRoutes from './routes/scheduleRoutes';
 
 import paymentRoutes from './routes/paymentRoutes';
+
+import adminRoutes from './routes/admin.routes';
+import adminTutorsRoutes from './routes/admin.tutors.routes';
 
 dotenv.config();
 
@@ -38,15 +41,27 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middleware
+// CORS — allow admin subdomain in dev
+const allowlist: (string | RegExp)[] = [
+  process.env.CLIENT_URL || '',
+  'http://localhost:5173',
+  'http://admin.localhost:5173',
+  /^http:\/\/localhost:\d+$/i,
+].filter(Boolean);
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    const ok = allowlist.some(o => typeof o === 'string' ? o === origin : o.test(origin));
+    cb(ok ? null : new Error(`Not allowed by CORS: ${origin}`), ok);
+  },
+  credentials: false, // we're sending tokens in headers, not cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Static files (for file uploads, profile pictures, etc.)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -82,14 +97,6 @@ app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({ message: 'Welcome to the Online Tutoring Platform API' });
 });
 
-//Routes for user management
-app.use('/api', userRoutes);
-
-// const formatToEnum = (value) => {
-//   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-// };
-
-
 // Register routes
 app.use('/api', userRoutes);
 
@@ -103,6 +110,10 @@ app.use('/individual-tutor', individualTutorRoutes);
 app.use('/api/schedule', scheduleRoutes);
 //Payment Routes
 app.use('/payment', paymentRoutes);
+
+// Admin Routes
+app.use('/Admin', adminRoutes);
+app.use('/Admin/tutors', adminTutorsRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

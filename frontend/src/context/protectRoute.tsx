@@ -5,7 +5,7 @@ import React from 'react';
 
 export function TutorRoute() {
   const { userProfile } = useAuth();
-  
+
   // Check for Individual tutors with proper status
   if (userProfile?.role === 'Individual') {
     // If user doesn't have dashboard access, redirect to pending page
@@ -46,6 +46,7 @@ export function TutorRoute() {
 
 export function StudentRoute() {
   const { userProfile } = useAuth();
+  console.log("User Profile:", userProfile);
   if (userProfile?.role !== 'student') {
     return <Navigate to="/" replace />;
   }
