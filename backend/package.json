@@ -27,16 +27,14 @@
     "firebase-admin": "^13.4.0",
     "joi": "^17.13.3",
     "multer": "^2.0.2",
-    "multer-storage-cloudinary": "^4.0.0",
-    "stripe": "^18.5.0"
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/joi": "^17.2.3",
     "@types/multer": "^2.0.0",
-    "@types/node": "^24.3.0",
-    "@types/stripe": "^8.0.417",
+    "@types/node": "^24.2.1",
     "nodemon": "^3.1.10",
     "prisma": "^6.13.0",
     "ts-node": "^10.9.2",
