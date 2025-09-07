@@ -38,9 +38,9 @@ import {
   Upload,
   VideoIcon
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import { useAuth } from '../context/authContext';
-import { ScheduleService } from '../api/ScheduleService';
+import Navbar from '../../components/Navbar';
+import { useAuth } from '../../context/authContext';
+import { ScheduleService } from '../../api/ScheduleService';
 
 interface TutorProfile {
   name: string;

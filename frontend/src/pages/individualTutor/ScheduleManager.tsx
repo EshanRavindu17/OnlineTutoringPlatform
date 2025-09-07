@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, Loader, Save } from 'lucide-react';
-import { ScheduleService, TimeSlot as APITimeSlot, CreateTimeSlotRequest } from '../api/ScheduleService';
+import { ScheduleService, TimeSlot as APITimeSlot, CreateTimeSlotRequest } from '../../api/ScheduleService';
 
 interface TimeSlot {
   id: string;

@@ -62,35 +62,97 @@ export async function approveCandidateService(candidateId: string) {
     if (kind === 'individual') {
       if (c.user_id) tutor = await tx.individual_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
+        // Parse tutor data using hybrid approach
+        let tutorData: any = {};
+        let originalBio = '';
+
+        try {
+          if (c.bio) {
+            // Check if bio contains JSON data with our marker
+            if (c.bio.includes('__TUTOR_DATA__:')) {
+              const parts = c.bio.split('__TUTOR_DATA__:');
+              originalBio = parts[0].replace(/\n\n$/, ''); // Remove trailing newlines
+              tutorData = JSON.parse(parts[1]);
+              console.log(`📖 Parsed Individual tutor data from hybrid storage:`, tutorData);
+              console.log(`📖 Original bio:`, originalBio);
+            } else {
+              // Fallback: try parsing entire bio as JSON (old format)
+              tutorData = JSON.parse(c.bio);
+              originalBio = tutorData.originalBio || '';
+              console.log(`📖 Parsed Individual tutor data from legacy JSON:`, tutorData);
+            }
+          }
+        } catch (error) {
+          console.log('Could not parse bio as JSON, using as plain text');
+          originalBio = c.bio || '';
+          tutorData = {};
+        }
+
+        // Create Individual Tutor with hybrid data (direct fields + JSON fields)
+        const individualTutorData = {
+          user_id: c.user_id ?? null,
+          subjects: tutorData.subjects || [],
+          titles: tutorData.titles || [],
+          hourly_rate: tutorData.hourly_rate ? parseFloat(tutorData.hourly_rate.toString()) : null,
+          description: tutorData.description || originalBio || '',
+          rating: null,
+          heading: tutorData.heading || c.name || '',
+          location: tutorData.location || null,
+          phone_number: tutorData.phone_number || (c.phone_number ? String(c.phone_number) : null), // Get from JSON first, fallback to candidate field
+          qualifications: tutorData.qualifications || [],
+          status: 'active' as const,
+        };
+
+        console.log(`🏗️ Creating Individual tutor with hybrid data:`, individualTutorData);
+
         tutor = await tx.individual_Tutor.create({
-          data: {
-            user_id: c.user_id ?? null,
-            subjects: [],
-            titles: [],
-            hourly_rate: null,
-            description: c.bio ?? '',
-            rating: null,
-            heading: c.name ?? '',
-            location: null,
-            phone_number: c.phone_number ? String(c.phone_number) : null,
-            qualifications: [],
-            status: 'active',
-          },
+          data: individualTutorData,
         });
       }
     } else {
       if (c.user_id) tutor = await tx.mass_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
+        // Parse tutor data using hybrid approach
+        let tutorData: any = {};
+        let originalBio = '';
+
+        try {
+          if (c.bio) {
+            // Check if bio contains JSON data with our marker
+            if (c.bio.includes('__TUTOR_DATA__:')) {
+              const parts = c.bio.split('__TUTOR_DATA__:');
+              originalBio = parts[0].replace(/\n\n$/, ''); // Remove trailing newlines
+              tutorData = JSON.parse(parts[1]);
+              console.log(`📖 Parsed Mass tutor data from hybrid storage:`, tutorData);
+              console.log(`📖 Original bio:`, originalBio);
+            } else {
+              // Fallback: try parsing entire bio as JSON (old format)
+              tutorData = JSON.parse(c.bio);
+              originalBio = tutorData.originalBio || '';
+              console.log(`📖 Parsed Mass tutor data from legacy JSON:`, tutorData);
+            }
+          }
+        } catch (error) {
+          console.log('Could not parse bio as JSON, using as plain text');
+          originalBio = c.bio || '';
+          tutorData = {};
+        }
+
+        // Create Mass Tutor with hybrid data (direct fields + JSON fields)
+        const massTutorData = {
+          subjects: tutorData.subjects || [],
+          prices: tutorData.prices ? parseFloat(tutorData.prices.toString()) : null,
+          description: tutorData.description || originalBio || '',
+          user_id: c.user_id ?? null,
+          rating: null,
+          heading: tutorData.heading || c.name || '',
+          status: 'active' as const,
+        };
+
+        console.log(`🏗️ Creating Mass tutor with hybrid data:`, massTutorData);
+
         tutor = await tx.mass_Tutor.create({
-          data: {
-            user_id: c.user_id ?? null,
-            subjects: [],
-            prices: null,
-            description: c.bio ?? '',
-            rating: null,
-            heading: c.name ?? '',
-            status: 'active',
-          },
+          data: massTutorData,
         });
       }
     }

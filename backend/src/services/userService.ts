@@ -9,6 +9,16 @@ interface UserData {
   photo_url?: string;
   bio?: string;
   dob?: Date | null;
+  // Additional fields for tutors
+  phone_number?: string;
+  subjects?: string[];
+  titles?: string[];
+  hourly_rate?: number;
+  description?: string;
+  heading?: string;
+  location?: string;
+  qualifications?: string[];
+  prices?: number;
 }
 
 interface GetUsersOptions {
@@ -51,7 +61,17 @@ export const createOrUpdateUser = async (userData: UserData) => {
       role,
       photo_url,
       bio = '',
-      dob = null
+      dob = null,
+      // Additional tutor fields
+      phone_number,
+      subjects,
+      titles,
+      hourly_rate,
+      description,
+      heading,
+      location,
+      qualifications,
+      prices
     } = userData;
 
     if (!firebase_uid || !email || !name || !role) {
@@ -98,16 +118,58 @@ export const createOrUpdateUser = async (userData: UserData) => {
         });
 
         if (!existingCandidate) {
-          await prisma.candidates.create({
-            data: {
-              name,
-              email,
-              role: role as any,
-              bio,
-              dob: dob ? new Date(dob) : null
-              // applied_at: new Date() // Will be added once Prisma client is regenerated
-              // Default status will be 'pending'
+          // Hybrid approach: Store data in proper columns where available, rest in JSON
+          
+          // Fields that exist in Candidates table (store directly)
+          const directCandidateFields = {
+            name,
+            email,
+            role: role as any,
+            bio: bio || '', // Keep original bio in bio field
+            dob: dob ? new Date(dob) : null,
+            phone_number: null, // Phone number will be stored in JSON since it can be too large for INT
+            user_id: user.id
+          };
+
+          // Fields that DON'T exist in Candidates table (store as JSON)
+          const additionalTutorData: any = {};
+          
+          if (role === 'Individual' || role === 'Mass') {
+            // Common tutor fields not in Candidates table
+            if (description) additionalTutorData.description = description;
+            if (heading) additionalTutorData.heading = heading;
+            if (subjects && subjects.length > 0) additionalTutorData.subjects = subjects;
+            if (phone_number) additionalTutorData.phone_number = phone_number; // Store full phone number in JSON
+
+            if (role === 'Individual') {
+              // Individual tutor specific fields
+              if (titles && titles.length > 0) additionalTutorData.titles = titles;
+              if (hourly_rate) additionalTutorData.hourly_rate = parseFloat(hourly_rate.toString());
+              if (location) additionalTutorData.location = location;
+              if (qualifications && qualifications.length > 0) additionalTutorData.qualifications = qualifications;
             }
+
+            if (role === 'Mass') {
+              // Mass tutor specific fields
+              if (prices) additionalTutorData.prices = parseFloat(prices.toString());
+            }
+          }
+
+          // Create candidate entry
+          const candidateData = {
+            ...directCandidateFields,
+            // Store additional data as JSON in a separate field or append to bio
+            ...(Object.keys(additionalTutorData).length > 0 && {
+              bio: bio ? `${bio}\n\n__TUTOR_DATA__:${JSON.stringify(additionalTutorData)}` : `__TUTOR_DATA__:${JSON.stringify(additionalTutorData)}`
+            })
+          };
+
+          console.log(`� Storing candidate data for ${role}:`);
+          console.log(`  📋 Direct fields:`, directCandidateFields);
+          console.log(`  📦 JSON fields:`, additionalTutorData);
+
+          await prisma.candidates.create({
+            data: candidateData
           });
           
           // Update the applied_at field separately as a workaround
