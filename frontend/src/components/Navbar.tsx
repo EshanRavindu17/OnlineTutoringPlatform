@@ -93,8 +93,8 @@ export default function Navbar() {
   ];
 
   const tutorLinks = [
-    { to: '/addnewcourse', label: 'Create Course' },
-    { to: '/mycourses',     label: 'My Courses'},
+    // { to: '/addnewcourse', label: 'Create Course' },
+    // { to: '/mycourses',     label: 'My Courses'},
     { to: '/manageSchedule',     label: 'Manage Schedule'},
   ];
 

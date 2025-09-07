@@ -5,22 +5,19 @@ import StudentLists from './components/StudentList';
 import WelcomePage  from './pages/welcome';
 import Auth from './pages/auth';
 import FindTutors from './pages/findTutors'
-import AddNewCourse from './tutor/createNewCourse'
 import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
 import StudentProfile from './pages/student/studentProfile';
-import TutorProfile from './tutor/tutorProfile';
-import CreateTutorProfile from './tutor/createTutorProfile';
-import StartZoom from './tutor/startZoom';
-import ScheduleMeeting from './tutor/ScheduleMeeting';
-import StripePaymentPage from './student/stripePaymentPage';
+import TutorProfile from './individualTutor/tutorProfile';
+import StartZoom from './individualTutor/startZoom';
+import ScheduleMeeting from './individualTutor/ScheduleMeeting';
+// import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
-import UploadVideo from  './tutor/uploadvideo';
-import MyCourses from './tutor/mycourses';
+import UploadVideo from  './individualTutor/uploadvideo';
 import NotFound from './pages/notfoundpage';
 import { TutorRoute } from './context/protectRoute';
 import { StudentRoute } from './context/protectRoute';
-import LesssonUpload from './tutor/anotherLessonUpload';
+import LesssonUpload from './individualTutor/anotherLessonUpload';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -30,6 +27,9 @@ import ReportTutorPage from './pages/student/reportTutor';
 import PaymentDemoPage from './pages/student/paymentDemo';
 import ScrollToTop from './components/scrollToUp';
 import PaymentHistoryPage from './pages/student/paymentHistory';
+import TutorPending from './pages/tutorPending';
+import TutorSuspended from './pages/tutorSuspended';
+import TutorRejected from './individualTutor/TutorRejected';
 
 const App = () => {
   return (
@@ -53,7 +53,11 @@ const App = () => {
           <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
           <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
           <Route path="/courses" element={<Courses/>}/>
-
+          
+          {/* Tutor Status Pages */}
+          <Route path="/tutor-pending" element={<TutorPending/>}/>
+          <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
+          <Route path="/tutor-rejected" element={<TutorRejected/>}/>
 
           
         <Route element={<StudentRoute />}>          
@@ -66,13 +70,10 @@ const App = () => {
 
        
         <Route element={<TutorRoute />}>
-          <Route path="/addnewcourse" element={<AddNewCourse/>}/>
           <Route path="/tutorprofile" element={<TutorProfile/>}/>
-          <Route path="/createtutorprofile" element={<CreateTutorProfile/>}/>
           <Route path="/startzoom" element={<StartZoom/>}/>
           {/* <Route path="/schedulemeeting" element={<SheduleMeeting/>}/> */}
           <Route path="/uploadvideo" element={<UploadVideo/>} />
-          <Route path="/mycourses" element={<MyCourses/>} />
           <Route path="/anotherLessonUpload" element={<LesssonUpload/>} />
           <Route path="/manageSchedule" element={<ScheduleMeeting/>} />
         </Route>  
