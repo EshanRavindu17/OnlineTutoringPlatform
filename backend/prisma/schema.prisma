@@ -7,23 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  name             String             @db.VarChar(255)
-  email            String             @unique @db.VarChar(255)
-  role             UserRole
-  bio              String
-  dob              DateTime?          @db.Date
-  created_at       DateTime           @default(now())
-  firebase_uid     String             @unique
-  photo_url        String?
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  Candidates       Candidates[]
-  Individual_Tutor Individual_Tutor[]
-  Mass_Tutor       Mass_Tutor[]
-  Notifications    Notifications[]
-  Student          Student[]
-}
-
 model Admin {
   admin_id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name          String?   @db.VarChar
@@ -31,11 +14,11 @@ model Admin {
   password_hash String
   token_version Int       @default(0)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
   last_login_at DateTime? @db.Timestamptz(6)
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Candidates {
   id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String?         @db.VarChar
@@ -73,6 +56,7 @@ model Individual_Payments {
   Student           Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_i_pay_fk")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Individual_Tutor {
   i_tutor_id      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subjects        String[]          @db.VarChar
@@ -91,6 +75,7 @@ model Individual_Tutor {
   Sessions        Sessions[]
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Mass_Tutor {
   m_tutor_id  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subjects    String[]    @db.VarChar
@@ -140,17 +125,17 @@ model Reports {
 model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
-  slots                   DateTime[]                @db.Time
-  start_time              DateTime?                 @db.Timestamp(6)
-  end_time                DateTime?                 @db.Timestamp(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
-  price                   Float?
+  created_at              DateTime?                 @db.Timestamp(6)
+  date                    DateTime?                 @db.Date
   i_tutor_id              String?                   @db.Uuid
   meeting_urls            String[]
-  date                    DateTime?                 @db.Date
-  created_at              DateTime?                 @db.Timestamp(6)
+  price                   Float?
+  slots                   DateTime[]                @db.Time
   title                   String?
+  start_time              DateTime?                 @db.Timestamp(6)
+  end_time                DateTime?                 @db.Timestamp(6)
   Rating_N_Review_Session Rating_N_Review_Session[]
   Individual_Tutor        Individual_Tutor?         @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, onUpdate: NoAction)
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
@@ -180,11 +165,33 @@ model Titles {
   Subjects Subjects @relation(fields: [sub_id], references: [sub_id], onDelete: Cascade, map: "title_sub_id_fk")
 }
 
-enum UserRole {
-  student
-  Individual
-  Mass
-  Admin
+model User {
+  name             String             @db.VarChar(255)
+  email            String             @unique @db.VarChar(255)
+  role             UserRole
+  bio              String
+  dob              DateTime?          @db.Date
+  created_at       DateTime           @default(now())
+  firebase_uid     String             @unique
+  photo_url        String?
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Candidates       Candidates[]
+  Individual_Tutor Individual_Tutor[]
+  Mass_Tutor       Mass_Tutor[]
+  Notifications    Notifications[]
+  Student          Student[]
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum CandidateStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ReportStatus {
+  under_review @map("under review")
+  solve
 }
 
 enum SessionStatus {
@@ -205,23 +212,21 @@ enum Status {
   refund
 }
 
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum TutorStatus {
+  active
+  suspended
+  pending
+}
+
 enum TutorType {
   mass
   individual
 }
 
-enum ReportStatus {
-  under_review @map("under review")
-  solve
-}
-
-enum TutorStatus {
-  active
-  suspended
-}
-
-enum CandidateStatus {
-  pending
-  approved
-  rejected
+enum UserRole {
+  student
+  Individual
+  Mass
+  Admin
 }
