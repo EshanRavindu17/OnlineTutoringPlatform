@@ -1,7 +1,7 @@
 // contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../firebase.tsx';
 
 interface UserProfile {
   id: string;
@@ -107,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('🔑 Using Firebase ID token, expires at:', 
               new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
             
+            
             const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
               method: 'GET',
               headers: { 
@@ -114,9 +115,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 'Authorization': `Bearer ${idToken}`
               }
             });
+            profileData = await response.json();
+
+            console.log('👤 Fetched user profile:', profileData);
 
             if (response.ok) {
-              profileData = await response.json();
+              // profileData = await response.json();
               console.log('✅ User profile loaded successfully');
               break;
             } else if (response.status === 401) {

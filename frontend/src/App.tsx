@@ -19,15 +19,16 @@ import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './tutor/tutorProfile';
 import CreateTutorProfile from './tutor/createTutorProfile';
 import StartZoom from './tutor/startZoom';
-import SheduleMeeting from './tutor/scheduleMeeting';
+import ScheduleMeeting from './tutor/scheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from './tutor/uploadvideo';
 import MyCourses from './tutor/mycourses';
 import NotFound from './pages/notfoundpage';
 import { TutorRoute, StudentRoute } from './context/protectRoute';
+import { MassTutorRoute, TutorRoute } from './context/protectRoute';
+import { StudentRoute } from './context/protectRoute';
 import LesssonUpload from './tutor/anotherLessonUpload';
-import TutorCalendar from './tutor/tutorCalender';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -37,6 +38,7 @@ import ReportTutorPage from './pages/student/reportTutor';
 import PaymentDemoPage from './pages/student/paymentDemo';
 import ScrollToTop from './components/scrollToUp';
 import PaymentHistoryPage from './pages/student/paymentHistory';
+import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
@@ -130,6 +132,28 @@ const App = () => {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+=======
+          <Route path="/addnewcourse" element={<AddNewCourse/>}/>
+          <Route path="/tutorprofile" element={<TutorProfile/>}/>
+          <Route path="/createtutorprofile" element={<CreateTutorProfile/>}/>
+          <Route path="/startzoom" element={<StartZoom/>}/>
+          {/* <Route path="/schedulemeeting" element={<SheduleMeeting/>}/> */}
+          <Route path="/uploadvideo" element={<UploadVideo/>} />
+          <Route path="/mycourses" element={<MyCourses/>} />
+          <Route path="/anotherLessonUpload" element={<LesssonUpload/>} />
+          <Route path="/manageSchedule" element={<ScheduleMeeting/>} />
+        </Route>
+
+        <Route element={<MassTutorRoute />}>
+          {/* <Route path="/mass-tutor-profile" element={<MassTutorProfile />} />
+          <Route path="/mass-tutor-sessions" element={<MassTutorSessions />} /> */}
+          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
+        </Route>
+        <Route path="*" element={<NotFound/>} />  
+          
+          {/* Add more routes as needed */}
+        </Routes>
+      </div>
     </Router>
   );
 };

@@ -24,16 +24,143 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../context/authContext';
-import { updateStudentProfile } from '../../api/Student';
+import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, Session } from '../../api/Student';
 import { useToast } from '../../components/Toast';
+
+interface SessionData {
+  session_id: string;
+  start_time: string | null;
+  end_time: string | null;
+  status: 'scheduled' | 'ongoing' | 'canceled' | 'completed';
+  materials: string[];
+  slots: string[]; // Array of slot times like "1970-01-01T15:00:00.000Z"
+  Individual_Tutor: {
+    User: {
+      name: string;
+    };
+  };
+}
 
 const StudentProfile: React.FC = () => {
   const { currentUser, userProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [updateLoading, setUpdateLoading] = useState(false);
   const { showToast, ToastContainer } = useToast();
+  
+  // Sessions state
+  const [allSessions, setAllSessions] = useState<SessionData[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
 
   const [image, setImage] = useState<File | null>(null);
+
+  // Helper function to extract time from slot format
+  const extractTimeFromSlot = (slot: string): string => {
+    // Format: "1970-01-01T15:00:00.000Z" -> "15:00"
+    const timePart = slot.split('T')[1];
+    return timePart.split(':').slice(0, 2).join(':');
+  };
+
+  // Helper function to calculate duration in hours
+  const getDurationFromSlots = (slots: string[]): number => {
+    return slots.length; // Each slot represents 1 hour
+  };
+
+  // Helper function to get session time range
+  const getSessionTimeRange = (slots: string[]): string => {
+    if (slots.length === 0) return 'Time not set';
+    
+    const times = slots.map(slot => extractTimeFromSlot(slot)).sort();
+    const startTime = times[0];
+    const lastTime = times[times.length - 1];
+    const endHour = parseInt(lastTime.split(':')[0]) + 1;
+    const endTime = `${endHour.toString().padStart(2, '0')}:00`;
+    
+    return `${startTime} - ${endTime}`;
+  };
+
+  // Helper function to check if join meeting button should be shown
+  const canJoinMeeting = (sessionDate: string, slots: string[]): boolean => {
+    if (slots.length === 0) return false;
+
+    try {
+      // Get the session start time from the first slot
+      const times = slots.map(slot => extractTimeFromSlot(slot)).sort();
+      const startTime = times[0]; // e.g., "15:00"
+      
+      // Parse session date and time
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const sessionDateTime = new Date(sessionDate);
+      sessionDateTime.setHours(startHour, startMinute, 0, 0);
+      
+      // Get current time
+      const now = new Date();
+      
+      // Calculate the difference in minutes
+      const diffInMs = sessionDateTime.getTime() - now.getTime();
+      const diffInMinutes = diffInMs / (1000 * 60);
+      
+      // Show button if current time is within 15 minutes before session start
+      // or if session has already started (but not more than 2 hours past start)
+      return diffInMinutes <= 15 && diffInMinutes >= -120; // 15 min before to 2 hours after
+    } catch (error) {
+      console.error('Error calculating meeting join time:', error);
+      return false;
+    }
+  };
+
+  // Helper function to get meeting availability message
+  const getMeetingAvailabilityMessage = (sessionDate: string, slots: string[]): string => {
+    if (slots.length === 0) return '';
+
+    try {
+      const times = slots.map(slot => extractTimeFromSlot(slot)).sort();
+      const startTime = times[0];
+      
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const sessionDateTime = new Date(sessionDate);
+      sessionDateTime.setHours(startHour, startMinute, 0, 0);
+      
+      const now = new Date();
+      const diffInMs = sessionDateTime.getTime() - now.getTime();
+      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+      
+      if (diffInMinutes > 15) {
+        const joinTime = new Date(sessionDateTime.getTime() - (15 * 60 * 1000));
+        return `Meeting will be available to join at ${joinTime.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })} (15 minutes before session)`;
+      }
+      
+      return '';
+    } catch (error) {
+      console.error('Error calculating meeting availability message:', error);
+      return '';
+    }
+  };
+
+  // Helper function to get session duration
+  const getSessionDuration = (slots: string[]): string => {
+    const duration = slots.length;
+    return duration === 1 ? '1 hour' : `${duration} hours`;
+  };
+
+  // Filter sessions by status
+  const upcomingSessions = allSessions.filter(session => 
+    session.status === 'scheduled' 
+  );
+  
+  const completedSessions = allSessions.filter(session => 
+    session.status === 'completed'
+  );
+  
+  const cancelledSessions = allSessions.filter(session => 
+    session.status === 'canceled'
+  );
+
+  const ongoingSessions = allSessions.filter(session => 
+    session.status === 'ongoing'
+  );
 
   // Helper function to get user's initials
   const getUserInitials = (name: string) => {
@@ -227,143 +354,52 @@ const StudentProfile: React.FC = () => {
     }
   ]);
 
-  // Sessions Data
-  const [upcomingSessions] = useState([
-    {
-      id: 1,
-      subject: "Advanced Mathematics",
-      tutor: "Dr. Sarah Wilson",
-      date: "2025-08-16",
-      time: "3:00 PM",
-      duration: "1.5 hours",
-      type: "Individual",
-      location: "Online - Zoom",
-      status: "Confirmed",
-      meetingLink: "https://zoom.us/j/123456789"
-    },
-    {
-      id: 2,
-      subject: "Physics",
-      tutor: "Prof. Michael Chen",
-      date: "2025-08-17",
-      time: "2:00 PM", 
-      duration: "2 hours",
-      type: "Individual",
-      location: "Online - Zoom",
-      status: "Confirmed",
-      meetingLink: "https://zoom.us/j/987654321"
-    },
-    {
-      id: 3,
-      subject: "SAT Preparation",
-      tutor: "Dr. Robert Smith",
-      date: "2025-08-19",
-      time: "6:00 PM",
-      duration: "2 hours", 
-      type: "Group",
-      location: "Online - Google Meet",
-      status: "Confirmed",
-      meetingLink: "https://meet.google.com/abc-defg-hij"
-    }
-  ]);
+  // Sessions Data - now using API data
 
-  const [previousSessions, setPreviousSessions] = useState([
-    {
-      id: 1,
-      subject: "Advanced Mathematics",
-      tutor: "Dr. Sarah Wilson",
-      date: "2025-08-08",
-      time: "3:00 PM",
-      duration: "1.5 hours",
-      type: "Individual",
-      location: "Online - Zoom",
-      status: "Completed",
-      rating: 5,
-      feedback: "Excellent session! Dr. Wilson explained calculus concepts very clearly."
-    },
-    {
-      id: 2,
-      subject: "Physics",
-      tutor: "Prof. Michael Chen",
-      date: "2025-08-05",
-      time: "2:00 PM",
-      duration: "2 hours", 
-      type: "Individual",
-      location: "Online - Zoom",
-      status: "Completed",
-      rating: 4,
-      feedback: "Good session, would like more practice problems next time."
-    },
-    {
-      id: 3,
-      subject: "SAT Preparation",
-      tutor: "Dr. Robert Smith",
-      date: "2025-08-01",
-      time: "6:00 PM",
-      duration: "2 hours",
-      type: "Group", 
-      location: "Online - Google Meet",
-      status: "Completed",
-      rating: 5,
-      feedback: "Great group session with lots of practice tests."
-    },
-    {
-      id: 4,
-      subject: "Chemistry",
-      tutor: "Dr. Emily Johnson",
-      date: "2025-07-28",
-      time: "4:00 PM",
-      duration: "1 hour",
-      type: "Individual",
-      location: "Online - Zoom",
-      status: "Completed",
-      rating: null,
-      feedback: null
-    },
-    {
-      id: 5,
-      subject: "English Literature",
-      tutor: "Prof. James Anderson",
-      date: "2025-07-25",
-      time: "1:00 PM",
-      duration: "2 hours",
-      type: "Individual",
-      location: "Online - Google Meet",
-      status: "Completed",
-      rating: null,
-      feedback: null
-    },
-    {
-      id: 6,
-      subject: "Biology",
-      tutor: "Dr. Lisa Parker",
-      date: "2025-07-22",
-      time: "11:00 AM",
-      duration: "1.5 hours",
-      type: "Group",
-      location: "Online - Zoom",
-      status: "Completed",
-      rating: null,
-      feedback: null
-    }
-  ]);
+  // Rating modal state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
-  const [cancelledSessions] = useState([
-    {
-      id: 1,
-      subject: "Physics",
-      tutor: "Prof. Michael Chen",
-      date: "2025-08-10",
-      time: "2:00 PM",
-      duration: "2 hours",
-      type: "Individual", 
-      location: "Online - Zoom",
-      status: "Cancelled",
-      reason: "Tutor was sick",
-      cancelledBy: "Tutor",
-      refunded: true
+  // Fetch sessions on component mount
+  useEffect(() => {
+    const fetchSessions = async () => {
+      if (!userProfile?.id) {
+        setSessionsLoading(false);
+        return;
+      }
+
+      try {
+        setSessionsLoading(true);
+        console.log('Fetching student_id for user:', userProfile.id);
+        
+        // First get the student_id using the user_id
+        const studentId = await getStudentIDByUserID(userProfile.id);
+        
+        if (!studentId) {
+          console.log('No student_id found for user:', userProfile.id);
+          setAllSessions([]);
+          return;
+        }
+
+        console.log('Fetching sessions for student_id:', studentId);
+        const sessions = await getAllSessionsByStudentId(studentId);
+        setAllSessions(sessions || []);
+      } catch (error) {
+        console.error('Failed to fetch sessions:', error);
+        showToast('Failed to load sessions', 'error');
+        setAllSessions([]);
+      } finally {
+        setSessionsLoading(false);
+      }
+    };
+
+    if (userProfile) {
+      fetchSessions();
     }
-  ]);
+  }, [userProfile]);
 
   // Reports Data - Reports submitted by student
   const [submittedReports] = useState([
@@ -406,13 +442,6 @@ const StudentProfile: React.FC = () => {
   ]);
 
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Rating and Review Modal State
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<any>(null);
-  const [rating, setRating] = useState(0);
-  const [review, setReview] = useState('');
-  const [submittingRating, setSubmittingRating] = useState(false);
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,9 +530,9 @@ const StudentProfile: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
       
       // Update the session with the new rating and review
-      setPreviousSessions(prev => 
+      setAllSessions(prev => 
         prev.map(session => 
-          session.id === selectedSession.id 
+          session.session_id === selectedSession.session_id 
             ? { ...session, rating: rating, feedback: review }
             : session
         )
@@ -665,6 +694,7 @@ const StudentProfile: React.FC = () => {
         {type === "upcoming" && <Calendar className="w-5 h-5 mr-2 text-blue-600" />}
         {type === "previous" && <CheckCircle className="w-5 h-5 mr-2 text-green-600" />}
         {type === "cancelled" && <XCircle className="w-5 h-5 mr-2 text-red-600" />}
+        {type === "ongoing" && <Clock className="w-5 h-5 mr-2 text-yellow-600" />}
         {title}
       </h3>
       {sessions.length === 0 ? (
@@ -674,30 +704,20 @@ const StudentProfile: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {sessions.map((session: any) => (
-            <div key={session.id} className={`border-l-4 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 ${
-              session.type === 'Individual' 
-                ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25' 
-                : 'border-purple-500 bg-gradient-to-r from-purple-50 to-purple-25'
-            }`}>
+          {sessions.map((session: Session) => (
+            <div key={session.session_id} className={`border-l-4 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25`}>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-4 h-4 rounded-full ${
-                    session.type === 'Individual' ? 'bg-blue-500' : 'bg-purple-500'
-                  }`}></div>
-                  <h4 className="text-base sm:text-lg font-bold text-gray-800">{session.subject}</h4>
-                  <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${
-                    session.type === 'Individual' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-purple-100 text-purple-800'
-                  }`}>
-                    {session.type}
+                  <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+                  <h4 className="text-base sm:text-lg font-bold text-gray-800">{session.Individual_Tutor?.Course?.course_name || 'Individual Session'}</h4>
+                  <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                    Individual
                   </span>
                 </div>
                 <span className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold ${
-                  session.status === 'Confirmed' ? 'bg-green-100 text-green-800' :
-                  session.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                  session.status === 'Completed' ? 'bg-blue-100 text-blue-800' :
+                  session.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
+                  session.status === 'ongoing' ? 'bg-green-100 text-green-800' :
+                  session.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                   'bg-red-100 text-red-800'
                 }`}>
                   {session.status}
@@ -710,7 +730,7 @@ const StudentProfile: React.FC = () => {
                     <User className="w-4 h-4 text-gray-400" />
                     <span className="font-medium text-gray-600">Tutor</span>
                   </div>
-                  <p className="font-semibold text-gray-800">{session.tutor}</p>
+                  <p className="font-semibold text-gray-800">{session.Individual_Tutor?.User?.name || 'Unknown Tutor'}</p>
                 </div>
                 <div className="bg-white rounded-lg p-3">
                   <div className="flex items-center space-x-2 mb-1">
@@ -718,35 +738,71 @@ const StudentProfile: React.FC = () => {
                     <span className="font-medium text-gray-600">Date & Time</span>
                   </div>
                   <p className="font-semibold text-gray-800">{new Date(session.date).toLocaleDateString()}</p>
-                  <p className="text-gray-600">{session.time}</p>
+                  <p className="text-gray-600">{getSessionTimeRange(session.slots)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-3">
                   <div className="flex items-center space-x-2 mb-1">
                     <Clock className="w-4 h-4 text-gray-400" />
                     <span className="font-medium text-gray-600">Duration</span>
                   </div>
-                  <p className="font-semibold text-gray-800">{session.duration}</p>
+                  <p className="font-semibold text-gray-800">{getSessionDuration(session.slots)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-3">
                   <div className="flex items-center space-x-2 mb-1">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <span className="font-medium text-gray-600">Location</span>
                   </div>
-                  <p className="font-semibold text-gray-800 break-words">{session.location}</p>
+                  <p className="font-semibold text-gray-800 break-words">Online</p>
                 </div>
               </div>
 
-              {session.meetingLink && session.status === 'Confirmed' && (
+              {session.meeting_urls && (session.status === 'scheduled' || session.status === 'ongoing') && (
                 <div className="mb-4">
-                  <a 
-                    href={session.meetingLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    Join Meeting
-                  </a>
+                  {(session.status === 'ongoing' || canJoinMeeting(session.date, session.slots)) ? (
+                    <a 
+                      href={session.meeting_urls[1]} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                    >
+                      <Video className="w-4 h-4 mr-2" />
+                      Join Meeting
+                    </a>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <p className="text-sm text-gray-600 flex items-center">
+                        <Clock className="w-4 h-4 mr-2" />
+                        {getMeetingAvailabilityMessage(session.date, session.slots) || 
+                         'Meeting link will be available 15 minutes before the session starts'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Material Links for sessions */}
+              {(session.status === 'completed' || session.status === 'scheduled' || session.status === 'ongoing') && session.materials && session.materials.length > 0 && (
+                <div className="mb-4">
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h5 className="font-medium text-green-800 mb-3 flex items-center">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Session Materials
+                    </h5>
+                    <div className="space-y-2">
+                      {session.materials.map((link, index) => (
+                        <a
+                          key={index}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-2 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors text-sm text-green-700 mr-2 mb-2"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Material {index + 1}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -764,7 +820,7 @@ const StudentProfile: React.FC = () => {
                 </div>
               )}
 
-              {showRating && !session.rating && session.status === 'Completed' && (
+              {showRating && !session.rating && session.status === 'completed' && (
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-t border-blue-200">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                     <div>
@@ -1066,7 +1122,13 @@ const StudentProfile: React.FC = () => {
                 type="upcoming"
               />
               <SessionsSection 
-                sessions={previousSessions} 
+                sessions={ongoingSessions} 
+                title="Ongoing Sessions" 
+                emptyMessage="No ongoing sessions"
+                type="ongoing"
+              />
+              <SessionsSection 
+                sessions={completedSessions} 
                 title="Previous Sessions" 
                 emptyMessage="No previous sessions found"
                 showRating={true}

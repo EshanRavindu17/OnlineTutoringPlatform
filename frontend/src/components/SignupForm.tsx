@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../firebase.tsx';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield } from 'lucide-react';
 import axios from 'axios';
+import { addStudent } from '../api/Student.ts';
 
 export default function SignupForm({ role = 'student' }) {
   const navigate = useNavigate();
@@ -78,10 +79,21 @@ export default function SignupForm({ role = 'student' }) {
         photo_url: '',
         bio: `New ${role} account`,
         dob: null
-      });      
+      }); 
+      
+      const user_id = response.data.user.id;
 
       if (response.data.created === true) {
         if (role === 'student') {
+          console.log("I'm a student");
+          console.log("User ID:", user_id);
+          console.log("Add user response:", response.data);
+          // alert("I'm a student");
+          const student = await addStudent({
+            user_id: user_id,
+            points: 0
+          });
+          console.log("New student added:", student);
           // navigate('/studentprofile');
           navigate('/auth');
         }else{
@@ -150,7 +162,7 @@ export default function SignupForm({ role = 'student' }) {
       default:
         return {
           title: 'Create Your Account',
-          subtitle: 'Join the LearnConnect community',
+          subtitle: 'Join the Tutorly community',
           features: []
         };
     }
@@ -165,7 +177,7 @@ export default function SignupForm({ role = 'student' }) {
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center mb-8">
             <a href="#" className="flex items-center justify-center mb-6">
-              <span className="text-blue-600 font-bold text-2xl">LearnConnect</span>
+              <span className="text-blue-600 font-bold text-2xl">Tutorly</span>
             </a>
             
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
@@ -350,7 +362,7 @@ export default function SignupForm({ role = 'student' }) {
               Back to role selection
             </button>
             
-            <h2 className="text-3xl font-bold mb-6">Welcome to LearnConnect!</h2>
+            <h2 className="text-3xl font-bold mb-6">Welcome to Tutorly!</h2>
             <p className="text-xl mb-8">
               Join thousands of {role === 'student' ? 'students' : 'tutors'} who are already part of our learning community.
             </p>

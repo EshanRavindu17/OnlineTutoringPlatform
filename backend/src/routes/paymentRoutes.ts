@@ -1,8 +1,22 @@
 import express, { Request, Response } from "express";
 import Stripe from "stripe";
 import prisma from "../prismaClient";
+import { createASession, updateSlotStatus } from "../services/studentService";
+import { parseArgs } from "util";
+import { Status } from "@prisma/client";
+import { createPaymentRecord } from "../services/paymentService";
+import { UUID } from "crypto";
 
 const router = express.Router();
+
+interface SessionData {
+  student_id: string;
+  i_tutor_id: string;
+  slots: string[]; // Array of slot times like "1970-01-01T15:00:00.000Z"
+  status: string;
+  price: number;
+  date: string; // Date of the session
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: '2025-08-27.basil' });
 
@@ -82,63 +96,185 @@ router.post('/create-payment-intent', async (req: Request, res: Response) => {
   }
 });
 
-// Confirm payment and create session booking
+// Confirm payment and create session booking This is only for individual Session booking 
 router.post('/confirm-payment', async (req: Request, res: Response) => {
+
+console.log('Confirm payment request received:', req.body);
   try {
     const { paymentIntentId, sessionDetails } = req.body;
+
+    console.log('Payment Intent ID:', paymentIntentId);
+    console.log('Session Details:', sessionDetails);
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Payment intent ID is required' });
     }
 
+    if (!sessionDetails) {
+      return res.status(400).json({ error: 'Session details are required' });
+    }
+
+    // Validate sessionDetails structure
+    const { student_id, i_tutor_id, slots, status, price, date } = sessionDetails as SessionData;
+    
+    if (!student_id || !i_tutor_id || !slots || !Array.isArray(slots) || slots.length === 0 || !status || !price || !date) {
+      return res.status(400).json({ 
+        error: 'Invalid session details. Required: student_id, i_tutor_id, slots, status, price, date' 
+      });
+    }
+
+    let paymentIntent: any;
+
     // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    console.log('Retrieved payment intent:', paymentIntent);
 
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment not completed' });
     }
 
-    console.log('Payment confirmed for intent:', paymentIntent);
+    console.log('Payment confirmed for intent:', paymentIntent.id);
+    console.log('Session details received:', sessionDetails);
 
-    // Create session data with minimal required fields
-    const sessionData = {
-      student_id: null, // Set to null to avoid foreign key issues in demo
-      price: paymentIntent.amount / 100, // Convert back from cents
-      status: 'scheduled' as const,
-      materials: [],
-      // Add optional fields with default values
-      start_time: new Date('1970-01-01T10:00:00Z'), // Default time
-      end_time: new Date('1970-01-01T11:00:00Z'), // Default time
-    };
+    // Convert slot strings to Date objects
+    const slotsAsDate = slots.map(slot => new Date(slot));
+    console.log('Date:', date);
+    const sessionDate = new Date(date);
 
-    console.log('Creating session with data:', sessionData);
+    console.log('Session Date:', sessionDate);
 
-    const paymentData = {
-       student_id: null, // Set to null to avoid foreign key issues in demo
-       payment_intent_id: paymentIntent.id,
-       amount: paymentIntent.amount / 100, // Convert back from cents
-       session_id: "d87b8ef6-c4a3-4cdb-babf-54d8830ac9f9",  
-       status: paymentIntent.status,
-       method: 'stripe',
-       payment_data_time: new Date()
-    };
 
-    // Create new session
-    const session = await prisma.sessions.create({
-      data: sessionData
+
+    const timeSlots = await prisma.free_Time_Slots.findMany({
+      where: {
+        i_tutor_id: i_tutor_id,
+        date: sessionDate,
+        start_time: {
+          in: slotsAsDate
+        },
+        status: 'free' // Only update free slots
+      }
     });
 
+    if(timeSlots.length === slotsAsDate.length) {
+      console.log(`Found ${timeSlots.length} time slots to update`);
+    }
+    else{
+        return res.status(404).json({ error: 'One of your selected time slots is not available now' });
+    }
+
+
+    // Update each slot status to 'booked'
+    const updatePromises = timeSlots.map(slot => 
+      updateSlotStatus(slot.slot_id, 'booked' as any)
+    );
+
+    await Promise.all(updatePromises);
+
+    console.log('Time slots updated successfully');
+
+
+
+    // Create the session using the service function
+    const session = await createASession(
+      student_id,
+      i_tutor_id,
+      slotsAsDate,
+      status as any, // Cast to SessionStatus enum
+      price,
+      sessionDate
+    );
+
+    const session_id = session.session_id; // session ID
+
+    const i_tutor_name = (await prisma.individual_Tutor.findUnique({ // find tutor name
+      where: { i_tutor_id },
+      select: { User: { select: { name: true } } }
+    })).User.name;
+
+    const student_name = (await prisma.student.findUnique({ // find student name
+      where: { student_id },
+      select: { User: { select: { name: true } } }
+    })).User.name;
+
+    const title = `${student_name}' - ${i_tutor_name} - ${session_id}`; // session title
+
+    console.log('Session title prepared:', title);
+
+    const sessiondata = (await prisma.sessions.updateMany({
+      where: { session_id },
+      data: { title: title }
+    }));
+
+    console.log('Session created successfully:', session.session_id);
+
+    console.log('Slots to be updated:', sessiondata);
+
+    // Update the status of each time slot to 'booked'
+    // First, we need to get the slot_ids for the selected slots
+    // const timeSlots = await prisma.free_Time_Slots.findMany({
+    //   where: {
+    //     i_tutor_id: i_tutor_id,
+    //     date: sessionDate,
+    //     start_time: {
+    //       in: slotsAsDate
+    //     },
+    //     status: 'free' // Only update free slots
+    //   }
+    // });
+
+    // console.log(`Found ${timeSlots.length} time slots to update`);
+
+    // // Update each slot status to 'booked'
+    // const updatePromises = timeSlots.map(slot => 
+    //   updateSlotStatus(slot.slot_id, 'booked' as any)
+    // );
+
+    // await Promise.all(updatePromises);
+
+    // console.log('Time slots updated successfully');
+
+    
+
+    interface PaymentData {
+      student_id: string;
+      payment_intent_id: string;
+      amount: number;
+      session_id: string;
+      status: Status;
+      method: string;
+    }
+
+    // Optional: Create payment record
+    const paymentData: PaymentData = {
+      student_id: student_id,
+      payment_intent_id: paymentIntent.id,
+      amount: price, // Use the original price
+      session_id: session.session_id,
+      status: 'success',
+      method: 'stripe',
+    };
+
+    console.log('Payment data prepared:', paymentData);
+
+    // Uncomment this if you want to store payment records
     // const payment = await prisma.individual_Payments.create({
     //   data: paymentData
     // });
 
-    console.log('Session created successfully:', session.session_id);
+    // Add a record for this payment
+    const payment = await createPaymentRecord(paymentData); // This create a individual payment record
+
+    console.log('Payment record created:', payment);
 
     res.json({
       success: true,
       sessionId: session.session_id,
-      message: 'Payment confirmed and session booked successfully'
+      message: 'Payment confirmed and session booked successfully',
+      slotsUpdated: timeSlots.length
     });
+
   } catch (error) {
     console.error('Error confirming payment:', error);
     

@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../firebase.tsx';
 import logo from '../assets/logo.png'; // Assuming you have a logo image in your assets
 
 export default function Navbar() {
@@ -83,11 +83,12 @@ export default function Navbar() {
   // Common navigation items
   const commonLinks = [
     { to: '/',        label: 'Home'       },
-    { to: '/findtutors', label: 'Find Tutors' },
+    // { to: '/findtutors', label: 'Find Tutors' },
   ];
 
   // Role-specific items
   const studentLinks = [
+    { to: '/findtutors', label: 'Find Tutors' },
     { to: '/mycalendar', label: 'My Calendar' },
     { to: '/payment-history', label: 'Payments'   },
   ];
@@ -95,7 +96,11 @@ export default function Navbar() {
   const tutorLinks = [
     { to: '/addnewcourse', label: 'Create Course' },
     { to: '/mycourses',     label: 'My Courses'},
-    { to: '/tutorcalender',     label: 'Schedule Meeting'},
+    { to: '/manageSchedule',     label: 'Manage Schedule'},
+  ];
+
+  const massTutorLinks = [
+    { to: '/mass-tutor-dashboard', label: 'Dashboard' },
   ];
 
   const LastLink =[
@@ -105,13 +110,18 @@ export default function Navbar() {
   // Pick the right extras
   let extraLinks: { to: string; label: string }[] = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
-  if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
-  if (userProfile?.role === 'Mass')   extraLinks = tutorLinks;
+  else if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
+  else if (userProfile?.role === 'Mass')   extraLinks = massTutorLinks;
+  else    extraLinks = [{ to: '/findtutors', label: 'Find Tutors' }];
 
   // Profile path
-  const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
-    ? '/tutorprofile'
-    : '/studentprofile';
+  // const profilePath =userProfile?.role === 'Individual' || userProfile?.role === 'Mass'
+  //   ? '/tutorprofile'
+  //   : '/studentprofile';
+
+  const profilePath = userProfile?.role === 'student' ? '/studentprofile' 
+  : userProfile?.role === 'Individual' ? '/tutorprofile' 
+  : '/mass-tutor-dashboard';
 
   const handleSignOutClick = () => {
     setShowSignOutModal(true);
@@ -357,7 +367,7 @@ export default function Navbar() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="text-center">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Join LearnConnect
+                Join Tutorly
               </h3>
               <p className="text-gray-600 mb-6">
                 Choose how you'd like to get started

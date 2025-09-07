@@ -5,7 +5,16 @@ import React from 'react';
 
 export function TutorRoute() {
   const { userProfile } = useAuth();
-  if (userProfile?.role !== 'Individual' && userProfile?.role !== 'Mass') {
+  
+  if (userProfile?.role !== 'Individual') {
+    return <Navigate to="/" replace />;
+  }
+  return <Outlet />;
+}
+
+export function MassTutorRoute(){
+  const { userProfile } = useAuth();
+  if (userProfile?.role !== 'Mass') {
     return <Navigate to="/" replace />;
   }
   return <Outlet />;
@@ -13,6 +22,7 @@ export function TutorRoute() {
 
 export function StudentRoute() {
   const { userProfile } = useAuth();
+  console.log("User Profile:", userProfile);
   if (userProfile?.role !== 'student') {
     return <Navigate to="/" replace />;
   }

@@ -32,6 +32,7 @@ model Admin {
   token_version Int       @default(0)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
   last_login_at DateTime? @db.Timestamptz(6)
 }
 
@@ -57,6 +58,7 @@ model Free_Time_Slots {
   end_time         DateTime?         @db.Time(6)
   last_access_time DateTime?         @db.Timestamp(6)
   start_time       DateTime?         @db.Time(6)
+  last_access_time DateTime?         @db.Timestamp(6)
   Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
 }
 
@@ -139,6 +141,10 @@ model Reports {
 model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
+=======
+  slots                   DateTime[]                @db.Time
+  start_time              DateTime?                 @db.Timestamp(6)
+  end_time                DateTime?                 @db.Timestamp(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
   created_at              DateTime?                 @db.Timestamp(6)
@@ -150,6 +156,11 @@ model Sessions {
   title                   String?
   start_time              DateTime?                 @db.Timestamp(6)
   end_time                DateTime?                 @db.Timestamp(6)
+  i_tutor_id              String?                   @db.Uuid
+  meeting_urls            String[]
+  date                    DateTime?                 @db.Date
+  created_at              DateTime?                 @db.Timestamp(6)
+  title                   String?
   Rating_N_Review_Session Rating_N_Review_Session[]
   Individual_Tutor        Individual_Tutor?         @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, onUpdate: NoAction)
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
