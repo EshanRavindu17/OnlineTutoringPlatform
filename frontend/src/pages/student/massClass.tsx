@@ -90,7 +90,7 @@ export default function MassClassPage() {
     tutor: {
       id: "tutor-1",
       name: "Dr. Sarah Johnson",
-      profilePicture: "https://images.unsplash.com/photo-1494790108755-2616c18b3d9d?w=150&h=150&fit=crop&crop=center",
+      profilePicture: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
       rating: 4.8,
       totalStudents: 450,
       experience: "8+ years"
@@ -351,7 +351,7 @@ export default function MassClassPage() {
               </div>
 
               {/* Progress Bar */}
-              <div className="mb-6">
+              {/* <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">Course Progress</span>
                   <span className="text-sm text-gray-600">
@@ -364,7 +364,7 @@ export default function MassClassPage() {
                     style={{ width: `${(massClass.completedSessions / massClass.totalSessions) * 100}%` }}
                   ></div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Tutor Info */}
               <div className="flex items-center gap-4 mb-6">

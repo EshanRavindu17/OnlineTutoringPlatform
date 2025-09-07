@@ -329,7 +329,7 @@ export default function BookSessionPage() {
   const { tutorId } = useParams<{ tutorId: string }>();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
   const [notes, setNotes] = useState('');
