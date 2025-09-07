@@ -17,6 +17,7 @@ model User {
   firebase_uid     String             @unique
   photo_url        String?
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Candidates       Candidates[]
   Individual_Tutor Individual_Tutor[]
   Mass_Tutor       Mass_Tutor[]
   Notifications    Notifications[]
@@ -30,18 +31,23 @@ model Admin {
   password_hash String
   token_version Int       @default(0)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
   last_login_at DateTime? @db.Timestamptz(6)
 }
 
 model Candidates {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String?   @db.VarChar
-  email        String?   @db.VarChar
-  role         UserRole?
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String?         @db.VarChar
+  email        String?         @db.VarChar
+  role         UserRole
   bio          String?
-  dob          DateTime? @db.Date
+  dob          DateTime?       @db.Date
   phone_number Int?
+  user_id      String?         @db.Uuid
+  applied_at   DateTime?       @db.Timestamptz(6)
+  status       CandidateStatus @default(pending)
+  User         User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
 }
 
 model Free_Time_Slots {
@@ -50,6 +56,7 @@ model Free_Time_Slots {
   date             DateTime?         @db.Date
   status           SlotStatus?
   end_time         DateTime?         @db.Time(6)
+  last_access_time DateTime?         @db.Timestamp(6)
   start_time       DateTime?         @db.Time(6)
   last_access_time DateTime?         @db.Timestamp(6)
   Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
@@ -76,23 +83,25 @@ model Individual_Tutor {
   description     String?
   rating          Decimal?          @db.Decimal(3, 1)
   heading         String?
-  qualifications  String[]
   location        String?
   phone_number    String?           @db.VarChar
+  qualifications  String[]
+  status          TutorStatus       @default(active)
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
   Sessions        Sessions[]
 }
 
 model Mass_Tutor {
-  m_tutor_id  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjects    String[] @db.VarChar
-  prices      Decimal? @db.Decimal(10, 2)
+  m_tutor_id  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjects    String[]    @db.VarChar
+  prices      Decimal?    @db.Decimal(10, 2)
   description String?
-  user_id     String   @db.Uuid
-  rating      Decimal? @db.Decimal(3, 1)
+  user_id     String?     @db.Uuid
+  rating      Decimal?    @db.Decimal(3, 1)
   heading     String?
-  User        User     @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
+  status      TutorStatus @default(active)
+  User        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
 
 model Notifications {
@@ -122,22 +131,31 @@ model Reports {
   tutor_type     TutorType?
   description    String?
   reason         String?
-  status         ReportStatus?
-  response       String?
-  submitted_date DateTime?     @db.Date
   resolve_date   DateTime?     @db.Date
+  response       String?
+  status         ReportStatus?
+  submitted_date DateTime?     @db.Date
   Student        Student?      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
 }
 
 model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
+=======
   slots                   DateTime[]                @db.Time
   start_time              DateTime?                 @db.Timestamp(6)
   end_time                DateTime?                 @db.Timestamp(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
+  created_at              DateTime?                 @db.Timestamp(6)
+  date                    DateTime?                 @db.Date
+  i_tutor_id              String?                   @db.Uuid
+  meeting_urls            String[]
   price                   Float?
+  slots                   DateTime[]                @db.Time
+  title                   String?
+  start_time              DateTime?                 @db.Timestamp(6)
+  end_time                DateTime?                 @db.Timestamp(6)
   i_tutor_id              String?                   @db.Uuid
   meeting_urls            String[]
   date                    DateTime?                 @db.Date
@@ -205,4 +223,15 @@ enum TutorType {
 enum ReportStatus {
   under_review @map("under review")
   solve
+}
+
+enum TutorStatus {
+  active
+  suspended
+}
+
+enum CandidateStatus {
+  pending
+  approved
+  rejected
 }
