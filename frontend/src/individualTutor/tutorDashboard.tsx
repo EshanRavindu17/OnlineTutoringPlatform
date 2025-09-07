@@ -44,7 +44,7 @@ import { ScheduleService } from '../api/ScheduleService';
 
 interface TutorProfile {
   name: string;
-  email: string;
+  description: string;
   age: number;
   dob: string;
   phone: string;
@@ -100,6 +100,8 @@ interface Review {
 const TutorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showCVModal, setShowCVModal] = useState(false);
   const [editMode, setEditMode] = useState({
     basic: false,
     contact: false,
@@ -113,7 +115,7 @@ const TutorDashboard: React.FC = () => {
   // Tutor Profile State
   const [tutorProfile, setTutorProfile] = useState<TutorProfile>({
     name: userProfile?.name || '',
-    email: userProfile?.email || '',
+    description: 'Experienced tutor with passion for teaching mathematics and physics. I help students understand complex concepts through clear explanations and practical examples.',
     age: 32,
     dob: '1992-03-15',
     photo_url: userProfile?.photo_url || '',
@@ -184,6 +186,31 @@ const TutorDashboard: React.FC = () => {
 
     loadDashboardData();
   }, [currentUser]);
+
+  // Handle ESC key to close modals
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (showVideoModal) {
+          setShowVideoModal(false);
+        }
+        if (showCVModal) {
+          setShowCVModal(false);
+        }
+      }
+    };
+
+    if (showVideoModal || showCVModal) {
+      document.addEventListener('keydown', handleEscapeKey);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showVideoModal, showCVModal]);
 
   // Subjects and Titles
   const [subjects, setSubjects] = useState<Subject[]>([
@@ -347,6 +374,30 @@ const TutorDashboard: React.FC = () => {
           : subject
       ));
     }
+  };
+
+  // Function to convert Google Drive URL to embeddable format
+  const getEmbeddableVideoUrl = (url: string) => {
+    if (url.includes('drive.google.com')) {
+      // Extract file ID from Google Drive URL
+      const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      }
+    }
+    return url; // Return original URL if not a Google Drive URL
+  };
+
+  // Function to convert Google Drive URL to embeddable format for documents
+  const getEmbeddableDocumentUrl = (url: string) => {
+    if (url.includes('drive.google.com')) {
+      // Extract file ID from Google Drive URL
+      const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (fileIdMatch) {
+        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      }
+    }
+    return url; // Return original URL if not a Google Drive URL
   };
 
   const tabs = [
@@ -670,12 +721,13 @@ const TutorDashboard: React.FC = () => {
             {editMode.basic ? (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                  <input
-                    type="email"
-                    value={tutorProfile.email}
-                    onChange={(e) => handleProfileChange('email', e.target.value)}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={tutorProfile.description}
+                    onChange={(e) => handleProfileChange('description', e.target.value)}
+                    rows={4}
                     className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="Tell students about yourself, your teaching style, and experience..."
                   />
                 </div>
                 <div>
@@ -692,10 +744,10 @@ const TutorDashboard: React.FC = () => {
               <>
                 <div className="bg-gray-50 p-4 rounded-xl">
                   <div className="flex items-center mb-2">
-                    <Mail className="w-5 h-5 text-gray-500 mr-2" />
-                    <span className="text-sm font-semibold text-gray-500">Email Address</span>
+                    <FileText className="w-5 h-5 text-gray-500 mr-2" />
+                    <span className="text-sm font-semibold text-gray-500">Description</span>
                   </div>
-                  <p className="text-lg font-medium text-gray-800">{tutorProfile.email}</p>
+                  <p className="text-lg font-medium text-gray-800">{tutorProfile.description}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
                   <div className="flex items-center mb-2">
@@ -791,15 +843,13 @@ const TutorDashboard: React.FC = () => {
                     <FileText className="w-5 h-5 text-purple-600 mr-2" />
                     <span className="text-sm font-semibold text-purple-700">CV/Resume</span>
                   </div>
-                  <a 
-                    href={tutorProfile.cvUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <button 
+                    onClick={() => setShowCVModal(true)}
                     className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4 mr-1" />
+                    <FileText className="w-4 h-4 mr-1" />
                     View
-                  </a>
+                  </button>
                 </div>
                 <p className="text-sm text-gray-600">Click to view your CV document</p>
               </div>
@@ -809,15 +859,13 @@ const TutorDashboard: React.FC = () => {
                     <Video className="w-5 h-5 text-orange-600 mr-2" />
                     <span className="text-sm font-semibold text-orange-700">Sample Video</span>
                   </div>
-                  <a 
-                    href={tutorProfile.sampleVideoUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                  <button 
+                    onClick={() => setShowVideoModal(true)}
                     className="flex items-center text-orange-600 hover:text-orange-800 transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4 mr-1" />
+                    <VideoIcon className="w-4 h-4 mr-1" />
                     Watch
-                  </a>
+                  </button>
                 </div>
                 <p className="text-sm text-gray-600">Your sample lecture video</p>
               </div>
@@ -1344,6 +1392,173 @@ const TutorDashboard: React.FC = () => {
           renderTabContent()
         )}
       </div>
+
+      {/* Video Modal */}
+      {showVideoModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowVideoModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <Video className="w-6 h-6 text-orange-600" />
+                <h3 className="text-xl font-semibold text-gray-800">Sample Lecture Video</h3>
+              </div>
+              <button
+                onClick={() => setShowVideoModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Video Content */}
+            <div className="p-6">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  src={getEmbeddableVideoUrl(tutorProfile.sampleVideoUrl)}
+                  className="absolute top-0 left-0 w-full h-full rounded-lg"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Sample Lecture Video"
+                />
+              </div>
+              
+              {/* Video Description */}
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-2">About This Video</h4>
+                <p className="text-gray-600 text-sm">
+                  This is a sample lecture video that demonstrates my teaching style and approach. 
+                  It gives students an idea of what to expect in my tutoring sessions.
+                </p>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <VideoIcon className="w-4 h-4" />
+                <span>Sample video preview</span>
+              </div>
+              <div className="flex space-x-3">
+                <a
+                  href={tutorProfile.sampleVideoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium transition-colors flex items-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open in New Tab</span>
+                </a>
+                <button
+                  onClick={() => setShowVideoModal(false)}
+                  className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CV/Resume Modal */}
+      {showCVModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCVModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <FileText className="w-6 h-6 text-purple-600" />
+                <h3 className="text-xl font-semibold text-gray-800">CV/Resume</h3>
+              </div>
+              <button
+                onClick={() => setShowCVModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Document Content */}
+            <div className="p-6">
+              <div className="relative w-full bg-gray-100 rounded-lg" style={{ height: '70vh' }}>
+                <iframe
+                  src={getEmbeddableDocumentUrl(tutorProfile.cvUrl)}
+                  className="absolute top-0 left-0 w-full h-full rounded-lg border-0"
+                  title="CV/Resume Document"
+                  onError={() => {
+                    console.log('Failed to load document preview');
+                  }}
+                />
+                {/* Fallback message overlay (hidden by iframe if loads successfully) */}
+                <div className="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">
+                  <div className="text-center">
+                    <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">Document Preview</p>
+                    <p className="text-sm">Loading CV/Resume...</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Document Description */}
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-2">About This Document</h4>
+                <p className="text-gray-600 text-sm">
+                  This is my professional CV/Resume that showcases my educational background, 
+                  qualifications, teaching experience, and professional achievements.
+                </p>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <FileText className="w-4 h-4" />
+                <span>CV/Resume document preview</span>
+              </div>
+              <div className="flex space-x-3">
+                <a
+                  href={tutorProfile.cvUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium transition-colors flex items-center space-x-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open in New Tab</span>
+                </a>
+                <a
+                  href={tutorProfile.cvUrl.replace('/view', '/export?format=pdf')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 text-green-600 hover:text-green-700 font-medium transition-colors flex items-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download</span>
+                </a>
+                <button
+                  onClick={() => setShowCVModal(false)}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -58,7 +58,6 @@ model Free_Time_Slots {
   end_time         DateTime?         @db.Time(6)
   last_access_time DateTime?         @db.Timestamp(6)
   start_time       DateTime?         @db.Time(6)
-  last_access_time DateTime?         @db.Timestamp(6)
   Individual_Tutor Individual_Tutor? @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, map: "i_tutor_id_slot_fk")
 }
 
@@ -141,21 +140,12 @@ model Reports {
 model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
-=======
   slots                   DateTime[]                @db.Time
   start_time              DateTime?                 @db.Timestamp(6)
   end_time                DateTime?                 @db.Timestamp(6)
   status                  SessionStatus?
   materials               String[]                  @db.VarChar
-  created_at              DateTime?                 @db.Timestamp(6)
-  date                    DateTime?                 @db.Date
-  i_tutor_id              String?                   @db.Uuid
-  meeting_urls            String[]
   price                   Float?
-  slots                   DateTime[]                @db.Time
-  title                   String?
-  start_time              DateTime?                 @db.Timestamp(6)
-  end_time                DateTime?                 @db.Timestamp(6)
   i_tutor_id              String?                   @db.Uuid
   meeting_urls            String[]
   date                    DateTime?                 @db.Date
