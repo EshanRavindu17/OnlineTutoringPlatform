@@ -8,7 +8,7 @@ export function TutorRoute() {
 
   // Check for Individual tutors with proper status
   if (userProfile?.role === 'Individual') {
-    // If user doesn't have dashboard access, redirect to pending page
+    // If user doesn't have dashboard access, redirect to appropriate page
     if (!userProfile.canAccessDashboard) {
       if (userProfile.tutorStatus === 'pending') {
         return <Navigate to="/tutor-pending" replace />;
@@ -16,11 +16,19 @@ export function TutorRoute() {
         return <Navigate to="/tutor-suspended" replace />;
       } else if (userProfile.tutorStatus === 'rejected') {
         return <Navigate to="/tutor-rejected" replace />;
+      } else if (userProfile.tutorStatus === 'not_registered') {
+        return <Navigate to="/createtutorprofile" replace />;
       }
     }
     // If active, allow access
     return <Outlet />;
   }
+  // If not a tutor, redirect to home
+  return <Navigate to="/" replace />;
+}
+
+export function MassRoute() {
+  const { userProfile } = useAuth();
   
   // For Mass tutors, use similar logic to Individual tutors
   if (userProfile?.role === 'Mass') {
@@ -39,11 +47,10 @@ export function TutorRoute() {
     // If active, allow access
     return <Outlet />;
   }
-  
-  // If not a tutor, redirect to home
+  // If not a Mass tutor, redirect to home
   return <Navigate to="/" replace />;
 }
-
+  
 export function StudentRoute() {
   const { userProfile } = useAuth();
   console.log("User Profile:", userProfile);

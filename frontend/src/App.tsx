@@ -23,9 +23,7 @@ import ScheduleMeeting from './individualTutor/ScheduleMeeting';
 import SelectUser from './pages/selectUser';
 import UploadVideo from  './individualTutor/uploadvideo';
 import NotFound from './pages/notfoundpage';
-import { TutorRoute, StudentRoute } from './context/protectRoute';
-import { MassTutorRoute, TutorRoute } from './context/protectRoute';
-import { StudentRoute } from './context/protectRoute';
+import { TutorRoute, StudentRoute, MassRoute} from './context/protectRoute';
 import LesssonUpload from './individualTutor/anotherLessonUpload';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
@@ -69,9 +67,8 @@ const App = () => {
   return (
     <Router>
       {/* Enable this if you plan to use admin.localhost */}
-      { <HostRedirectToAdmin /> }
-
-        <ScrollToTop/>
+      <HostRedirectToAdmin />
+      <ScrollToTop/>
       <Routes>
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
@@ -80,21 +77,21 @@ const App = () => {
         <Route path="/selectuser/student" element={<SignupForm role="student" />} />
         <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
         <Route path="/selectuser/mass" element={<SignupForm role="Mass" />} />
-          <Route path= "/about" element={<AboutUs />} />
+        <Route path= "/about" element={<AboutUs />} />
         <Route path="/tutorlists" element={<TutorList />} />
         <Route path="/studentlists" element={<StudentLists />} />
         <Route path="/findtutors" element={<FindTutors />} />
-          <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
-          <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
-          <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
-          <Route path="/courses" element={<Courses/>}/>
-          
-          {/* Tutor Status Pages */}
-          <Route path="/tutor-pending" element={<TutorPending/>}/>
-          <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
-          <Route path="/tutor-rejected" element={<TutorRejected/>}/>
+        <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
+        <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
+        <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
+        <Route path="/courses" element={<Courses/>}/>
+        
+        {/* Tutor Status Pages */}
+        <Route path="/tutor-pending" element={<TutorPending/>}/>
+        <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
+        <Route path="/tutor-rejected" element={<TutorRejected/>}/>
 
-          
+        {/* Student Protected Routes */}
         <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
           {/* <Route path="/stripe-payment" element={<StripePaymentPage />} /> */}
@@ -103,17 +100,22 @@ const App = () => {
           <Route path="/payment-demo" element={<PaymentDemoPage />} />
         </Route>
 
-       
+        {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
-          <Route path="/addnewcourse" element={<AddNewCourse />} />
+          {/* <Route path="/addnewcourse" element={<AddNewCourse />} /> */}
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          <Route path="/createtutorprofile" element={<CreateTutorProfile />} />
+          {/* <Route path="/createtutorprofile" element={<CreateTutorProfile />} /> */}
           <Route path="/startzoom" element={<StartZoom />} />
-          <Route path="/schedulemeeting" element={<SheduleMeeting />} />
+          <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/uploadvideo" element={<UploadVideo />} />
-          <Route path="/mycourses" element={<MyCourses />} />
+          {/* <Route path="/mycourses" element={<MyCourses />} /> */}
           <Route path="/anotherLessonUpload" element={<LesssonUpload />} />
-          <Route path="/tutorcalender" element={<TutorCalendar />} />
+          <Route path="/manageSchedule" element={<ScheduleMeeting />} />
+        </Route>
+
+        {/* Mass Tutor Protected Routes */}
+        <Route element={<MassRoute />}>
+          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
         </Route>
 
         {/* ===== Admin portal (UI only for now) ===== */}
@@ -121,7 +123,6 @@ const App = () => {
         <Route path="/admin/auth" element={<AdminAuth />} />
 
         {/* Admin routes (Dashboard + feature pages) */}
-        {/* Later we can wrap this with an <AdminGate /> to enforce Admin-only access */}
         <Route path="/admin" element={<AdminGate />}>
           <Route element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -134,28 +135,9 @@ const App = () => {
           </Route>
         </Route>
 
-
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-          <Route path="/tutorprofile" element={<TutorProfile/>}/>
-          <Route path="/startzoom" element={<StartZoom/>}/>
-          {/* <Route path="/schedulemeeting" element={<SheduleMeeting/>}/> */}
-          <Route path="/uploadvideo" element={<UploadVideo/>} />
-          <Route path="/anotherLessonUpload" element={<LesssonUpload/>} />
-          <Route path="/manageSchedule" element={<ScheduleMeeting/>} />
-        </Route>
-
-        <Route element={<MassTutorRoute />}>
-          {/* <Route path="/mass-tutor-profile" element={<MassTutorProfile />} />
-          <Route path="/mass-tutor-sessions" element={<MassTutorSessions />} /> */}
-          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
-        </Route>
-        <Route path="*" element={<NotFound/>} />  
-          
-          {/* Add more routes as needed */}
-        </Routes>
-      </div>
     </Router>
   );
 };
