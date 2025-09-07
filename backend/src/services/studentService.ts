@@ -1,5 +1,6 @@
 import { SessionStatus, SlotStatus } from "@prisma/client";
 import prisma from "../prismaClient";
+import  {DateTime} from "luxon";
 
 interface Individual{
     i_tutor_id : string;
@@ -14,6 +15,44 @@ interface Individual{
         photo_url: string | null;
     } | null;
 }
+
+// export const addStudent = async (data: any) => {
+
+//     const user_id = data.user_id;
+//     const points = Number(data.points);
+//     const student = await prisma.student.create({
+//         data: {
+//             user_id,
+//             points
+//         }
+//     });
+//     return student;
+// };
+
+export const addStudent = async (data: any) => {
+    const user_id = data.user_id;
+    const points = Number(data.points);
+    
+    const existingStudent = await prisma.student.findFirst({
+        where: { user_id }
+    });
+
+    let student;
+    if (existingStudent) {
+        student = await prisma.student.update({
+            where: { student_id: existingStudent.student_id },
+            data: { points :existingStudent.points }
+        });
+    } else {
+        student = await prisma.student.create({
+            data: {
+                user_id,
+                points
+            }
+        });
+    }
+    return student;
+};
 
 export const getAllIndividualTutors = async (subjects:string,titles:string,min_hourly_rate:number,max_hourly_rate:number, rating:number,sort:string,page:number=1,limit:number=10) => {
     const tutors = await prisma.individual_Tutor.findMany({
@@ -124,6 +163,8 @@ export const createASession = async (
     price: number,
     date: Date,
 ) => {
+
+    const time = DateTime.now().setZone("Asia/Colombo").toJSDate();
     const session = await prisma.sessions.create({
         data: {
             student_id,
@@ -132,7 +173,7 @@ export const createASession = async (
             status,
             price,
             date,
-            created_at: new Date(),
+            created_at: time,
         }
     });
     return session;
@@ -142,6 +183,33 @@ export const updateSlotStatus = async (slot_id: string, status: SlotStatus) => {
     const updatedSlot = await prisma.free_Time_Slots.update({
         where: { slot_id },
         data: { status }
+    });
+    return updatedSlot;
+};
+
+
+export const findTimeSlots = async (i_tutor_id: string, sessionDate: Date, slotsAsDate: Date[]) => {
+    const timeSlots = await prisma.free_Time_Slots.findMany({
+      where: {
+        i_tutor_id: i_tutor_id,
+        date: sessionDate,
+        start_time: {
+          in: slotsAsDate
+        },
+        status: 'free' // Only update free slots
+      }
+    });
+
+    return timeSlots;
+};
+
+
+export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_time: Date) => {
+    const updatedSlot = await prisma.free_Time_Slots.update({
+        where: { slot_id },
+        data: { 
+            last_access_time
+        }
     });
     return updatedSlot;
 };

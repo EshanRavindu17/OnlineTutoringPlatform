@@ -714,7 +714,7 @@ export default function WelcomePage() {
                   </div>
                 </div>
               </div>
-              <p className="text-gray-600">"The tutors on LearnConnect helped me improve my calculus grade from a C to an A. The flexible scheduling made it easy to fit sessions into my busy college schedule."</p>
+              <p className="text-gray-600">"The tutors on Tutorly helped me improve my calculus grade from a C to an A. The flexible scheduling made it easy to fit sessions into my busy college schedule."</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
               <div className="flex items-center mb-4">
@@ -746,7 +746,7 @@ export default function WelcomePage() {
                   </div>
                 </div>
               </div>
-              <p className="text-gray-600">"My son was struggling with reading, but after just a few sessions with his LearnConnect tutor, we've seen incredible improvement. The personalized approach made all the difference."</p>
+              <p className="text-gray-600">"My son was struggling with reading, but after just a few sessions with his Tutorly tutor, we've seen incredible improvement. The personalized approach made all the difference."</p>
             </div>
           </div>
         </div>
@@ -758,7 +758,7 @@ export default function WelcomePage() {
           <div className="md:flex md:items-center md:justify-between">
             <div className="mb-8 md:mb-0 md:max-w-2xl">
               <h2 className="text-3xl font-bold mb-4">Ready to transform your learning experience?</h2>
-              <p className="text-xl mb-0">Join LearnConnect today and connect with expert tutors or share your knowledge with students.</p>
+              <p className="text-xl mb-0">Join Tutorly today and connect with expert tutors or share your knowledge with students.</p>
             </div>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
               <a href="/selectuser">

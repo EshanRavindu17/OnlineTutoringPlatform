@@ -28,7 +28,7 @@ router.get('/test-token', verifyFirebaseTokenSimple, (req: any, res) => {
 // GET routes
 router.get('/users', getUsers); // Get all users (admin only)
 // Use proper authentication for user profile access
-router.get('/user/:uid', verifyFirebaseTokenSimple, getUserByUid); // Get user by Firebase UID (with authentication)
+router.get('/user/:uid', verifyFirebaseTokenSimple,getUserByUid); // Get user by Firebase UID (with authentication)
 
 // POST routes
 router.post('/add-user', addUser); // Create or update user

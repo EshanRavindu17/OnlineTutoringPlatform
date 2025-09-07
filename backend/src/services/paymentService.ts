@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import  prisma  from "../prismaClient";
+import  {DateTime} from "luxon";
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -21,11 +22,15 @@ const createPaymentIntent = async (amount: number, currency: string) => {
 
 export const createPaymentRecord = async (paymentData: {}) => {
 
+  const time = DateTime.now().setZone("Asia/Colombo").toJSDate();
+
+  console.log("Payment data received in service:", paymentData);
+
   try {
     const paymentRecord = await prisma.individual_Payments.create({
       data: {
         ...paymentData,
-        payment_date_time: new Date(), // ensure correct field name
+        payment_date_time: time,
       },
     });
     return paymentRecord;

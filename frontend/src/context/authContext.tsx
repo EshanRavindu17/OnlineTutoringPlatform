@@ -78,6 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('🔑 Using Firebase ID token, expires at:', 
               new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
             
+            
             const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
               method: 'GET',
               headers: { 
@@ -85,9 +86,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 'Authorization': `Bearer ${idToken}`
               }
             });
+            profileData = await response.json();
+
+            console.log('👤 Fetched user profile:', profileData);
 
             if (response.ok) {
-              profileData = await response.json();
+              // profileData = await response.json();
               console.log('✅ User profile loaded successfully');
               break;
             } else if (response.status === 401) {
