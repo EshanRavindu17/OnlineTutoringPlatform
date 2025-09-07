@@ -1,5 +1,6 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import React from 'react';
+import { adminApi } from './api';
 
 const nav = [
   { to: '/admin', label: 'Dashboard', icon: DashboardIcon },
@@ -11,6 +12,23 @@ const nav = [
 ];
 
 export default function AdminLayout() {
+    const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      // calls POST /Admin/auth/logout and clears tokens in your api helper
+      await adminApi.logout();
+      console.log('✅ admin logged out');
+    } catch (e) {
+      console.log('⚠️ logout request failed (will still navigate):', e);
+    } finally {
+      setLoggingOut(false);
+      navigate('/admin/auth', { replace: true }); // <-- redirect to auth page
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 text-[15px]">
       {/* Top brand bar */}
@@ -41,9 +59,14 @@ export default function AdminLayout() {
                 <span className="hidden sm:inline">Profile</span>
               </Link>
 
-              {/* Logout (kept as-is) */}
-              <button className="admin-btn !bg-red-600 !text-white !border-transparent hover:!bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
-                Logout
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="admin-btn !bg-red-600 !text-white !border-transparent hover:!bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+                title="Sign out"
+              >
+                {loggingOut ? 'Logging out…' : 'Logout'}
               </button>
             </div>
           </div>
