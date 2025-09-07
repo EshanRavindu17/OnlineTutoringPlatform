@@ -1,6 +1,8 @@
 import { execSync } from 'child_process';
 
 // Generate Prisma client when starting the server 
+// Commented out to avoid permission issues - run manually if needed
+
 try {
   console.log('Running prisma generate …');
   execSync('npx prisma generate', { stdio: 'inherit' }); 
@@ -8,6 +10,7 @@ try {
   console.error('Could not run prisma generate:', err);
   process.exit(1);
 }
+
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -20,6 +23,10 @@ import prisma from './prismaClient';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+
+import scheduleRoutes from './routes/scheduleRoutes';
+
+import paymentRoutes from './routes/paymentRoutes';
 
 dotenv.config();
 
@@ -64,7 +71,8 @@ app.get('/api', (_req: Request, res: Response) => {
       api: '/api',
       'add-user': '/api/add-user',
       'check-role': '/api/check-role',
-      'user': '/api/user/:uid'
+      'user': '/api/user/:uid',
+      'schedule': '/api/schedule'
     }
   });
 });
@@ -90,6 +98,11 @@ app.use('/student', studentRoutes);
 
 //Individual Tutor Routes
 app.use('/individual-tutor', individualTutorRoutes);
+
+//Schedule Routes
+app.use('/api/schedule', scheduleRoutes);
+//Payment Routes
+app.use('/payment', paymentRoutes);
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

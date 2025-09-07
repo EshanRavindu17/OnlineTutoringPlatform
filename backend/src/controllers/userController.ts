@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/authBypass';
+import prisma from '../prismaClient';
 import {
   findUserByFirebaseUid,
   createOrUpdateUser,
   validateUserRoleAndEmail,
-  getAllUsers
+  getAllUsers,
+  findUserWithTutorStatus
 } from '../services/userService';
 
 /**
@@ -13,7 +15,7 @@ import {
  */
 
 /**
- * Get user by Firebase UID
+ * Get user by Firebase UID with enhanced tutor status checking
  * GET /api/users/:uid
  */
 export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Response> => {
@@ -34,7 +36,7 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
       });
     }
 
-    const user = await findUserByFirebaseUid(uid);
+    const user = await findUserWithTutorStatus(uid);
 
     if (!user) {
       return res.status(404).json({ 
@@ -42,7 +44,216 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
       });
     }
 
-    return res.status(200).json(user);
+    // For Individual role users, check their tutor status
+    if (user.role === 'Individual') {
+      console.log(`🔍 User ${user.email} has Individual role, checking tutor status...`);
+      console.log(`📊 User Individual_Tutor profiles count: ${user.Individual_Tutor?.length || 0}`);
+      
+      // Check if user has an approved tutor profile in Individual_Tutor table
+      if (!user.Individual_Tutor || user.Individual_Tutor.length === 0) {
+        // User is not in Individual_Tutor table, check Candidates table for pending/rejected
+        try {
+          const candidateApplication = await prisma.candidates.findFirst({
+            where: { 
+              email: user.email,
+              role: 'Individual' 
+            }
+          });
+
+          if (candidateApplication) {
+            // Check status from Candidates table
+            // Note: We'll use a raw query to get the actual status since Prisma client might not have it
+            try {
+              const statusResult = await prisma.$queryRaw`
+                SELECT status FROM "Candidates" 
+                WHERE email = ${user.email} AND role = 'Individual'
+                LIMIT 1
+              ` as any[];
+              
+              console.log(`🔍 Candidate status check for ${user.email}:`, statusResult);
+              const candidateStatus = statusResult[0]?.status || 'pending';
+              console.log(`📋 Final candidate status: ${candidateStatus}`);
+              
+              if (candidateStatus === 'pending') {
+                return res.status(200).json({
+                  ...user,
+                  tutorStatus: 'pending',
+                  canAccessDashboard: false,
+                  message: 'Your tutor application is pending admin approval'
+                });
+              } else if (candidateStatus === 'rejected') {
+                return res.status(200).json({
+                  ...user,
+                  tutorStatus: 'rejected',
+                  canAccessDashboard: false,
+                  message: 'Your tutor application has been rejected'
+                });
+              }
+            } catch (statusError) {
+              // Fallback to pending if status query fails
+              return res.status(200).json({
+                ...user,
+                tutorStatus: 'pending',
+                canAccessDashboard: false,
+                message: 'Your tutor application is pending admin approval'
+              });
+            }
+          }
+        } catch (candidateError) {
+          console.log('Error checking candidates table:', candidateError);
+        }
+
+        // No application found - user needs to complete registration
+        return res.status(200).json({
+          ...user,
+          tutorStatus: 'not_registered',
+          canAccessDashboard: false,
+          message: 'Please complete your tutor profile registration'
+        });
+      }
+
+      // User exists in Individual_Tutor table - check their status from Individual_Tutor table
+      const tutorProfile = user.Individual_Tutor[0];
+      
+      try {
+        // Query Individual_Tutor table for active/suspended status
+        const tutorStatusResult = await prisma.$queryRaw`
+          SELECT status FROM "Individual_Tutor" 
+          WHERE i_tutor_id = ${tutorProfile.i_tutor_id}
+          LIMIT 1
+        ` as any[];
+        
+        const tutorStatus = tutorStatusResult[0]?.status || 'active';
+        const canAccessDashboard = tutorStatus === 'active';
+
+        return res.status(200).json({
+          ...user,
+          tutorStatus: tutorStatus, // 'active' or 'suspended'
+          canAccessDashboard,
+          message: tutorStatus === 'active' 
+            ? 'Tutor profile active' 
+            : 'Your tutor account has been suspended'
+        });
+      } catch (tutorError) {
+        console.log('Error checking Individual_Tutor status:', tutorError);
+        // Fallback to active if query fails
+        return res.status(200).json({
+          ...user,
+          tutorStatus: 'active',
+          canAccessDashboard: true,
+          message: 'Tutor profile active'
+        });
+      }
+    }
+
+    // For Mass role users, check their tutor status
+    if (user.role === 'Mass') {
+      console.log(`🔍 User ${user.email} has Mass role, checking tutor status...`);
+      console.log(`📊 User Mass_Tutor profiles count: ${user.Mass_Tutor?.length || 0}`);
+      
+      // Check if user has an approved tutor profile in Mass_Tutor table
+      if (!user.Mass_Tutor || user.Mass_Tutor.length === 0) {
+        // User is not in Mass_Tutor table, check Candidates table for pending/rejected
+        try {
+          const candidateApplication = await prisma.candidates.findFirst({
+            where: { 
+              email: user.email,
+              role: 'Mass' 
+            }
+          });
+
+          if (candidateApplication) {
+            // Check status from Candidates table
+            try {
+              const statusResult = await prisma.$queryRaw`
+                SELECT status FROM "Candidates" 
+                WHERE email = ${user.email} AND role = 'Mass'
+                LIMIT 1
+              ` as any[];
+              
+              console.log(`🔍 Candidate status check for ${user.email}:`, statusResult);
+              const candidateStatus = statusResult[0]?.status || 'pending';
+              console.log(`📋 Final candidate status: ${candidateStatus}`);
+              
+              if (candidateStatus === 'pending') {
+                return res.status(200).json({
+                  ...user,
+                  tutorStatus: 'pending',
+                  canAccessDashboard: false,
+                  message: 'Your tutor application is pending admin approval'
+                });
+              } else if (candidateStatus === 'rejected') {
+                return res.status(200).json({
+                  ...user,
+                  tutorStatus: 'rejected',
+                  canAccessDashboard: false,
+                  message: 'Your tutor application has been rejected'
+                });
+              }
+            } catch (statusError) {
+              // Fallback to pending if status query fails
+              return res.status(200).json({
+                ...user,
+                tutorStatus: 'pending',
+                canAccessDashboard: false,
+                message: 'Your tutor application is pending admin approval'
+              });
+            }
+          }
+        } catch (candidateError) {
+          console.log('Error checking candidates table:', candidateError);
+        }
+
+        // No application found - user needs to complete registration
+        return res.status(200).json({
+          ...user,
+          tutorStatus: 'not_registered',
+          canAccessDashboard: false,
+          message: 'Please complete your tutor profile registration'
+        });
+      }
+
+      // User exists in Mass_Tutor table - check their status from Mass_Tutor table
+      const tutorProfile = user.Mass_Tutor[0];
+      
+      try {
+        // Query Mass_Tutor table for active/suspended status
+        const tutorStatusResult = await prisma.$queryRaw`
+          SELECT status FROM "Mass_Tutor" 
+          WHERE m_tutor_id = ${tutorProfile.m_tutor_id}
+          LIMIT 1
+        ` as any[];
+        
+        const tutorStatus = tutorStatusResult[0]?.status || 'active';
+        const canAccessDashboard = tutorStatus === 'active';
+
+        return res.status(200).json({
+          ...user,
+          tutorStatus: tutorStatus, // 'active' or 'suspended'
+          canAccessDashboard,
+          message: tutorStatus === 'active' 
+            ? 'Tutor profile active' 
+            : 'Your tutor account has been suspended'
+        });
+      } catch (tutorError) {
+        console.log('Error checking Mass_Tutor status:', tutorError);
+        // Fallback to active if query fails
+        return res.status(200).json({
+          ...user,
+          tutorStatus: 'active',
+          canAccessDashboard: true,
+          message: 'Tutor profile active'
+        });
+      }
+    }
+
+    // For other roles (Student, etc.), return user as is
+    return res.status(200).json({
+      ...user,
+      tutorStatus: 'not_applicable',
+      canAccessDashboard: true,
+      message: 'User profile active'
+    });
   } catch (error: any) {
     console.error('❌ Error in getUserByUid controller:', error);
     return res.status(500).json({ 
@@ -144,8 +355,6 @@ export const getUsers = async (req: Request, res: Response): Promise<Response> =
     });
   }
 };
-
-
 
 export const updateUser = async (req: AuthRequest, res: Response): Promise<Response> => {
   try {
