@@ -22,6 +22,7 @@ export const addStudentController = async (req: Request, res: Response) => {
 };
 
 export const getAllIndividualTutorsController = async (req: Request, res: Response) => {
+    try{
     const {
         subjects,
         titles,
@@ -47,10 +48,15 @@ export const getAllIndividualTutorsController = async (req: Request, res: Respon
 
     console.log('Fetched tutors:', tutors);
     return res.json(tutors);
+    } catch (error) {
+        console.error('Error fetching tutors:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 
 export const getIndividualTutorByIdController = async (req: Request, res: Response) => {
+    try{
     const { tutorId } = req.params;
 
     console.log("tutor_ID", tutorId);
@@ -62,6 +68,10 @@ export const getIndividualTutorByIdController = async (req: Request, res: Respon
     }
 
     return res.json(tutor);
+    } catch (error) {
+        console.error('Error fetching tutor by ID:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 
@@ -95,6 +105,7 @@ export const getAllSessionsByStudentIdController = async (req: Request, res: Res
 };
 
 export const getStudentIDByUserIDController = async (req: Request, res: Response) => {
+    try{
     const { userId } = req.params;
 
     console.log("user_ID", userId);
@@ -106,6 +117,10 @@ export const getStudentIDByUserIDController = async (req: Request, res: Response
     }
 
     return res.json({ studentId });
+    } catch (error) {
+    console.error('Error fetching student ID by user ID:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 
