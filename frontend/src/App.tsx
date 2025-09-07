@@ -12,21 +12,19 @@ import TutorList from './components/TutorList';
 import StudentLists from './components/StudentList';
 import WelcomePage from './pages/welcome';
 import Auth from './pages/auth';
-import FindTutors from './pages/findTutors';
-import AddNewCourse from './tutor/createNewCourse';
-import Courses from './pages/showcourses';
+import FindTutors from './pages/findTutors'
+import Courses from './pages/showcourses'
+import { useAuth } from './context/authContext';
 import StudentProfile from './pages/student/studentProfile';
-import TutorProfile from './tutor/tutorProfile';
-import CreateTutorProfile from './tutor/createTutorProfile';
-import StartZoom from './tutor/startZoom';
-import ScheduleMeeting from './tutor/scheduleMeeting';
+import TutorProfile from './individualTutor/tutorProfile';
+import StartZoom from './individualTutor/startZoom';
+import ScheduleMeeting from './individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
-import UploadVideo from './tutor/uploadvideo';
-import MyCourses from './tutor/mycourses';
+import UploadVideo from  './individualTutor/uploadvideo';
 import NotFound from './pages/notfoundpage';
-import { TutorRoute, MassTutorRoute, StudentRoute } from './context/protectRoute';
-import LesssonUpload from './tutor/anotherLessonUpload';
+import { TutorRoute, StudentRoute, MassRoute} from './context/protectRoute';
+import LesssonUpload from './individualTutor/anotherLessonUpload';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -36,7 +34,14 @@ import ReportTutorPage from './pages/student/reportTutor';
 import PaymentDemoPage from './pages/student/paymentDemo';
 import ScrollToTop from './components/scrollToUp';
 import PaymentHistoryPage from './pages/student/paymentHistory';
+import TutorPending from './pages/tutorPending';
+import TutorSuspended from './pages/tutorSuspended';
+import TutorRejected from './individualTutor/TutorRejected';
 import MassTutorDashboard from './pages/massTutor/masstutordashbord';
+
+import MassTutorProfile from './pages/student/massTutorProfile';
+import MassClassPage from './pages/student/massClass';
+
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
@@ -49,6 +54,9 @@ import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import NotificationPage from './pages/student/notification';
+import SavedPage from './pages/student/saved';
+
 
 // (Optional) If you want http://admin.localhost:5173 to auto-redirect to /admin
 function HostRedirectToAdmin() {
@@ -77,41 +85,49 @@ const App = () => {
         <Route path="/selectuser/student" element={<SignupForm role="student" />} />
         <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
         <Route path="/selectuser/mass" element={<SignupForm role="Mass" />} />
-        <Route path="/about" element={<AboutUs />} />
+        <Route path= "/about" element={<AboutUs />} />
         <Route path="/tutorlists" element={<TutorList />} />
         <Route path="/studentlists" element={<StudentLists />} />
         <Route path="/findtutors" element={<FindTutors />} />
-        <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage />} />
-        <Route path="/book-session/:tutorId" element={<BookSessionPage />} />
-        <Route path="/report-tutor/:tutorId" element={<ReportTutorPage />} />
-        <Route path="/courses" element={<Courses />} />
+        <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
+        <Route path="/mass-tutor-profile/:tutorId" element={<MassTutorProfile/>}/>
+        <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
+        <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
+        <Route path="/courses" element={<Courses/>}/>
+        
+        {/* Tutor Status Pages */}
+        <Route path="/tutor-pending" element={<TutorPending/>}/>
+        <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
+        <Route path="/tutor-rejected" element={<TutorRejected/>}/>
 
-        {/* Student-only */}
-        <Route element={<StudentRoute />}>
-          <Route path="/studentprofile" element={<StudentProfile />} />
+        {/* Student Protected Routes */}
+        <Route element={<StudentRoute />}>          
+          <Route path="/studentprofile" element={<StudentProfile/>}/>
           {/* <Route path="/stripe-payment" element={<StripePaymentPage />} /> */}
           <Route path="/payment-history" element={<PaymentHistoryPage />} />
           <Route path="/mycalendar" element={<MyCalendarPage />} />
           <Route path="/payment-demo" element={<PaymentDemoPage />} />
+          <Route path="/mass-class/:classId" element={<MassClassPage />} />
+          <Route path="/notifications" element={<NotificationPage />} />
+          <Route path="/saved" element={<SavedPage />} />
         </Route>
 
-        {/* Tutor-only */}
+        {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
-          <Route path="/addnewcourse" element={<AddNewCourse />} />
+          {/* <Route path="/addnewcourse" element={<AddNewCourse />} /> */}
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          <Route path="/createtutorprofile" element={<CreateTutorProfile />} />
+          {/* <Route path="/createtutorprofile" element={<CreateTutorProfile />} /> */}
           <Route path="/startzoom" element={<StartZoom />} />
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/uploadvideo" element={<UploadVideo />} />
-          <Route path="/mycourses" element={<MyCourses />} />
+          {/* <Route path="/mycourses" element={<MyCourses />} /> */}
           <Route path="/anotherLessonUpload" element={<LesssonUpload />} />
-          {/* If you want a tutor calendar page later, add it here and import the component */}
-          {/* <Route path="/tutorcalendar" element={<TutorCalendar />} /> */}
+          <Route path="/manageSchedule" element={<ScheduleMeeting />} />
         </Route>
 
-        {/* Mass tutor-only */}
-        <Route element={<MassTutorRoute />}>
-          <Route path="/mass-tutor-dashboard" element={<MassTutorDashboard />} />
+        {/* Mass Tutor Protected Routes */}
+        <Route element={<MassRoute />}>
+          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
         </Route>
 
         {/* ===== Admin portal ===== */}

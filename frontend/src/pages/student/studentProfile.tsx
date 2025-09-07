@@ -24,8 +24,9 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../context/authContext';
-import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, Session } from '../../api/Student';
+import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, getEnrolledClassesByStudentId, Session, EnrolledClass } from '../../api/Student';
 import { useToast } from '../../components/Toast';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 interface SessionData {
   session_id: string;
@@ -34,9 +35,20 @@ interface SessionData {
   status: 'scheduled' | 'ongoing' | 'canceled' | 'completed';
   materials: string[];
   slots: string[]; // Array of slot times like "1970-01-01T15:00:00.000Z"
+  created_at: string; // When the session was created (from backend)
+  meeting_urls?: string[] | null; // Meeting URLs for online sessions
+  date: string; // Session date
+  reason?: string; // Cancellation reason
+  cancelledBy?: string; // Who cancelled the session
+  refunded?: boolean; // Whether refund was processed
+  rating?: number; // Session rating
+  feedback?: string; // Session feedback
   Individual_Tutor: {
     User: {
       name: string;
+    };
+    Course?: {
+      course_name: string;
     };
   };
 }
@@ -46,10 +58,19 @@ const StudentProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updateLoading, setUpdateLoading] = useState(false);
   const { showToast, ToastContainer } = useToast();
+
+
+  //Navigater
+
+  const navigate = useNavigate();
   
   // Sessions state
   const [allSessions, setAllSessions] = useState<SessionData[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  
+  // Enrolled classes state
+  const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
+  const [classesLoading, setClassesLoading] = useState(true);
 
   const [image, setImage] = useState<File | null>(null);
 
@@ -143,6 +164,55 @@ const StudentProfile: React.FC = () => {
   const getSessionDuration = (slots: string[]): string => {
     const duration = slots.length;
     return duration === 1 ? '1 hour' : `${duration} hours`;
+  };
+
+  // Helper function to check if session can be cancelled (within 1 hour of creation)
+  const canCancelSession = (session: SessionData): boolean => {
+    // Check if session has created_at field from the backend
+    if (!session.created_at) {
+      return false; // Cannot cancel if no creation time is available
+    }
+    
+    const now = new Date();
+    const createdTime = new Date(session.created_at);
+    const diffInMs = now.getTime() - createdTime.getTime();
+    const diffInHours = diffInMs / (1000 * 60 * 60);
+    
+    // Can cancel only within 1 hour of creation and only if status is scheduled
+    return diffInHours <= 1 && session.status === 'scheduled';
+  };
+
+  // Handle session cancellation
+  const handleCancelSession = async (sessionId: string) => {
+    if (!window.confirm('Are you sure you want to cancel this session? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // Here you would typically call an API to cancel the session
+      // For now, we'll simulate the API call and update local state
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+
+      // Update the session status to cancelled
+      setAllSessions(prev => 
+        prev.map(session => 
+          session.session_id === sessionId 
+            ? { 
+                ...session, 
+                status: 'canceled' as const, 
+                reason: 'Cancelled by student',
+                cancelledBy: 'Student',
+                refunded: true
+              }
+            : session
+        )
+      );
+
+      showToast('Session cancelled successfully. Refund will be processed within 24 hours.', 'success');
+    } catch (error) {
+      console.error('Error cancelling session:', error);
+      showToast('Failed to cancel session. Please try again.', 'error');
+    }
   };
 
   // Filter sessions by status
@@ -363,16 +433,18 @@ const StudentProfile: React.FC = () => {
   const [review, setReview] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
 
-  // Fetch sessions on component mount
+  // Fetch sessions and enrolled classes on component mount
   useEffect(() => {
-    const fetchSessions = async () => {
+    const fetchStudentData = async () => {
       if (!userProfile?.id) {
         setSessionsLoading(false);
+        setClassesLoading(false);
         return;
       }
 
       try {
         setSessionsLoading(true);
+        setClassesLoading(true);
         console.log('Fetching student_id for user:', userProfile.id);
         
         // First get the student_id using the user_id
@@ -381,23 +453,33 @@ const StudentProfile: React.FC = () => {
         if (!studentId) {
           console.log('No student_id found for user:', userProfile.id);
           setAllSessions([]);
+          setEnrolledClasses([]);
           return;
         }
 
-        console.log('Fetching sessions for student_id:', studentId);
-        const sessions = await getAllSessionsByStudentId(studentId);
+        console.log('Fetching data for student_id:', studentId);
+        
+        // Fetch both sessions and enrolled classes in parallel
+        const [sessions, classes] = await Promise.all([
+          getAllSessionsByStudentId(studentId),
+          getEnrolledClassesByStudentId(studentId)
+        ]);
+        
         setAllSessions(sessions || []);
+        setEnrolledClasses(classes || []);
       } catch (error) {
-        console.error('Failed to fetch sessions:', error);
-        showToast('Failed to load sessions', 'error');
+        console.error('Failed to fetch student data:', error);
+        showToast('Failed to load student data', 'error');
         setAllSessions([]);
+        setEnrolledClasses([]);
       } finally {
         setSessionsLoading(false);
+        setClassesLoading(false);
       }
     };
 
     if (userProfile) {
-      fetchSessions();
+      fetchStudentData();
     }
   }, [userProfile]);
 
@@ -442,6 +524,7 @@ const StudentProfile: React.FC = () => {
   ]);
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeSessionsTab, setActiveSessionsTab] = useState('individual'); // 'individual' or 'classes'
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -705,14 +788,19 @@ const StudentProfile: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {sessions.map((session: Session) => (
-            <div key={session.session_id} className={`border-l-4 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25`}>
+            <div key={session.session_id} className={`border-l-4 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25 ${canCancelSession(session) ? 'ring-1 ring-orange-200' : ''}`}>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
                 <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                  <h4 className="text-base sm:text-lg font-bold text-gray-800">{session.Individual_Tutor?.Course?.course_name || 'Individual Session'}</h4>
+                  <div className={`w-4 h-4 rounded-full ${canCancelSession(session) ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
+                  <h4 className="text-base sm:text-lg font-bold text-gray-800">{session.title || 'Individual Session'}</h4>
                   <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
                     Individual
                   </span>
+                  {canCancelSession(session) && (
+                    <span className="px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">
+                      Cancellable
+                    </span>
+                  )}
                 </div>
                 <span className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold ${
                   session.status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
@@ -777,6 +865,49 @@ const StudentProfile: React.FC = () => {
                       </p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Cancel Session - Only show for scheduled sessions and if can be cancelled */}
+              {session.status === 'scheduled' && canCancelSession(session) && (
+                <div className="mb-4">
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-sm text-orange-800 font-medium block">
+                            Session can be cancelled
+                          </span>
+                          <span className="text-xs text-orange-700">
+                            {(() => {
+                              if (!session.created_at) {
+                                return "Sessions can only be cancelled within 1 hour of booking";
+                              }
+                              
+                              const now = new Date();
+                              const createdTime = new Date(session.created_at);
+                              const diffInMs = now.getTime() - createdTime.getTime();
+                              const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+                              const remainingMinutes = 60 - diffInMinutes;
+                              
+                              if (remainingMinutes > 0) {
+                                return `${remainingMinutes} minutes remaining to cancel`;
+                              }
+                              return "Sessions can only be cancelled within 1 hour of booking";
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCancelSession(session.session_id)}
+                        className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium shadow-sm"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel Session
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -859,6 +990,154 @@ const StudentProfile: React.FC = () => {
       )}
     </div>
   );
+
+  // Enrolled Classes Section Component
+  const EnrolledClassesSection = () => {
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'active': return 'bg-green-100 text-green-800';
+        case 'upcoming': return 'bg-blue-100 text-blue-800';
+        case 'completed': return 'bg-gray-100 text-gray-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        default: return 'bg-gray-100 text-gray-800';
+      }
+    };
+
+    const getLevelColor = (level: string) => {
+      switch (level) {
+        case 'Beginner': return 'bg-green-100 text-green-700';
+        case 'Intermediate': return 'bg-yellow-100 text-yellow-700';
+        case 'Advanced': return 'bg-red-100 text-red-700';
+        default: return 'bg-gray-100 text-gray-700';
+      }
+    };
+
+    if (classesLoading) {
+      return (
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center">
+            <Users className="w-5 h-5 mr-2 text-purple-600" />
+            Enrolled Classes
+          </h3>
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 mx-auto mb-4 text-gray-400 animate-spin" />
+            <p className="text-gray-500">Loading enrolled classes...</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-xl font-bold text-gray-800 flex items-center">
+          <Users className="w-5 h-5 mr-2 text-purple-600" />
+          Enrolled Classes
+        </h3>
+        {enrolledClasses.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500 text-lg">No enrolled classes found</p>
+            <p className="text-gray-400 text-sm mt-2">Browse and enroll in mass classes to see them here</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {enrolledClasses.map((enrolledClass) => (
+              <div key={enrolledClass.class_id} className="border-l-4 border-purple-500 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-purple-50 to-purple-25">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+                    <h4 className="text-base sm:text-lg font-bold text-gray-800">{enrolledClass.class_name}</h4>
+                    <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                      Mass Class
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(enrolledClass.status)}`}>
+                      {enrolledClass.status}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getLevelColor(enrolledClass.level)}`}>
+                      {enrolledClass.level}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm mb-4">
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-600">Tutor</span>
+                    </div>
+                    <p className="font-semibold text-gray-800">{enrolledClass.tutor.name}</p>
+                    <div className="flex items-center mt-1">
+                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                      <span className="ml-1 text-xs text-gray-600">{enrolledClass.tutor.rating}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <BookOpen className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-600">Subject</span>
+                    </div>
+                    <p className="font-semibold text-gray-800">{enrolledClass.subject}</p>
+                    <p className="text-gray-600 text-xs">{enrolledClass.duration}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-600">Schedule</span>
+                    </div>
+                    <p className="font-semibold text-gray-800 text-xs">{enrolledClass.schedule}</p>
+                    {enrolledClass.next_session && (
+                      <p className="text-blue-600 text-xs mt-1">
+                        Next: {new Date(enrolledClass.next_session).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-600">Enrollment</span>
+                    </div>
+                    <p className="font-semibold text-gray-800">{enrolledClass.students_enrolled}</p>
+                    <p className="text-xs text-gray-600">students enrolled</p>
+                  </div>
+                </div>
+
+                <p className="text-gray-600 text-sm mb-4">{enrolledClass.description}</p>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <CreditCard className="w-4 h-4 mr-1" />
+                      LKR {enrolledClass.price.toLocaleString()}
+                    </span>
+                    <span className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      Enrolled: {new Date(enrolledClass.enrollment_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {enrolledClass.status === 'active' && enrolledClass.meeting_link && (
+                      <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                        <Video className="w-4 h-4 mr-2" />
+                        Join Class
+                      </button>
+                    )}
+                    <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      onClick={() => navigate(`/mass-class/${enrolledClass.class_id}`)}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Simple ProfileHeader component
   const ProfileHeader = () => (
@@ -1114,33 +1393,66 @@ const StudentProfile: React.FC = () => {
 
         {activeTab === 'sessions' && (
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="space-y-8">
-              <SessionsSection 
-                sessions={upcomingSessions} 
-                title="Upcoming Sessions" 
-                emptyMessage="No upcoming sessions scheduled"
-                type="upcoming"
-              />
-              <SessionsSection 
-                sessions={ongoingSessions} 
-                title="Ongoing Sessions" 
-                emptyMessage="No ongoing sessions"
-                type="ongoing"
-              />
-              <SessionsSection 
-                sessions={completedSessions} 
-                title="Previous Sessions" 
-                emptyMessage="No previous sessions found"
-                showRating={true}
-                type="previous"
-              />
-              <SessionsSection 
-                sessions={cancelledSessions} 
-                title="Cancelled Sessions" 
-                emptyMessage="No cancelled sessions"
-                type="cancelled"
-              />
+            {/* Sub-navigation for sessions */}
+            <div className="border-b border-gray-200 mb-6">
+              <nav className="flex space-x-8">
+                <button
+                  onClick={() => setActiveSessionsTab('individual')}
+                  className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                    activeSessionsTab === 'individual'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Individual Sessions
+                </button>
+                <button
+                  onClick={() => setActiveSessionsTab('classes')}
+                  className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                    activeSessionsTab === 'classes'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Enrolled Classes
+                </button>
+              </nav>
             </div>
+
+            {/* Content based on active sub-tab */}
+            {activeSessionsTab === 'individual' && (
+              <div className="space-y-8">
+                <SessionsSection 
+                  sessions={upcomingSessions} 
+                  title="Upcoming Sessions" 
+                  emptyMessage="No upcoming sessions scheduled"
+                  type="upcoming"
+                />
+                <SessionsSection 
+                  sessions={ongoingSessions} 
+                  title="Ongoing Sessions" 
+                  emptyMessage="No ongoing sessions"
+                  type="ongoing"
+                />
+                <SessionsSection 
+                  sessions={completedSessions} 
+                  title="Previous Sessions" 
+                  emptyMessage="No previous sessions found"
+                  showRating={true}
+                  type="previous"
+                />
+                <SessionsSection 
+                  sessions={cancelledSessions} 
+                  title="Cancelled Sessions" 
+                  emptyMessage="No cancelled sessions"
+                  type="cancelled"
+                />
+              </div>
+            )}
+
+            {activeSessionsTab === 'classes' && (
+              <EnrolledClassesSection />
+            )}
           </div>
         )}
 

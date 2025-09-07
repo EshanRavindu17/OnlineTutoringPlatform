@@ -91,11 +91,13 @@ export default function Navbar() {
     { to: '/findtutors', label: 'Find Tutors' },
     { to: '/mycalendar', label: 'My Calendar' },
     { to: '/payment-history', label: 'Payments'   },
+    { to: '/notifications', label: 'Notifications' },
+    { to: '/saved', label: 'Saved' }
   ];
 
   const tutorLinks = [
-    { to: '/addnewcourse', label: 'Create Course' },
-    { to: '/mycourses',     label: 'My Courses'},
+    // { to: '/addnewcourse', label: 'Create Course' },
+    // { to: '/mycourses',     label: 'My Courses'},
     { to: '/manageSchedule',     label: 'Manage Schedule'},
   ];
 

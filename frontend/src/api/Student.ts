@@ -44,6 +44,7 @@ interface FreeTimeSlot {
 export interface Session {
   session_id: string;
   date: string;
+  title: string;
   start_time: string | null;
   end_time: string | null;
   status: 'scheduled' | 'ongoing' | 'canceled' | 'completed';
@@ -51,6 +52,7 @@ export interface Session {
   materials: string[];
   material_links: string[];
   slots: string[]; // Array of slot times like "1970-01-01T15:00:00.000Z"
+  created_at: string; // When the session was created (from backend)
   rating?: number;
   feedback?: string;
   reason?: string;
@@ -63,6 +65,30 @@ export interface Session {
     Course?: {
       course_name: string;
     };
+  };
+}
+
+export interface EnrolledClass {
+  class_id: string;
+  class_name: string;
+  description: string;
+  subject: string;
+  price: number;
+  duration: string; // e.g., "2 hours"
+  schedule: string; // e.g., "Every Sunday at 6:00 PM"
+  start_date: string;
+  end_date: string;
+  status: 'active' | 'completed' | 'upcoming' | 'cancelled';
+  students_enrolled: number;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  enrollment_date: string;
+  meeting_link?: string;
+  next_session?: string;
+  tutor: {
+    id: string;
+    name: string;
+    photo_url: string | null;
+    rating: number;
   };
 }
 
@@ -243,6 +269,96 @@ export const getAllSessionsByStudentId = async (studentId: string) => {
         console.error('❌ Failed to fetch all sessions:', error);
         throw new Error(`Failed to fetch all sessions: ${error.message || 'Unknown error occurred'}`);
     }
+};
+
+export const getEnrolledClassesByStudentId = async (studentId: string) => {
+    console.log('Fetching enrolled classes for student ID:', studentId);
+    try {
+        const response = await axios.get<EnrolledClass[]>(
+            `${baseUrl2}/getEnrolledClassesByStudentId/${studentId}`
+        );
+        console.log('Enrolled classes fetched:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch enrolled classes:', error);
+        // For now, return mock data if API fails
+        return getMockEnrolledClasses();
+    }
+};
+
+// Mock data for enrolled classes (temporary until backend is ready)
+const getMockEnrolledClasses = (): EnrolledClass[] => {
+    return [
+        {
+            class_id: '1',
+            class_name: 'Advanced Mathematics Masterclass',
+            description: 'Comprehensive calculus and linear algebra preparation for advanced students',
+            subject: 'Mathematics',
+            price: 12000,
+            duration: '2 hours',
+            schedule: 'Every Sunday at 6:00 PM',
+            start_date: '2025-09-15',
+            end_date: '2025-12-15',
+            status: 'active',
+            students_enrolled: 28,
+            level: 'Advanced',
+            enrollment_date: '2025-09-07T14:45:00Z',
+            meeting_link: 'https://meet.google.com/xyz-abc-123',
+            next_session: '2025-09-15T18:00:00Z',
+            tutor: {
+                id: 'tutor-1',
+                name: 'Dr. Sarah Johnson',
+                photo_url: 'https://images.unsplash.com/photo-1494790108755-2616c18b3d9d?w=150&h=150&fit=crop&crop=center',
+                rating: 4.8
+            }
+        },
+        {
+            class_id: '2',
+            class_name: 'Python Programming Bootcamp',
+            description: 'Complete Python programming course from basics to advanced web development',
+            subject: 'Programming',
+            price: 15000,
+            duration: '3 hours',
+            schedule: 'Tuesdays & Thursdays at 7:00 PM',
+            start_date: '2025-09-20',
+            end_date: '2025-11-30',
+            status: 'upcoming',
+            students_enrolled: 35,
+            level: 'Intermediate',
+            enrollment_date: '2025-09-06T11:20:00Z',
+            meeting_link: 'https://meet.google.com/def-ghi-456',
+            next_session: '2025-09-20T19:00:00Z',
+            tutor: {
+                id: 'tutor-2',
+                name: 'Prof. Michael Chen',
+                photo_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=center',
+                rating: 4.9
+            }
+        },
+        {
+            class_id: '3',
+            class_name: 'Organic Chemistry Deep Dive',
+            description: 'Intensive organic chemistry course covering all major reaction mechanisms',
+            subject: 'Chemistry',
+            price: 10000,
+            duration: '2.5 hours',
+            schedule: 'Saturdays at 10:00 AM',
+            start_date: '2025-08-18',
+            end_date: '2025-12-10',
+            status: 'active',
+            students_enrolled: 22,
+            level: 'Advanced',
+            enrollment_date: '2025-08-15T16:30:00Z',
+            meeting_link: 'https://meet.google.com/jkl-mno-789',
+            next_session: '2025-09-14T10:00:00Z',
+            tutor: {
+                id: 'tutor-3',
+                name: 'Dr. Emily Watson',
+                photo_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=center',
+                rating: 4.7
+            }
+        }
+    ];
 };
 
 

@@ -14,6 +14,10 @@ interface UserProfile {
   dob?: string;
   created_at: string;
   updated_at: string;
+  
+  tutorStatus?: 'active' | 'pending' | 'suspended' | 'rejected' | 'not_registered';
+  canAccessDashboard?: boolean;
+  message?: string;
 }
 
 interface AuthContextType {
@@ -40,39 +44,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-
-  // useEffect(() => {
-  //   const unsubscribe = onAuthStateChanged(auth, async (user) => {
-  //     if (user) {
-  //       setCurrentUser(user);
-        
-  //       // Fetch user profile from Node.js backend
-  //       try {
-  //         const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
-  //           method: 'GET',
-  //           headers: { 'Content-Type': 'application/json' }
-  //         });
-
-  //         if (response.ok) {
-  //           const profileData = await response.json();
-  //           setUserProfile(profileData);
-  //         } else {
-  //           console.error('Failed to fetch user profile:', await response.text());
-  //           setUserProfile(null);
-  //         }
-  //       } catch (error) {
-  //         console.error('Error fetching user profile:', error);
-  //         setUserProfile(null);
-  //       }
-  //     } else {
-  //       setCurrentUser(null);
-  //       setUserProfile(null);
-  //     }
-  //     setLoading(false);
-  //   });
-
-  //   return unsubscribe;
-  // }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {

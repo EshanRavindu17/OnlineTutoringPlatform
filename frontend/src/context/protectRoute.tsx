@@ -5,21 +5,52 @@ import React from 'react';
 
 export function TutorRoute() {
   const { userProfile } = useAuth();
-  
-  if (userProfile?.role !== 'Individual') {
-    return <Navigate to="/" replace />;
+
+  // Check for Individual tutors with proper status
+  if (userProfile?.role === 'Individual') {
+    // If user doesn't have dashboard access, redirect to appropriate page
+    if (!userProfile.canAccessDashboard) {
+      if (userProfile.tutorStatus === 'pending') {
+        return <Navigate to="/tutor-pending" replace />;
+      } else if (userProfile.tutorStatus === 'suspended') {
+        return <Navigate to="/tutor-suspended" replace />;
+      } else if (userProfile.tutorStatus === 'rejected') {
+        return <Navigate to="/tutor-rejected" replace />;
+      } else if (userProfile.tutorStatus === 'not_registered') {
+        return <Navigate to="/createtutorprofile" replace />;
+      }
+    }
+    // If active, allow access
+    return <Outlet />;
   }
-  return <Outlet />;
+  // If not a tutor, redirect to home
+  return <Navigate to="/" replace />;
 }
 
-export function MassTutorRoute(){
+export function MassRoute() {
   const { userProfile } = useAuth();
-  if (userProfile?.role !== 'Mass') {
-    return <Navigate to="/" replace />;
+  
+  // For Mass tutors, use similar logic to Individual tutors
+  if (userProfile?.role === 'Mass') {
+    // If user doesn't have dashboard access, redirect to appropriate page
+    if (!userProfile.canAccessDashboard) {
+      if (userProfile.tutorStatus === 'pending') {
+        return <Navigate to="/tutor-pending" replace />;
+      } else if (userProfile.tutorStatus === 'suspended') {
+        return <Navigate to="/tutor-suspended" replace />;
+      } else if (userProfile.tutorStatus === 'rejected') {
+        return <Navigate to="/tutor-rejected" replace />;
+      } else if (userProfile.tutorStatus === 'not_registered') {
+        return <Navigate to="/createtutorprofile" replace />;
+      }
+    }
+    // If active, allow access
+    return <Outlet />;
   }
-  return <Outlet />;
+  // If not a Mass tutor, redirect to home
+  return <Navigate to="/" replace />;
 }
-
+  
 export function StudentRoute() {
   const { userProfile } = useAuth();
   console.log("User Profile:", userProfile);
