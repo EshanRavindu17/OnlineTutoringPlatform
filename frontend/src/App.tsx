@@ -39,6 +39,10 @@ import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './individualTutor/TutorRejected';
 import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 
+import MassTutorProfile from './pages/student/massTutorProfile';
+import MassClassPage from './pages/student/massClass';
+
+
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
 import AdminGate from './admin/AdminGate';
@@ -50,6 +54,9 @@ import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import NotificationPage from './pages/student/notification';
+import SavedPage from './pages/student/saved';
+
 
 // (Optional) If you want http://admin.localhost:5173 to auto-redirect to /admin
 function HostRedirectToAdmin() {
@@ -82,6 +89,7 @@ const App = () => {
         <Route path="/studentlists" element={<StudentLists />} />
         <Route path="/findtutors" element={<FindTutors />} />
         <Route path="/tutor-profile/:tutorId" element={<TutorProfilePage/>}/>
+        <Route path="/mass-tutor-profile/:tutorId" element={<MassTutorProfile/>}/>
         <Route path="/book-session/:tutorId" element={<BookSessionPage/>}/>
         <Route path="/report-tutor/:tutorId" element={<ReportTutorPage/>}/>
         <Route path="/courses" element={<Courses/>}/>
@@ -98,6 +106,9 @@ const App = () => {
           <Route path="/payment-history" element={<PaymentHistoryPage />} />
           <Route path="/mycalendar" element={<MyCalendarPage />} />
           <Route path="/payment-demo" element={<PaymentDemoPage />} />
+          <Route path="/mass-class/:classId" element={<MassClassPage />} />
+          <Route path="/notifications" element={<NotificationPage />} />
+          <Route path="/saved" element={<SavedPage />} />
         </Route>
 
         {/* Individual Tutor Protected Routes */}
