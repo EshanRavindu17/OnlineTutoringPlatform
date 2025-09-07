@@ -106,9 +106,19 @@ export const getIndividualTutorById = async (i_tutor_id: string) => {
 
 
 export const getSlotsOfIndividualTutorById = async (i_tutor_id: string) => {
+    const now = new Date();
     const slots = await prisma.free_Time_Slots.findMany({
-        where: { i_tutor_id , status:'free'},
-
+        where: { 
+            i_tutor_id, 
+            status: 'free',
+            OR: [
+                { date: { gt: now } },
+                { 
+                    date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+                    start_time: { gt: now }
+                }
+            ]
+        },
     });
     return slots;
 }
@@ -129,6 +139,8 @@ export const getAllSessionByStudentId = async (student_id: string) => {
             slots: true,
             meeting_urls: true,
             date: true,
+            created_at: true,
+            title: true,
             Individual_Tutor: {
                 select : {
                     User: {

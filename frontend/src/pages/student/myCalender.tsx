@@ -32,6 +32,7 @@ interface CalendarEvent {
   meetingLink?: string;
   description?: string;
   color: string;
+  createdAt: Date; // Added to track when the session was created
 }
 
 // Mock data for demonstration
@@ -49,7 +50,8 @@ const mockEvents: CalendarEvent[] = [
     status: 'scheduled',
     meetingLink: 'https://zoom.us/j/123456789',
     description: 'Algebra and calculus review',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 7, 29, 10, 30) // Created recently - can cancel
   },
   {
     id: '2',
@@ -63,7 +65,8 @@ const mockEvents: CalendarEvent[] = [
     status: 'scheduled',
     meetingLink: 'https://zoom.us/j/987654321',
     description: 'Mechanics and thermodynamics',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 7, 20, 14, 0) // Created more than 1 hour ago - cannot cancel
   },
   {
     id: '3',
@@ -76,7 +79,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Ms. Emily Davis',
     status: 'scheduled',
     description: 'Shakespeare analysis',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 8, 1, 15, 30) // Created within 1 hour - can cancel
   },
   {
     id: '4',
@@ -90,7 +94,8 @@ const mockEvents: CalendarEvent[] = [
     status: 'scheduled',
     meetingLink: 'https://zoom.us/j/456789123',
     description: 'Cell biology and genetics',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 7, 25, 9, 0) // Created more than 1 hour ago - cannot cancel
   },
   {
     id: '5',
@@ -103,7 +108,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Mr. David Lee',
     status: 'scheduled',
     description: 'World War II and its impact',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 8, 2, 8, 30) // Created within 1 hour - can cancel
   },
   {
     id: '6',
@@ -117,7 +123,23 @@ const mockEvents: CalendarEvent[] = [
     status: 'scheduled',
     meetingLink: 'https://zoom.us/j/789123456',
     description: 'Data structures and algorithms',
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    createdAt: new Date(2025, 7, 28, 10, 0) // Created more than 1 hour ago - cannot cancel
+  },
+  {
+    id: '6',
+    title: 'Home Science Tutoring',
+    type: 'individual',
+    date: new Date(2025, 8, 8), // September 8, 2025
+    startTime: '15:00',
+    endTime: '16:00',
+    subject: 'Home Science',
+    tutor: 'Ms. Rachel Kumar',
+    status: 'scheduled',
+    meetingLink: 'https://zoom.us/j/789123456',
+    description: 'Data structures and algorithms',
+    color: 'bg-blue-500',
+    createdAt: new Date() // Created now
   },
   
   // Class Sessions
@@ -132,7 +154,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Dr. Michael Brown',
     status: 'scheduled',
     description: 'Organic chemistry experiments',
-    color: 'bg-orange-500'
+    color: 'bg-orange-500',
+    createdAt: new Date(2025, 7, 20, 14, 0)
   },
   {
     id: '8',
@@ -145,7 +168,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Ms. Sofia Garcia',
     status: 'scheduled',
     description: 'Watercolor painting techniques',
-    color: 'bg-pink-500'
+    color: 'bg-pink-500',
+    createdAt: new Date(2025, 7, 25, 10, 0)
   },
   {
     id: '9',
@@ -158,7 +182,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Dr. Williams',
     status: 'scheduled',
     description: 'Macroeconomics and market analysis',
-    color: 'bg-green-500'
+    color: 'bg-green-500',
+    createdAt: new Date(2025, 7, 30, 12, 0)
   },
   {
     id: '10',
@@ -171,7 +196,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Dr. Perera',
     status: 'scheduled',
     description: 'Classical Tamil poetry and prose',
-    color: 'bg-indigo-500'
+    color: 'bg-indigo-500',
+    createdAt: new Date(2025, 8, 1, 9, 0)
   },
   {
     id: '11',
@@ -184,7 +210,8 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Mr. Alessandro Rodriguez',
     status: 'scheduled',
     description: 'Introduction to harmony and composition',
-    color: 'bg-purple-500'
+    color: 'bg-purple-500',
+    createdAt: new Date(2025, 8, 2, 13, 0)
   },
   {
     id: '12',
@@ -197,8 +224,10 @@ const mockEvents: CalendarEvent[] = [
     tutor: 'Dr. Amanda Foster',
     status: 'scheduled',
     description: 'Laboratory experiments and observations',
-    color: 'bg-teal-500'
-  }
+    color: 'bg-teal-500',
+    createdAt: new Date(2025, 8, 3, 11, 0)
+  },
+  
 ];
 
 export default function MyCalendarPage() {
@@ -282,6 +311,15 @@ export default function MyCalendarPage() {
   const closeModal = () => {
     setShowEventModal(false);
     setSelectedEvent(null);
+  };
+
+  // Check if individual session can be cancelled (within 1 hour of creation)
+  const canCancelSession = (event: CalendarEvent) => {
+    if (event.type !== 'individual' || event.status !== 'scheduled') return false;
+    const now = new Date();
+    const timeDiff = now.getTime() - event.createdAt.getTime();
+    const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+    return timeDiff <= oneHour;
   };
 
   // Get status color
@@ -439,7 +477,7 @@ export default function MyCalendarPage() {
                           e.stopPropagation();
                           handleEventClick(event);
                         }}
-                        className={`text-xs p-1 rounded text-white cursor-pointer hover:opacity-80 transition-opacity ${event.color}`}
+                        className={`text-xs p-1 rounded text-white cursor-pointer hover:opacity-80 transition-opacity relative ${event.color}`}
                       >
                         <div className="flex items-center space-x-1">
                           {event.type === 'individual' ? (
@@ -448,6 +486,10 @@ export default function MyCalendarPage() {
                             <BookOpen className="w-3 h-3" />
                           )}
                           <span className="truncate">{event.title}</span>
+                          {/* Show indicator for cancellable individual sessions */}
+                          {event.type === 'individual' && canCancelSession(event) && (
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full ml-auto flex-shrink-0" title="Can be cancelled"></div>
+                          )}
                         </div>
                         <div className="text-xs opacity-90">{event.startTime}</div>
                       </div>
@@ -478,7 +520,13 @@ export default function MyCalendarPage() {
                   className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-gray-800">{event.title}</h4>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="font-semibold text-gray-800">{event.title}</h4>
+                      {/* Show indicator for cancellable individual sessions */}
+                      {event.type === 'individual' && canCancelSession(event) && (
+                        <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Can be cancelled"></div>
+                      )}
+                    </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
                       {event.status}
                     </span>
@@ -601,18 +649,25 @@ export default function MyCalendarPage() {
 
                 {/* Action Buttons */}
                 <div className="flex space-x-3 mt-6">
-                  <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
-                    <Eye className="w-4 h-4" />
-                    <span>View Details</span>
-                  </button>
-                  <button className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center space-x-2">
-                    <Edit className="w-4 h-4" />
-                    <span>Edit</span>
-                  </button>
-                  {selectedEvent.status === 'scheduled' && (
-                    <button className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2">
-                      <Trash2 className="w-4 h-4" />
-                      <span>Cancel</span>
+                  {selectedEvent.type === 'individual' ? (
+                    // Individual Session Buttons
+                    <>
+                      {canCancelSession(selectedEvent) ? (
+                        <button className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2">
+                          <Trash2 className="w-4 h-4" />
+                          <span>Cancel Session</span>
+                        </button>
+                      ) : (
+                        <div className="flex-1 bg-gray-300 text-gray-500 py-2 px-4 rounded-lg flex items-center justify-center space-x-2 cursor-not-allowed">
+                          <span>Cannot cancel (created over 1 hour ago)</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    // Mass Class Buttons
+                    <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                      <Eye className="w-4 h-4" />
+                      <span>View Class</span>
                     </button>
                   )}
                 </div>
