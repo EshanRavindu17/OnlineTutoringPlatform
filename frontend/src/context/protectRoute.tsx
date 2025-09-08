@@ -40,9 +40,10 @@ export function MassRoute() {
         return <Navigate to="/tutor-suspended" replace />;
       } else if (userProfile.tutorStatus === 'rejected') {
         return <Navigate to="/tutor-rejected" replace />;
-      } else if (userProfile.tutorStatus === 'not_registered') {
-        return <Navigate to="/createtutorprofile" replace />;
       }
+      //  else if (userProfile.tutorStatus === 'not_registered') {
+      //   return <Navigate to="/createtutorprofile" replace />;
+      // }
     }
     // If active, allow access
     return <Outlet />;
