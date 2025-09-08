@@ -30,7 +30,11 @@ export default function SignupForm({ role = 'student' }) {
     prices: '',
     // Document uploads for tutors
     cv_file: null as File | null,
-    certificate_files: [] as File[]
+    certificate_files: [] as File[],
+    // String representations for form inputs
+    subjectsInput: '',
+    titlesInput: '',
+    qualificationsInput: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -171,9 +175,12 @@ export default function SignupForm({ role = 'student' }) {
 
   const handleArrayInputChange = (field: 'subjects' | 'titles' | 'qualifications', value: string) => {
     const items = value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+    const inputField = `${field}Input` as 'subjectsInput' | 'titlesInput' | 'qualificationsInput';
+    
     setFormData(prev => ({
       ...prev,
-      [field]: items
+      [field]: items,
+      [inputField]: value
     }));
     setError('');
   };
@@ -680,7 +687,7 @@ export default function SignupForm({ role = 'student' }) {
                             name="subjects"
                             type="text"
                             required
-                            value={formData.subjects.join(', ')}
+                            value={formData.subjectsInput}
                             onChange={(e) => handleArrayInputChange('subjects', e.target.value)}
                             disabled={loading}
                             className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
@@ -832,7 +839,7 @@ export default function SignupForm({ role = 'student' }) {
                               name="titles"
                               type="text"
                               required
-                              value={formData.titles.join(', ')}
+                              value={formData.titlesInput}
                               onChange={(e) => handleArrayInputChange('titles', e.target.value)}
                               disabled={loading}
                               className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
@@ -902,7 +909,7 @@ export default function SignupForm({ role = 'student' }) {
                               name="qualifications"
                               type="text"
                               required
-                              value={formData.qualifications.join(', ')}
+                              value={formData.qualificationsInput}
                               onChange={(e) => handleArrayInputChange('qualifications', e.target.value)}
                               disabled={loading}
                               className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
