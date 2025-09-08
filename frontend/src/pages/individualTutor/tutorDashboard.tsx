@@ -495,9 +495,9 @@ const TutorDashboard: React.FC = () => {
     alert(`Cancellation request sent for session ${sessionId}. An email will be sent to the student and admin for approval.`);
   };
 
-  const requestReschedule = (sessionId: number) => {
-    alert(`Reschedule request sent for session ${sessionId}. Student will be notified to approve the new time.`);
-  };
+  // const requestReschedule = (sessionId: number) => {
+  //   alert(`Reschedule request sent for session ${sessionId}. Student will be notified to approve the new time.`);
+  // };
 
   const handleZoomMeeting = (sessionId: number, studentName: string) => {
     // You can replace this with actual Zoom meeting logic
@@ -1112,12 +1112,12 @@ const TutorDashboard: React.FC = () => {
                     <Video size={16} />
                     <span>Zoom</span>
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => requestReschedule(session.id)}
                     className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
                   >
                     Reschedule
-                  </button>
+                  </button> */}
                   <button
                     onClick={() => requestCancellation(session.id)}
                     className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
