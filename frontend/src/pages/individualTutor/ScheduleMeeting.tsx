@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, TrendingUp, Loader, AlertCircle } from 'lucide-react';
-import Footer from '../components/Footer';
-import Navbar from '../components/Navbar';
+import Footer from '../../components/Footer';
+import Navbar from '../../components/Navbar';
 import ScheduleManager from './ScheduleManager';
-import { useAuth } from '../context/authContext';
-import { ScheduleService } from '../api/ScheduleService';
+import { useAuth } from '../../context/authContext';
+import { ScheduleService } from '../../api/ScheduleService';
 
 const ScheduleMeeting: React.FC = () => {
   const [tutorId, setTutorId] = useState<string | null>(null);

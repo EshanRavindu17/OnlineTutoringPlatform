@@ -16,15 +16,13 @@ import FindTutors from './pages/findTutors'
 import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
 import StudentProfile from './pages/student/studentProfile';
-import TutorProfile from './individualTutor/tutorProfile';
-import StartZoom from './individualTutor/startZoom';
-import ScheduleMeeting from './individualTutor/ScheduleMeeting';
+import TutorProfile from './pages/individualTutor/tutorProfile';
+import StartZoom from './pages/individualTutor/startZoom';
+import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
-import UploadVideo from  './individualTutor/uploadvideo';
 import NotFound from './pages/notfoundpage';
 import { TutorRoute, StudentRoute, MassRoute} from './context/protectRoute';
-import LesssonUpload from './individualTutor/anotherLessonUpload';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -36,7 +34,7 @@ import ScrollToTop from './components/scrollToUp';
 import PaymentHistoryPage from './pages/student/paymentHistory';
 import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
-import TutorRejected from './individualTutor/TutorRejected';
+import TutorRejected from './pages/individualTutor/TutorRejected';
 import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 
 import MassTutorProfile from './pages/student/massTutorProfile';
@@ -114,14 +112,9 @@ const App = () => {
 
         {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
-          {/* <Route path="/addnewcourse" element={<AddNewCourse />} /> */}
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          {/* <Route path="/createtutorprofile" element={<CreateTutorProfile />} /> */}
           <Route path="/startzoom" element={<StartZoom />} />
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
-          <Route path="/uploadvideo" element={<UploadVideo />} />
-          {/* <Route path="/mycourses" element={<MyCourses />} /> */}
-          <Route path="/anotherLessonUpload" element={<LesssonUpload />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
         </Route>
 

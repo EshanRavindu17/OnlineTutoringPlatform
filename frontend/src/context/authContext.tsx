@@ -61,7 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               // First try with cached token
               idToken = await user.getIdToken(false);
               
-              // Validate token expiration
               const payload = JSON.parse(atob(idToken.split('.')[1]));
               const currentTime = Date.now() / 1000;
               
@@ -75,8 +74,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               idToken = await user.getIdToken(true);
             }
 
-            console.log('🔑 Using Firebase ID token, expires at:', 
-              new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
+            // console.log('🔑 Using Firebase ID token, expires at:', 
+            //   new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
             
             
             const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
@@ -91,18 +90,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('👤 Fetched user profile:', profileData);
 
             if (response.ok) {
-              // profileData = await response.json();
-              console.log('✅ User profile loaded successfully');
               break;
             } else if (response.status === 401) {
-              console.warn('🚫 Authentication failed, will retry with fresh token...');
-              // Force refresh on next retry
               await user.getIdToken(true);
             } else {
-              console.error('❌ Profile fetch failed:', response.status, response.statusText);
+              console.error('Profile fetch failed:', response.status, response.statusText);
             }
           } catch (err) {
-            console.error('❌ Retry fetch user profile failed:', err);
+            console.error('Retry fetch user profile failed:', err);
           }
 
           retries--;
@@ -115,9 +110,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUserProfile(profileData);
           // Store userType in localStorage for persistence
           localStorage.setItem('userType', profileData.role);
-          console.log('✅ User profile loaded and userType stored:', profileData.role);
         } else {
-          console.error('❌ Failed to fetch user profile after retries');
+          console.error('Failed to fetch user profile after retries');
           setUserProfile(null);
         }
       } else {
@@ -125,7 +119,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUserProfile(null);
         // Clear userType from localStorage when user signs out
         localStorage.removeItem('userType');
-        console.log('👋 User signed out, userType cleared');
+        console.log('User signed out, userType cleared');
       }
 
       setLoading(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, Loader, Save } from 'lucide-react';
-import { ScheduleService, TimeSlot as APITimeSlot, CreateTimeSlotRequest } from '../api/ScheduleService';
+import { ScheduleService, TimeSlot as APITimeSlot, CreateTimeSlotRequest } from '../../api/ScheduleService';
 
 interface TimeSlot {
   id: string;
@@ -331,13 +331,11 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           alert('Failed to remove time slot: ' + (response.message || 'Unknown error'));
         }
       } catch (err) {
-        console.error('Error removing time slot:', err);
         alert(err instanceof Error ? err.message : 'Failed to remove time slot');
       } finally {
         setSaving(false);
       }
     } else if (!hourSlot.isSelected) {
-      // Select - create in database
       try {
         setSaving(true);
         const createData: CreateTimeSlotRequest = {
@@ -355,8 +353,6 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           newHourSlot.slotId = newTimeSlot.id;
           newSchedule[date][hourIndex] = newHourSlot;
           setWeeklySchedule(newSchedule);
-          
-          // Update timeSlots state
           setTimeSlots(prev => [...prev, newTimeSlot]);
         } else {
           alert('Failed to create time slot: ' + (response.message || 'Unknown error'));

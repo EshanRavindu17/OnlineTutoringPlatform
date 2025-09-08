@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Bell } from 'lucide-react';
 
 interface Notification {
   id: number;
@@ -16,13 +17,17 @@ interface NotificationCenterProps {
   onMarkAsRead: (notificationId: number) => void;
   onMarkAllAsRead: () => void;
   onDeleteNotification: (notificationId: number) => void;
+  buttonClassName?: string;
+  iconColor?: string;
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({
   notifications,
   onMarkAsRead,
   onMarkAllAsRead,
-  onDeleteNotification
+  onDeleteNotification,
+  buttonClassName = "relative p-2 text-gray-600 hover:text-gray-800 focus:outline-none",
+  iconColor = "text-gray-600"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
@@ -69,9 +74,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       {/* Notification Bell */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-800 focus:outline-none"
+        className={buttonClassName}
       >
-        <span className="text-2xl">🔔</span>
+        <div className={`flex items-center space-x-2 ${iconColor}`}>
+          <Bell className="w-4 h-4" />
+          <span>Notifications</span>
+        </div>
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -194,7 +202,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
           {/* Footer */}
           {filteredNotifications.length > 0 && (
             <div className="p-3 border-t border-gray-200 text-center">
-              <button
+              {/* <button
                 onClick={() => {
                   // Navigate to full notifications page
                   setIsOpen(false);
@@ -202,7 +210,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 View All Notifications
-              </button>
+              </button> */}
             </div>
           )}
         </div>
