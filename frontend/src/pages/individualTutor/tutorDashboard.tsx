@@ -36,11 +36,13 @@ import {
   Trash2,
   Download,
   Upload,
-  VideoIcon
+  VideoIcon,
+  Camera
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/authContext';
 import { ScheduleService } from '../../api/ScheduleService';
+import { NotificationCenter } from './NotificationCenter';
 
 interface TutorProfile {
   name: string;
@@ -97,11 +99,25 @@ interface Review {
   subject: string;
 }
 
+interface Notification {
+  id: number;
+  type: 'booking' | 'cancellation' | 'reschedule' | 'payment' | 'review';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  sessionId?: number;
+  studentName?: string;
+}
+
 const TutorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showCVModal, setShowCVModal] = useState(false);
+  const [showImageEditModal, setShowImageEditModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editMode, setEditMode] = useState({
     basic: false,
     contact: false,
@@ -109,6 +125,58 @@ const TutorDashboard: React.FC = () => {
     subjects: false,
     pricing: false
   });
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: 1,
+      type: 'booking',
+      title: 'New Session Booked',
+      message: 'John Doe has booked a Mathematics session for tomorrow at 2:00 PM',
+      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      isRead: false,
+      sessionId: 123,
+      studentName: 'John Doe'
+    },
+    {
+      id: 2,
+      type: 'payment',
+      title: 'Payment Received',
+      message: 'Payment of $65 received for your session with Jane Smith',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      isRead: false,
+      studentName: 'Jane Smith'
+    },
+    {
+      id: 3,
+      type: 'review',
+      title: 'New Review',
+      message: 'Mike Johnson left a 5-star review for your Physics session',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      isRead: true,
+      studentName: 'Mike Johnson'
+    },
+    {
+      id: 4,
+      type: 'reschedule',
+      title: 'Reschedule Request',
+      message: 'Sarah Wilson wants to reschedule tomorrow\'s session to Friday',
+      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      isRead: false,
+      sessionId: 124,
+      studentName: 'Sarah Wilson'
+    },
+    {
+      id: 5,
+      type: 'cancellation',
+      title: 'Session Cancelled',
+      message: 'Tom Brown has cancelled the Real Analysis session scheduled for today',
+      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      isRead: false,
+      sessionId: 125,
+      studentName: 'Tom Brown'
+    }
+  ]);
 
   const { currentUser, userProfile } = useAuth();
 
@@ -197,10 +265,15 @@ const TutorDashboard: React.FC = () => {
         if (showCVModal) {
           setShowCVModal(false);
         }
+        if (showImageEditModal) {
+          setShowImageEditModal(false);
+          setSelectedImage(null);
+          setImagePreview(null);
+        }
       }
     };
 
-    if (showVideoModal || showCVModal) {
+    if (showVideoModal || showCVModal || showImageEditModal) {
       document.addEventListener('keydown', handleEscapeKey);
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
@@ -210,7 +283,7 @@ const TutorDashboard: React.FC = () => {
       document.removeEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'unset';
     };
-  }, [showVideoModal, showCVModal]);
+  }, [showVideoModal, showCVModal, showImageEditModal]);
 
   // Subjects and Titles
   const [subjects, setSubjects] = useState<Subject[]>([
@@ -325,6 +398,81 @@ const TutorDashboard: React.FC = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Notification handlers
+  const handleMarkAsRead = (notificationId: number) => {
+    setNotifications(prev => 
+      prev.map(notification => 
+        notification.id === notificationId 
+          ? { ...notification, isRead: true }
+          : notification
+      )
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, isRead: true }))
+    );
+  };
+
+  const handleDeleteNotification = (notificationId: number) => {
+    setNotifications(prev => 
+      prev.filter(notification => notification.id !== notificationId)
+    );
+  };
+
+  // Image handling functions
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size must be less than 5MB');
+        return;
+      }
+
+      setSelectedImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageSave = () => {
+    if (selectedImage && imagePreview) {
+      // Update the tutor profile with the new image
+      // In a real implementation, you would upload to server here
+      setTutorProfile(prev => ({
+        ...prev,
+        photo_url: imagePreview
+      }));
+      
+      // Close modal and reset state
+      setShowImageEditModal(false);
+      setSelectedImage(null);
+      setImagePreview(null);
+      
+      // Show success message
+      alert('Profile image updated successfully!');
+    }
+  };
+
+  const handleImageCancel = () => {
+    setShowImageEditModal(false);
+    setSelectedImage(null);
+    setImagePreview(null);
   };
 
 
@@ -1309,13 +1457,21 @@ const TutorDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
-              <div className="relative">
+              <div className="relative group">
                 <img 
                   src={tutorProfile.photo_url || '/default-profile.png'} 
                   alt={tutorProfile.name}
                   className="w-20 h-20 rounded-full border-4 border-white shadow-lg"
                 />
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white"></div>
+                
+                {/* Image Edit Button */}
+                <button
+                  onClick={() => setShowImageEditModal(true)}
+                  className="absolute inset-0 w-20 h-20 rounded-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                </button>
               </div>
               <div>
                 <h1 className="text-3xl font-bold">{tutorProfile.name}</h1>
@@ -1336,14 +1492,18 @@ const TutorDashboard: React.FC = () => {
             
             <div className="text-right space-y-2">
               <div className="flex items-center space-x-4">
-                <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center">
-                  <Bell className="w-4 h-4 mr-2" />
-                  Notifications
-                </button>
-                <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center">
+                <NotificationCenter
+                  notifications={notifications}
+                  onMarkAsRead={handleMarkAsRead}
+                  onMarkAllAsRead={handleMarkAllAsRead}
+                  onDeleteNotification={handleDeleteNotification}
+                  buttonClassName="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center relative"
+                  iconColor="text-white"
+                />
+                {/* <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
-                </button>
+                </button> */}
               </div>
               <div className="text-sm text-blue-200">
                 Last login: {new Date().toLocaleDateString()}
@@ -1553,6 +1713,116 @@ const TutorDashboard: React.FC = () => {
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Edit Modal */}
+      {showImageEditModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={handleImageCancel}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <Camera className="w-6 h-6 text-blue-600" />
+                <h3 className="text-xl font-semibold text-gray-800">Update Profile Image</h3>
+              </div>
+              <button
+                onClick={handleImageCancel}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6">
+              {/* Current Image */}
+              <div className="text-center mb-6">
+                <div className="relative inline-block">
+                  <img
+                    src={imagePreview || tutorProfile.photo_url || '/default-profile.png'}
+                    alt="Profile preview"
+                    className="w-32 h-32 rounded-full border-4 border-gray-200 object-cover mx-auto"
+                  />
+                  {imagePreview && (
+                    <div className="absolute top-0 right-0 bg-green-500 text-white rounded-full p-1">
+                      <CheckCircle className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mt-3">
+                  {imagePreview ? 'New image selected' : 'Current profile image'}
+                </p>
+              </div>
+
+              {/* File Upload */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choose New Image
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Supported formats: JPG, PNG, GIF. Maximum size: 5MB
+                  </p>
+                </div>
+
+                {selectedImage && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center">
+                      <Upload className="w-4 h-4 text-blue-600 mr-2" />
+                      <span className="text-sm text-blue-800 font-medium">
+                        {selectedImage.name}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Size: {(selectedImage.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div className="text-sm text-gray-600">
+                <Camera className="w-4 h-4 inline mr-1" />
+                Update your profile image
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleImageCancel}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImageSave}
+                  disabled={!selectedImage || !imagePreview}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    selectedImage && imagePreview
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Update Image
                 </button>
               </div>
             </div>

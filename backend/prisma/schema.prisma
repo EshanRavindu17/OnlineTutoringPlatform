@@ -20,17 +20,19 @@ model Admin {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Candidates {
-  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String?         @db.VarChar
-  email        String?         @db.VarChar
-  role         UserRole
-  bio          String?
-  dob          DateTime?       @db.Date
-  phone_number Int?
-  user_id      String?         @db.Uuid
-  applied_at   DateTime?       @db.Timestamptz(6)
-  status       CandidateStatus @default(pending)
-  User         User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String?         @db.VarChar
+  email           String?         @db.VarChar
+  role            UserRole
+  bio             String?
+  dob             DateTime?       @db.Date
+  phone_number    Int?
+  user_id         String?         @db.Uuid
+  applied_at      DateTime?       @db.Timestamptz(6)
+  status          CandidateStatus @default(pending)
+  cvUrl           String?
+  certificateUrls String[]
+  User            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
 }
 
 model Free_Time_Slots {

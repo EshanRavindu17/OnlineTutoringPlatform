@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth } from '../firebase.tsx';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield, Phone, MapPin, GraduationCap, DollarSign, FileText, Calendar } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield, Phone, MapPin, GraduationCap, DollarSign, FileText, Calendar, Upload, X } from 'lucide-react';
 import axios from 'axios';
 import { addStudent } from '../api/Student.ts';
 
@@ -27,7 +27,10 @@ export default function SignupForm({ role = 'student' }) {
     location: '',
     qualifications: [] as string[],
     // Mass tutor specific fields
-    prices: ''
+    prices: '',
+    // Document uploads for tutors
+    cv_file: null as File | null,
+    certificate_files: [] as File[]
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,6 +97,17 @@ export default function SignupForm({ role = 'student' }) {
         setError('Teaching description is required for tutors');
         return false;
       }
+
+      // Document validation for tutors (optional for now - will be required when backend is ready)
+      // Uncomment these when backend document upload is implemented:
+      // if (!formData.cv_file) {
+      //   setError('CV upload is required for tutors');
+      //   return false;
+      // }
+      // if (formData.certificate_files.length === 0) {
+      //   setError('At least one certificate is required for tutors');
+      //   return false;
+      // }
     }
 
     // Individual tutor specific validation
@@ -164,6 +178,69 @@ export default function SignupForm({ role = 'student' }) {
     setError('');
   };
 
+  const handleCVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type (PDF only)
+      if (file.type !== 'application/pdf') {
+        setError('CV must be a PDF file');
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('CV file size must be less than 5MB');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        cv_file: file
+      }));
+      setError('');
+    }
+  };
+
+  const handleCertificateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // Validate each file
+      for (const file of files) {
+        if (file.type !== 'application/pdf') {
+          setError('Certificate files must be PDF format');
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          setError('Each certificate file must be less than 5MB');
+          return;
+        }
+      }
+      // Limit to 3 certificates max
+      const totalFiles = formData.certificate_files.length + files.length;
+      if (totalFiles > 3) {
+        setError('You can upload maximum 3 certificate files');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        certificate_files: [...prev.certificate_files, ...files]
+      }));
+      setError('');
+    }
+  };
+
+  const removeCertificate = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      certificate_files: prev.certificate_files.filter((_, i) => i !== index)
+    }));
+  };
+
+  const removeCv = () => {
+    setFormData(prev => ({
+      ...prev,
+      cv_file: null
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -214,6 +291,12 @@ export default function SignupForm({ role = 'student' }) {
           prices: parseFloat(formData.prices) || 0
         } : {})
       };
+
+      // Log the uploaded files for verification (will be used when backend is implemented)
+      if (role === 'Individual' || role === 'Mass') {
+        console.log('CV file:', formData.cv_file?.name);
+        console.log('Certificate files:', formData.certificate_files.map(f => f.name));
+      }
 
       const response = await axios.post('http://localhost:5000/api/add-user', userData); 
       
@@ -539,6 +622,7 @@ export default function SignupForm({ role = 'student' }) {
                                 name="dob"
                                 type="date"
                                 required
+                                max={new Date().toISOString().split('T')[0]}
                                 value={formData.dob}
                                 onChange={handleInputChange}
                                 disabled={loading}
@@ -643,6 +727,86 @@ export default function SignupForm({ role = 'student' }) {
                             className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
                             placeholder="Expert Mathematics Tutor | 5+ Years Experience"
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Document Upload Section for All Tutors */}
+                    <div className="border-t pt-6 mt-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Documents (Optional)</h3>
+                      <p className="text-sm text-gray-600 mb-4">Upload your CV and certificates for verification (PDF format only, max 5MB each)</p>
+                      
+                      <div className="space-y-6">
+                        {/* CV Upload */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            CV/Resume
+                          </label>
+                          <div className="mt-1">
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              onChange={handleCVUpload}
+                              disabled={loading}
+                              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                            />
+                          </div>
+                          {formData.cv_file && (
+                            <div className="mt-2 flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
+                              <div className="flex items-center">
+                                <FileText size={16} className="text-green-600 mr-2" />
+                                <span className="text-sm text-green-800">{formData.cv_file.name}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={removeCv}
+                                disabled={loading}
+                                className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Certificates Upload */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Certificates
+                          </label>
+                          <div className="mt-1">
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              multiple
+                              onChange={handleCertificateUpload}
+                              disabled={loading || formData.certificate_files.length >= 3}
+                              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">Upload up to 3 certificate files (educational certificates, teaching certifications, etc.)</p>
+                          
+                          {/* Certificate Files List */}
+                          {formData.certificate_files.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {formData.certificate_files.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
+                                  <div className="flex items-center">
+                                    <FileText size={16} className="text-green-600 mr-2" />
+                                    <span className="text-sm text-green-800">{file.name}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCertificate(index)}
+                                    disabled={loading}
+                                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

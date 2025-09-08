@@ -19,6 +19,9 @@ interface UserData {
   location?: string;
   qualifications?: string[];
   prices?: number;
+  // Document URLs for tutors
+  cv_url?: string;
+  certificate_urls?: string[];
 }
 
 interface GetUsersOptions {
@@ -71,7 +74,10 @@ export const createOrUpdateUser = async (userData: UserData) => {
       heading,
       location,
       qualifications,
-      prices
+      prices,
+      // Document URLs
+      cv_url,
+      certificate_urls
     } = userData;
 
     if (!firebase_uid || !email || !name || !role) {
@@ -140,6 +146,8 @@ export const createOrUpdateUser = async (userData: UserData) => {
             if (heading) additionalTutorData.heading = heading;
             if (subjects && subjects.length > 0) additionalTutorData.subjects = subjects;
             if (phone_number) additionalTutorData.phone_number = phone_number; // Store full phone number in JSON
+            if (cv_url) additionalTutorData.cv_url = cv_url;
+            if (certificate_urls && certificate_urls.length > 0) additionalTutorData.certificate_urls = certificate_urls;
 
             if (role === 'Individual') {
               // Individual tutor specific fields
@@ -164,9 +172,6 @@ export const createOrUpdateUser = async (userData: UserData) => {
             })
           };
 
-          console.log(`� Storing candidate data for ${role}:`);
-          console.log(`  📋 Direct fields:`, directCandidateFields);
-          console.log(`  📦 JSON fields:`, additionalTutorData);
 
           await prisma.candidates.create({
             data: candidateData
@@ -187,8 +192,7 @@ export const createOrUpdateUser = async (userData: UserData) => {
           console.log(`ℹ️ Candidate entry already exists for ${role} tutor: ${email}`);
         }
       } catch (candidateError) {
-        console.error('❌ Error creating candidate entry:', candidateError);
-        // Don't throw error as user creation was successful
+        console.error('Error creating candidate entry:', candidateError);
       }
     }
 
