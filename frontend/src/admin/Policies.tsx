@@ -1,22 +1,43 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 
+interface RateLimit {
+  maxHourlyRate: number;
+  currency: string;
+  lastUpdated: string;
+}
+
 interface Policy {
   id: string;
   title: string;
-  type: 'tos' | 'privacy' | 'guidelines' | 'conduct';
+  type: 'tos' | 'privacy' | 'guidelines' | 'conduct' | 'rates';
   content: string;
   lastUpdated: string;
   version: string;
   isActive: boolean;
+  rateLimit?: RateLimit;
 }
 
 export default function Policies() {
-  const [selectedPolicy, setSelectedPolicy] = useState<'tos' | 'privacy' | 'guidelines' | 'conduct'>('tos');
+  const [selectedPolicy, setSelectedPolicy] = useState<'tos' | 'privacy' | 'guidelines' | 'conduct' | 'rates'>('tos');
   const [editMode, setEditMode] = useState(false);
   
   // Mock data - replace with actual API calls
   const [policies, setPolicies] = useState<Policy[]>([
+    {
+      id: '5',
+      title: 'Tutor Rate Limits',
+      type: 'rates',
+      content: 'Configure the maximum hourly rates that tutors can charge on our platform.',
+      lastUpdated: '2025-09-08',
+      version: '1.0',
+      isActive: true,
+      rateLimit: {
+        maxHourlyRate: 150,
+        currency: 'USD',
+        lastUpdated: '2025-09-08'
+      }
+    },
     {
       id: '1',
       title: 'Terms of Service',
@@ -195,18 +216,102 @@ export default function Policies() {
             </div>
             
             <div className="p-6">
-              {editMode ? (
-                <textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full h-[600px] p-4 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <div className="prose max-w-none">
-                  <pre className="whitespace-pre-wrap text-gray-700">
-                    {currentPolicy?.content}
-                  </pre>
+              {selectedPolicy === 'rates' ? (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 p-6 rounded-lg">
+                    <h3 className="text-lg font-medium text-blue-800 mb-2">Tutor Rate Configuration</h3>
+                    <p className="text-sm text-blue-600 mb-4">
+                      Set the maximum hourly rate that tutors can charge on the platform.
+                      This helps ensure fair pricing and accessibility for students.
+                    </p>
+                    <div className="flex items-end gap-4">
+                      <div className="flex-1">
+                        <label htmlFor="maxRate" className="block text-sm font-medium text-gray-700 mb-1">
+                          Maximum Hourly Rate
+                        </label>
+                        <div className="relative mt-1 rounded-md shadow-sm">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span className="text-gray-500 sm:text-sm">$</span>
+                          </div>
+                          <input
+                            type="number"
+                            name="maxRate"
+                            id="maxRate"
+                            disabled={!editMode}
+                            className="block w-full rounded-md border-gray-300 pl-7 pr-12 focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
+                            value={currentPolicy?.rateLimit?.maxHourlyRate || 0}
+                            onChange={(e) => {
+                              const newRate = parseFloat(e.target.value);
+                              setPolicies(policies.map(p =>
+                                p.type === 'rates'
+                                  ? {
+                                      ...p,
+                                      rateLimit: {
+                                        ...p.rateLimit!,
+                                        maxHourlyRate: newRate,
+                                        lastUpdated: new Date().toISOString().split('T')[0]
+                                      }
+                                    }
+                                  : p
+                              ));
+                            }}
+                          />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <span className="text-gray-500 sm:text-sm">USD</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white border rounded-lg">
+                    <div className="px-4 py-5 sm:p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Rate Limit History</h3>
+                      <div className="flow-root">
+                        <ul role="list" className="-mb-8">
+                          <li>
+                            <div className="relative pb-8">
+                              <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"></span>
+                              <div className="relative flex items-start space-x-3">
+                                <div className="relative">
+                                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 ring-8 ring-white">
+                                    <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                    </svg>
+                                  </span>
+                                </div>
+                                <div className="min-w-0 flex-1 py-0">
+                                  <div className="text-sm leading-8 text-gray-500">
+                                    Maximum rate updated to <span className="font-medium text-gray-900">${currentPolicy?.rateLimit?.maxHourlyRate} USD</span>
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    <time dateTime={currentPolicy?.rateLimit?.lastUpdated}>
+                                      {new Date(currentPolicy?.rateLimit?.lastUpdated || '').toLocaleDateString()}
+                                    </time>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                editMode ? (
+                  <textarea
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    className="w-full h-[600px] p-4 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                ) : (
+                  <div className="prose max-w-none">
+                    <pre className="whitespace-pre-wrap text-gray-700">
+                      {currentPolicy?.content}
+                    </pre>
+                  </div>
+                )
               )}
             </div>
           </div>
