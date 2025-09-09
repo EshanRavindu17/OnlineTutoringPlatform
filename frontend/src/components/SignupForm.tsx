@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../firebase.tsx';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield, Phone, MapPin, GraduationCap, DollarSign, FileText, Calendar, Upload, X } from 'lucide-react';
 import axios from 'axios';
 import { addStudent } from '../api/Student.ts';
+import { sendVerificationEmail } from '../utils/emailVerification';
 
 export default function SignupForm({ role = 'student' }) {
   const navigate = useNavigate();
@@ -104,14 +105,14 @@ export default function SignupForm({ role = 'student' }) {
 
       // Document validation for tutors (optional for now - will be required when backend is ready)
       // Uncomment these when backend document upload is implemented:
-      // if (!formData.cv_file) {
-      //   setError('CV upload is required for tutors');
-      //   return false;
-      // }
-      // if (formData.certificate_files.length === 0) {
-      //   setError('At least one certificate is required for tutors');
-      //   return false;
-      // }
+      if (!formData.cv_file) {
+        setError('CV upload is required for tutors');
+        return false;
+      }
+      if (formData.certificate_files.length === 0) {
+        setError('At least one certificate is required for tutors');
+        return false;
+      }
     }
 
     // Individual tutor specific validation
@@ -270,6 +271,16 @@ export default function SignupForm({ role = 'student' }) {
         formData.password
       );
 
+      // Send email verification
+      const verificationResult = await sendVerificationEmail(newUser);
+      if (!verificationResult.success) {
+        console.error('Failed to send verification email:', verificationResult.error);
+        // Continue with account creation even if verification email fails
+      }
+      
+      // Sign out the user immediately after verification email is sent
+      await signOut(auth);
+
       // Create user in database
       const userData = {
         firebase_uid: newUser.uid,
@@ -311,30 +322,24 @@ export default function SignupForm({ role = 'student' }) {
 
       if (response.data.created === true) {
         if (role === 'student') {
-          console.log("I'm a student");
-          console.log("User ID:", user_id);
-          console.log("Add user response:", response.data);
-          // alert("I'm a student");
           const student = await addStudent({
             user_id: user_id,
             points: 0
           });
           console.log("New student added:", student);
-          // navigate('/studentprofile');
-          navigate('/auth');
-        } else if (role === 'Individual' || role === 'Mass') {
-          // For tutors, show success message and redirect to login
-          alert(`Your ${role.toLowerCase()} tutor application has been submitted successfully! Please wait for admin approval before you can access your tutor dashboard.`);
-          navigate('/tutor-pending');
-        } else {
-          // navigate('/tutorprofile');
-          navigate('/auth');
         }
+        
+        // Redirect to email verification page for all users
+        navigate('/verify-email', { 
+          state: { 
+            email: formData.email, 
+            role: role 
+          },
+          replace: true 
+        });
       } else {
         setError("Failed to create user in database.");
-      }
-
-    } catch (error: any) {
+      }    } catch (error: any) {
       console.error('Signup error:', error);
       
       if (axios.isAxiosError(error)) {
@@ -525,7 +530,7 @@ export default function SignupForm({ role = 'student' }) {
                         onChange={handleInputChange}
                         disabled={loading}
                         className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                        placeholder="you@example.com"
+                        placeholder="john@gmail.com"
                       />
                     </div>
                   </div>
@@ -740,14 +745,14 @@ export default function SignupForm({ role = 'student' }) {
 
                     {/* Document Upload Section for All Tutors */}
                     <div className="border-t pt-6 mt-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Documents (Optional)</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Documents</h3>
                       <p className="text-sm text-gray-600 mb-4">Upload your CV and certificates for verification (PDF format only, max 5MB each)</p>
                       
                       <div className="space-y-6">
                         {/* CV Upload */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            CV/Resume
+                            CV/Resume<span className="text-red-500">*</span>
                           </label>
                           <div className="mt-1">
                             <input
@@ -779,7 +784,7 @@ export default function SignupForm({ role = 'student' }) {
                         {/* Certificates Upload */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Certificates
+                            Certificates<span className="text-red-500">*</span>
                           </label>
                           <div className="mt-1">
                             <input
