@@ -583,7 +583,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           <p>• Click empty slots to make them available for booking</p>
           <p>• Click available slots again to remove them (confirmation will be shown)</p>
           <p>• Changes are saved automatically</p>
-          <p>• Booked slots cannot be modified (students have reserved them)</p>
+          <p>• Booked slots cannot be modified</p>
           <p>• Past time slots are automatically hidden</p>
         </div>
       </div>

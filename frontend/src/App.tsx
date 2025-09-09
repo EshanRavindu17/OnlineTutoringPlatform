@@ -36,6 +36,7 @@ import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './pages/individualTutor/TutorRejected';
 import MassTutorDashboard from './pages/massTutor/masstutordashbord';
+import EmailVerification from './pages/EmailVerification';
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
@@ -71,6 +72,7 @@ const App = () => {
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
         <Route path="/selectuser" element={<SelectUser />} />
         <Route path="/selectuser/student" element={<SignupForm role="student" />} />
         <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
