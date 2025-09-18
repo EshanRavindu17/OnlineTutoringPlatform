@@ -110,6 +110,33 @@ export const tutorService = {
       console.error('Error fetching all titles:', error);
       throw new Error('Failed to fetch all titles');
     }
+  },
+
+  // Create a new subject
+  createSubject: async (name: string): Promise<Subject> => {
+    try {
+      const response = await apiClient.post('/individual-tutor/subjects', { name });
+      console.log('Created new subject:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating subject:', error);
+      throw new Error('Failed to create subject');
+    }
+  },
+
+  // Create a new title for a subject
+  createTitle: async (name: string, subjectId: string): Promise<Title> => {
+    try {
+      const response = await apiClient.post('/individual-tutor/titles', { 
+        name, 
+        sub_id: subjectId 
+      });
+      console.log('Created new title:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating title:', error);
+      throw new Error('Failed to create title');
+    }
   }
 };
 

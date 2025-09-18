@@ -7,7 +7,7 @@ const storage = new CloudinaryStorage({
   params: (req, file) => ({
     folder: 'uploads',
     allowedFormats: ['jpg', 'png', 'jpeg'],
-    resource_type: 'auto',
+    resource_type: 'auto', // Use 'auto' for better format detection
   }),
 });
 
@@ -17,7 +17,7 @@ const documentStorage = new CloudinaryStorage({
   params: (req, file) => ({
     folder: 'documents',
     allowedFormats: ['pdf'],
-    resource_type: 'auto',
+    resource_type: 'auto', // Use 'auto' instead of 'raw' for proper PDF handling
     public_id: `${req.body.type || 'document'}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
   }),
 });

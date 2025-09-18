@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+const { execSync } = require("child_process");
 
 // Generate Prisma client when starting the server 
 // Commented out to avoid permission issues - run manually if needed
@@ -23,6 +23,7 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+import documentRoutes from './routes/documentRoutes';
 
 import scheduleRoutes from './routes/scheduleRoutes';
 
@@ -56,7 +57,7 @@ app.use(cors({
   },
   credentials: false, // we're sending tokens in headers, not cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -99,6 +100,9 @@ app.get('/', (_req: Request, res: Response) => {
 
 // Register routes
 app.use('/api', userRoutes);
+
+//Document Routes
+app.use('/api/documents', documentRoutes);
 
 //Student Routes
 app.use('/student', studentRoutes);
