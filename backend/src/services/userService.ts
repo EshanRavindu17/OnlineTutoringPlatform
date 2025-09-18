@@ -30,6 +30,38 @@ interface GetUsersOptions {
   role?: string;
 }
 
+// Utility function to validate individual tutor data
+const validateIndividualTutorData = (userData: UserData) => {
+  const errors: string[] = [];
+  
+  if (!userData.subjects || userData.subjects.length === 0) {
+    errors.push('At least one subject is required for individual tutors');
+  }
+  
+  if (!userData.titles || userData.titles.length === 0) {
+    errors.push('At least one title/expertise is required for individual tutors');
+  }
+  
+  if (userData.hourly_rate !== undefined && userData.hourly_rate !== null) {
+    const rate = parseFloat(userData.hourly_rate.toString());
+    if (isNaN(rate) || rate <= 0) {
+      errors.push('Invalid hourly rate - must be a positive number');
+    }
+    if (rate > 1000) {
+      errors.push('Hourly rate seems too high - please verify');
+    }
+  }
+  
+  if (userData.phone_number) {
+    const phoneStr = userData.phone_number.toString();
+    if (phoneStr.length < 8 || phoneStr.length > 20) {
+      errors.push('Phone number must be between 8 and 20 characters');
+    }
+  }
+  
+  return errors;
+};
+
 export const findUserByFirebaseUid = async (firebaseUid: string) => {
   try {
     const user = await prisma.user.findUnique({
@@ -65,7 +97,8 @@ export const createOrUpdateUser = async (userData: UserData) => {
       photo_url,
       bio = '',
       dob = null,
-      // Additional tutor fields
+
+      // Tutor-specific fields
       phone_number,
       subjects,
       titles,
@@ -75,11 +108,13 @@ export const createOrUpdateUser = async (userData: UserData) => {
       location,
       qualifications,
       prices,
+
       // Document URLs
       cv_url,
       certificate_urls
     } = userData;
 
+    // ✅ Validate required fields
     if (!firebase_uid || !email || !name || !role) {
       throw new Error('Missing required fields: firebase_uid, email, name, role');
     }
@@ -89,10 +124,22 @@ export const createOrUpdateUser = async (userData: UserData) => {
       throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(', ')}`);
     }
 
+    // ✅ Additional validation for Individual tutors
+    if (role === 'Individual') {
+      if (!subjects || subjects.length === 0) {
+        throw new Error('Individual tutors must have at least one subject');
+      }
+      if (!titles || titles.length === 0) {
+        throw new Error('Individual tutors must have at least one title/expertise');
+      }
+      if (hourly_rate && (isNaN(parseFloat(hourly_rate.toString())) || parseFloat(hourly_rate.toString()) <= 0)) {
+        throw new Error('Invalid hourly rate for individual tutor');
+      }
+    }
+
+    // ✅ Create or update User
     const user = await prisma.user.upsert({
-      where: {
-        firebase_uid: firebase_uid
-      },
+      where: { firebase_uid },
       update: {
         email,
         name,
@@ -112,96 +159,102 @@ export const createOrUpdateUser = async (userData: UserData) => {
       }
     });
 
-    // If user is registering as Individual or Mass tutor, create entry in Candidates table
+    // ✅ If tutor role → create or update Candidate entry
     if (role === 'Individual' || role === 'Mass') {
-      try {
-        // Check if candidate entry already exists by email
-        const existingCandidate = await prisma.candidates.findFirst({
-          where: {
-            email: email,
-            role: role as any
-          }
-        });
+      const existingCandidate = await prisma.candidates.findFirst({
+        where: { email, role: role as any }
+      });
 
-        if (!existingCandidate) {
-          // Hybrid approach: Store data in proper columns where available, rest in JSON
-          
-          // Fields that exist in Candidates table (store directly)
-          const directCandidateFields = {
+      if (!existingCandidate) {
+        await prisma.candidates.create({
+          data: {
+            user_id: user.id,
             name,
             email,
             role: role as any,
-            bio: bio || '', // Keep original bio in bio field
+            bio: bio || null,
             dob: dob ? new Date(dob) : null,
-            phone_number: null, // Phone number will be stored in JSON since it can be too large for INT
-            user_id: user.id
-          };
+            phone_number: phone_number ? phone_number.toString() : null, // Ensure string type
+            applied_at: new Date(),
+            cvUrl: cv_url || null,
+            certificateUrls: certificate_urls || [],
 
-          // Fields that DON'T exist in Candidates table (store as JSON)
-          const additionalTutorData: any = {};
-          
-          if (role === 'Individual' || role === 'Mass') {
-            // Common tutor fields not in Candidates table
-            if (description) additionalTutorData.description = description;
-            if (heading) additionalTutorData.heading = heading;
-            if (subjects && subjects.length > 0) additionalTutorData.subjects = subjects;
-            if (phone_number) additionalTutorData.phone_number = phone_number; // Store full phone number in JSON
-            if (cv_url) additionalTutorData.cv_url = cv_url;
-            if (certificate_urls && certificate_urls.length > 0) additionalTutorData.certificate_urls = certificate_urls;
-
-            if (role === 'Individual') {
-              // Individual tutor specific fields
-              if (titles && titles.length > 0) additionalTutorData.titles = titles;
-              if (hourly_rate) additionalTutorData.hourly_rate = parseFloat(hourly_rate.toString());
-              if (location) additionalTutorData.location = location;
-              if (qualifications && qualifications.length > 0) additionalTutorData.qualifications = qualifications;
-            }
-
-            if (role === 'Mass') {
-              // Mass tutor specific fields
-              if (prices) additionalTutorData.prices = parseFloat(prices.toString());
-            }
+            // Tutor-specific fields with proper validation
+            description: description || null,
+            heading: heading || null,
+            subjects: subjects || [],
+            titles: role === 'Individual' ? (titles || []) : [],
+            hourly_rate: role === 'Individual' && hourly_rate 
+              ? Math.round(parseFloat(hourly_rate.toString()) * 100) / 100 // Round to 2 decimal places
+              : null,
+            location: role === 'Individual' ? (location || null) : null,
+            qualifications: role === 'Individual' ? (qualifications || []) : [],
+            prices: role === 'Mass' && prices 
+              ? Math.round(parseFloat(prices.toString()) * 100) / 100 // Round to 2 decimal places
+              : null
           }
+        });
 
-          // Create candidate entry
-          const candidateData = {
-            ...directCandidateFields,
-            // Store additional data as JSON in a separate field or append to bio
-            ...(Object.keys(additionalTutorData).length > 0 && {
-              bio: bio ? `${bio}\n\n__TUTOR_DATA__:${JSON.stringify(additionalTutorData)}` : `__TUTOR_DATA__:${JSON.stringify(additionalTutorData)}`
-            })
-          };
+        console.log(`✅ Candidate entry created for ${role} tutor: ${email}`);
+      } else {
+        await prisma.candidates.update({
+          where: { id: existingCandidate.id },
+          data: {
+            name,
+            bio: bio || null,
+            dob: dob ? new Date(dob) : null,
+            phone_number: phone_number ? phone_number.toString() : null, // Ensure string type
+            cvUrl: cv_url || null,
+            certificateUrls: certificate_urls || [],
 
-
-          await prisma.candidates.create({
-            data: candidateData
-          });
-          
-          // Update the applied_at field separately as a workaround
-          try {
-            await prisma.$executeRaw`
-              UPDATE "Candidates" 
-              SET applied_at = NOW() 
-              WHERE email = ${email} AND role = ${role}::user_role_enum
-            `;
-            console.log(`✅ Created candidate entry for ${role} tutor with applied_at timestamp`);
-          } catch (updateError) {
-            console.log(`✅ Created candidate entry for ${role} tutor (applied_at update skipped)`);
+            // Tutor-specific fields with proper validation
+            description: description || null,
+            heading: heading || null,
+            subjects: subjects || [],
+            titles: role === 'Individual' ? (titles || []) : [],
+            hourly_rate: role === 'Individual' && hourly_rate 
+              ? Math.round(parseFloat(hourly_rate.toString()) * 100) / 100 // Round to 2 decimal places
+              : null,
+            location: role === 'Individual' ? (location || null) : null,
+            qualifications: role === 'Individual' ? (qualifications || []) : [],
+            prices: role === 'Mass' && prices 
+              ? Math.round(parseFloat(prices.toString()) * 100) / 100 // Round to 2 decimal places
+              : null
           }
-        } else {
-          console.log(`ℹ️ Candidate entry already exists for ${role} tutor: ${email}`);
-        }
-      } catch (candidateError) {
-        console.error('Error creating candidate entry:', candidateError);
+        });
+
+        console.log(`ℹ️ Candidate entry updated for ${role} tutor: ${email}`);
       }
     }
 
     return user;
   } catch (error: any) {
     console.error('Error creating or updating user:', error);
+    
+    // Log detailed error information for debugging
+    console.error('User data that caused error:', {
+      firebase_uid: userData.firebase_uid,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      subjects: userData.subjects?.length || 0,
+      titles: userData.titles?.length || 0,
+      hourly_rate: userData.hourly_rate,
+      phone_number: userData.phone_number
+    });
+    
+    // Provide more specific error messages
+    if (error.code === 'P2002') {
+      throw new Error('Email or Firebase UID already exists');
+    }
+    if (error.code === 'P2003') {
+      throw new Error('Database constraint violation - check required fields');
+    }
+    
     throw new Error(`Failed to create or update user: ${error.message}`);
   }
 };
+
 
 export const findUserByEmail = async (email: string) => {
   try {
