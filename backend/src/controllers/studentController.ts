@@ -12,6 +12,7 @@ import {
 } from "../services/studentService";
 import { createPaymentRecord } from "../services/paymentService";
 import { DateTime } from "luxon";
+import { createZoomMeeting } from "../services/zoom.service";
 
 export const addStudentController = async (req: Request, res: Response) => {
     const studentData = req.body;
@@ -196,3 +197,19 @@ export const updateAccessTimeinFreeSlotsController = async (req: Request, res: R
 
     return res.json(updatedSlot);
 };
+
+
+// helper contoller to test zoom 
+
+export const testZoomController = async (req: Request, res: Response) => {
+
+    const { topic, startTime, duration } = req.body;
+
+    try {
+        const meeting = await createZoomMeeting(topic, startTime, duration);
+        return res.status(200).json(meeting);
+    } catch (error) {
+        console.error("Error creating Zoom meeting:", error);
+        return res.status(500).json({ error: "Failed to create Zoom meeting" });
+    }
+}

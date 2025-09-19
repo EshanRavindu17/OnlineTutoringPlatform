@@ -1,6 +1,7 @@
 import { SessionStatus, SlotStatus } from "@prisma/client";
 import prisma from "../prismaClient";
 import  {DateTime} from "luxon";
+import { createZoomMeeting } from "./zoom.service";
 
 interface Individual{
     i_tutor_id : string;
@@ -176,6 +177,12 @@ export const createASession = async (
     date: Date,
 ) => {
 
+    const { host_url, join_url } = await createZoomMeeting(
+        "Tutoring Session-" + student_id + "-" + i_tutor_id,
+        date.toISOString(),
+        slots.length * 60 // assuming each slot is 60 minutes
+    );
+
     const time = DateTime.now().setZone("Asia/Colombo").toJSDate();
     const session = await prisma.sessions.create({
         data: {
@@ -186,6 +193,7 @@ export const createASession = async (
             price,
             date,
             created_at: time,
+            meeting_urls: [ host_url, join_url ]
         }
     });
     return session;

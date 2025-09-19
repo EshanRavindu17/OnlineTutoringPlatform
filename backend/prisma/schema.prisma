@@ -32,18 +32,14 @@ model Candidates {
   status          CandidateStatus @default(pending)
   cvUrl           String?
   certificateUrls String[]
-
-  // Extra tutor-specific fields
   description     String?
   heading         String?
-  subjects        String[]        // multiple subjects
-  titles          String[]        // for individual tutors
   hourly_rate     Float?
   location        String?
+  prices          Float?
   qualifications  String[]
-  prices          Float?          // for mass tutors
-
-  // Relation back to user
+  subjects        String[]
+  titles          String[]
   User            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
 }
 
