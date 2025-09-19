@@ -17,6 +17,7 @@ import {
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../context/authContext';
+import { getAllSessionsByStudentId, getEnrolledClassesByStudentId, getStudentIDByUserID, Session, EnrolledClass, cancelSession } from '../../api/Student';
 
 // Types for calendar events
 interface CalendarEvent {
@@ -28,218 +29,153 @@ interface CalendarEvent {
   endTime: string;
   subject: string;
   tutor?: string;
-  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'canceled';
   meetingLink?: string;
   description?: string;
   color: string;
   createdAt: Date; // Added to track when the session was created
 }
 
-// Mock data for demonstration
-const mockEvents: CalendarEvent[] = [
-  // Individual Sessions
-  {
-    id: '1',
-    title: 'Mathematics Tutoring',
-    type: 'individual',
-    date: new Date(2025, 7, 30), // August 30, 2025
-    startTime: '10:00',
-    endTime: '11:00',
-    subject: 'Mathematics',
-    tutor: 'Dr. John Smith',
-    status: 'scheduled',
-    meetingLink: 'https://zoom.us/j/123456789',
-    description: 'Algebra and calculus review',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 7, 29, 10, 30) // Created recently - can cancel
-  },
-  {
-    id: '2',
-    title: 'Physics Tutoring',
-    type: 'individual',
-    date: new Date(2025, 7, 31), // August 31, 2025
-    startTime: '14:00',
-    endTime: '15:00',
-    subject: 'Physics',
-    tutor: 'Prof. Sarah Wilson',
-    status: 'scheduled',
-    meetingLink: 'https://zoom.us/j/987654321',
-    description: 'Mechanics and thermodynamics',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 7, 20, 14, 0) // Created more than 1 hour ago - cannot cancel
-  },
-  {
-    id: '3',
-    title: 'English Literature',
-    type: 'individual',
-    date: new Date(2025, 8, 1), // September 1, 2025
-    startTime: '16:00',
-    endTime: '17:00',
-    subject: 'English',
-    tutor: 'Ms. Emily Davis',
-    status: 'scheduled',
-    description: 'Shakespeare analysis',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 8, 1, 15, 30) // Created within 1 hour - can cancel
-  },
-  {
-    id: '4',
-    title: 'Biology Tutoring',
-    type: 'individual',
-    date: new Date(2025, 8, 1), // September 1, 2025
-    startTime: '10:00',
-    endTime: '11:00',
-    subject: 'Biology',
-    tutor: 'Dr. Lisa Chen',
-    status: 'scheduled',
-    meetingLink: 'https://zoom.us/j/456789123',
-    description: 'Cell biology and genetics',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 7, 25, 9, 0) // Created more than 1 hour ago - cannot cancel
-  },
-  {
-    id: '5',
-    title: 'History Tutoring',
-    type: 'individual',
-    date: new Date(2025, 8, 2), // September 2, 2025
-    startTime: '09:00',
-    endTime: '10:00',
-    subject: 'History',
-    tutor: 'Mr. David Lee',
-    status: 'scheduled',
-    description: 'World War II and its impact',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 8, 2, 8, 30) // Created within 1 hour - can cancel
-  },
-  {
-    id: '6',
-    title: 'Computer Science Tutoring',
-    type: 'individual',
-    date: new Date(2025, 8, 2), // September 2, 2025
-    startTime: '15:00',
-    endTime: '16:00',
-    subject: 'Computer Science',
-    tutor: 'Ms. Rachel Kumar',
-    status: 'scheduled',
-    meetingLink: 'https://zoom.us/j/789123456',
-    description: 'Data structures and algorithms',
-    color: 'bg-blue-500',
-    createdAt: new Date(2025, 7, 28, 10, 0) // Created more than 1 hour ago - cannot cancel
-  },
-  {
-    id: '6',
-    title: 'Home Science Tutoring',
-    type: 'individual',
-    date: new Date(2025, 8, 8), // September 8, 2025
-    startTime: '15:00',
-    endTime: '16:00',
-    subject: 'Home Science',
-    tutor: 'Ms. Rachel Kumar',
-    status: 'scheduled',
-    meetingLink: 'https://zoom.us/j/789123456',
-    description: 'Data structures and algorithms',
-    color: 'bg-blue-500',
-    createdAt: new Date() // Created now
-  },
-  
-  // Class Sessions
-  {
-    id: '7',
-    title: 'Chemistry Lab Session',
-    type: 'class',
-    date: new Date(2025, 8, 3), // September 3, 2025
-    startTime: '09:00',
-    endTime: '10:30',
-    subject: 'Chemistry',
-    tutor: 'Dr. Michael Brown',
-    status: 'scheduled',
-    description: 'Organic chemistry experiments',
-    color: 'bg-orange-500',
-    createdAt: new Date(2025, 7, 20, 14, 0)
-  },
-  {
-    id: '8',
-    title: 'Art Workshop',
-    type: 'class',
-    date: new Date(2025, 8, 3), // September 3, 2025
-    startTime: '11:00',
-    endTime: '12:30',
-    subject: 'Art',
-    tutor: 'Ms. Sofia Garcia',
-    status: 'scheduled',
-    description: 'Watercolor painting techniques',
-    color: 'bg-pink-500',
-    createdAt: new Date(2025, 7, 25, 10, 0)
-  },
-  {
-    id: '9',
-    title: 'Economics Seminar',
-    type: 'class',
-    date: new Date(2025, 8, 3), // September 3, 2025
-    startTime: '14:00',
-    endTime: '15:30',
-    subject: 'Economics',
-    tutor: 'Dr. Williams',
-    status: 'scheduled',
-    description: 'Macroeconomics and market analysis',
-    color: 'bg-green-500',
-    createdAt: new Date(2025, 7, 30, 12, 0)
-  },
-  {
-    id: '10',
-    title: 'Tamil Literature Class',
-    type: 'class',
-    date: new Date(2025, 8, 4), // September 4, 2025
-    startTime: '10:00',
-    endTime: '11:30',
-    subject: 'Tamil',
-    tutor: 'Dr. Perera',
-    status: 'scheduled',
-    description: 'Classical Tamil poetry and prose',
-    color: 'bg-indigo-500',
-    createdAt: new Date(2025, 8, 1, 9, 0)
-  },
-  {
-    id: '11',
-    title: 'Music Theory Class',
-    type: 'class',
-    date: new Date(2025, 8, 4), // September 4, 2025
-    startTime: '15:00',
-    endTime: '16:30',
-    subject: 'Music',
-    tutor: 'Mr. Alessandro Rodriguez',
-    status: 'scheduled',
-    description: 'Introduction to harmony and composition',
-    color: 'bg-purple-500',
-    createdAt: new Date(2025, 8, 2, 13, 0)
-  },
-  {
-    id: '12',
-    title: 'Science Lab',
-    type: 'class',
-    date: new Date(2025, 8, 5), // September 5, 2025
-    startTime: '13:00',
-    endTime: '14:30',
-    subject: 'Science',
-    tutor: 'Dr. Amanda Foster',
-    status: 'scheduled',
-    description: 'Laboratory experiments and observations',
-    color: 'bg-teal-500',
-    createdAt: new Date(2025, 8, 3, 11, 0)
-  },
-  
-];
-
 export default function MyCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [filterType, setFilterType] = useState<'all' | 'individual' | 'class'>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   
   const { userProfile } = useAuth();
+
+  // Fetch sessions and classes data
+  useEffect(() => {
+    fetchCalendarData();
+  }, [userProfile]);
+
+  const fetchCalendarData = async () => {
+    if (!userProfile?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Get student ID from user ID
+      const studentId = await getStudentIDByUserID(userProfile.id);
+      
+      if (!studentId) {
+        console.log('No student_id found for user:', userProfile.id);
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch both individual sessions and enrolled classes
+      const [sessionsData, classesData] = await Promise.all([
+        getAllSessionsByStudentId(studentId).catch(err => {
+          console.error('Failed to fetch sessions:', err);
+          return [];
+        }),
+        getEnrolledClassesByStudentId(studentId).catch(err => {
+          console.error('Failed to fetch enrolled classes:', err);
+          return [];
+        })
+      ]);
+
+      console.log('Fetched sessions:', sessionsData);
+
+      // Transform sessions and classes to CalendarEvent format
+      const transformedEvents = [
+        ...transformSessionsToEvents(sessionsData),
+        ...transformClassesToEvents(classesData)
+      ];
+
+      setEvents(transformedEvents);
+    } catch (err) {
+      console.error('Error fetching calendar data:', err);
+      setError('Failed to load calendar data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transform individual sessions to calendar events
+  const transformSessionsToEvents = (sessions: Session[]): CalendarEvent[] => {
+    return sessions.map(session => ({
+      id: session.session_id,
+      title: session.title || `${session.Individual_Tutor?.Course?.course_name || 'Session'} with ${session.Individual_Tutor?.User?.name}`,
+      type: 'individual' as const,
+      date: new Date(session.date),
+      startTime: session.slots[0] ? new Date(session.slots[0]).toLocaleTimeString('en-US', {
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false, 
+        timeZone:'UTC'
+      }) : '00:00',
+      // endTime: session.slots[session.slots.length - 1] ? new Date(session.slots[session.slots.length - 1]).toLocaleTimeString('en-US', {
+      //   hour: '2-digit', 
+      //   minute: '2-digit', 
+      //   hour12: false 
+      // }) : '01:00',
+      endTime: session.slots[session.slots.length - 1] ? new Date(new Date(session.slots[0]).getTime() + session.slots.length * 60 * 60 * 1000).toLocaleTimeString('en-US', {
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false,
+        timeZone:'UTC'
+      }) : '01:00',
+      subject: session.Individual_Tutor?.Course?.course_name || 'Individual Session',
+      tutor: session.Individual_Tutor?.User?.name || 'Tutor',
+      status: session.status === 'canceled' ? 'cancelled' : session.status, // Fix status mapping
+      meetingLink: session.meeting_urls?.[0] || undefined,
+      description: `Individual tutoring session for ${session.Individual_Tutor?.Course?.course_name || 'subject'}`,
+      color: 'bg-blue-500',
+      createdAt: new Date(session.created_at)
+    }));
+  };
+
+  // Transform enrolled classes to calendar events  
+  const transformClassesToEvents = (classes: EnrolledClass[]): CalendarEvent[] => {
+    const events: CalendarEvent[] = [];
+    
+    classes.forEach(classItem => {
+      // For enrolled classes, we need to generate recurring events based on schedule
+      // This is a simplified approach - you might need more complex scheduling logic
+      const startDate = new Date(classItem.start_date);
+      const endDate = new Date(classItem.end_date);
+      
+      // Generate weekly events (assuming weekly schedule)
+      let currentDate = new Date(startDate);
+      let eventCounter = 0;
+      
+      while (currentDate <= endDate && eventCounter < 20) { // Limit to 20 events to prevent infinite loop
+        events.push({
+          id: `${classItem.class_id}-${eventCounter}`,
+          title: classItem.class_name,
+          type: 'class' as const,
+          date: new Date(currentDate),
+          startTime: '10:00', // Default time - you might need to parse this from schedule
+          endTime: '12:00',   // Default duration based on classItem.duration
+          subject: classItem.subject,
+          tutor: 'Class Instructor', // You might need to get this from another API
+          status: 'scheduled' as const,
+          meetingLink: classItem.meeting_link,
+          description: classItem.description,
+          color: 'bg-purple-500',
+          createdAt: new Date(classItem.enrollment_date)
+        });
+        
+        // Move to next week (simplified weekly schedule)
+        currentDate.setDate(currentDate.getDate() + 7);
+        eventCounter++;
+      }
+    });
+    
+    return events;
+  };
 
   // Calendar navigation
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -313,13 +249,79 @@ export default function MyCalendarPage() {
     setSelectedEvent(null);
   };
 
+  // Handle session cancellation
+  const handleCancelSession = async (sessionId: string) => {
+    try {
+      // You can add the cancel session API call here
+      await cancelSession(sessionId);
+      
+      // For now, just update the local state
+      setEvents(prev => prev.map(event => 
+        event.id === sessionId 
+          ? { ...event, status: 'cancelled' as const }
+          : event
+      ));
+      
+      // Update selected event if it's the one being cancelled
+      if (selectedEvent?.id === sessionId) {
+        setSelectedEvent({ ...selectedEvent, status: 'cancelled' });
+      }
+      
+      alert('Session cancelled successfully');
+    } catch (error) {
+      console.error('Failed to cancel session:', error);
+      alert('Failed to cancel session. Please try again.');
+    }
+  };
+
+  // Refresh calendar data
+  const handleRefresh = () => {
+    fetchCalendarData();
+  };
+
   // Check if individual session can be cancelled (within 1 hour of creation)
   const canCancelSession = (event: CalendarEvent) => {
     if (event.type !== 'individual' || event.status !== 'scheduled') return false;
     const now = new Date();
-    const timeDiff = now.getTime() - event.createdAt.getTime();
+    const createdAt = new Date(event.createdAt);
+    const timeDiff = now.getTime() - createdAt.getTime();
     const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
     return timeDiff <= oneHour;
+  };
+
+  // Check if meeting link should be visible (15 minutes before session starts)
+  const canJoinMeeting = (event: CalendarEvent) => {
+    if (!event.meetingLink || event.status === 'cancelled' || event.status === 'completed' ) return false;
+    if(event.status === 'canceled') return false; // handle typo case
+    
+    const now = new Date();
+    const sessionDate = new Date(event.date);
+
+    const today = new Date().getDate();
+    console.log("Today's Date:", now);
+    console.log("Session Date:", sessionDate);
+
+    if(now < sessionDate){
+      console.log("Session is in the future");
+      return false;
+    }
+
+    
+    // Parse start time and create full datetime
+    const [hours, minutes] = event.startTime.split(':').map(Number);
+    const sessionDateTime = new Date(sessionDate);
+    sessionDateTime.setHours(hours, minutes, 0, 0);
+    
+    
+    // Check if current time is within 15 minutes before session start or after session has started
+    const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+    console.log("15 minutes:", fifteenMinutes);
+    const timeDiff = sessionDateTime.getTime() - now.getTime();
+    console.log("Time Difference:", timeDiff);
+
+    
+    // Show link if less than 15 minutes before start time or session has already started
+    return timeDiff <= fifteenMinutes;
   };
 
   // Get status color
@@ -355,6 +357,13 @@ export default function MyCalendarPage() {
                 <p className="text-blue-100">Manage your sessions and classes</p>
               </div>
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Loading...' : 'Refresh'}
+                </button>
                 <button
                   onClick={navigateToToday}
                   className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
@@ -432,12 +441,39 @@ export default function MyCalendarPage() {
                     <div className="w-3 h-3 bg-purple-500 rounded"></div>
                     <span>Class</span>
                   </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Meeting Ready</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                    <span>Can Cancel</span>
+                  </div>
                 </div>
               </div>
             </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mr-4"></div>
+              <span className="text-gray-600">Loading your sessions...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="text-red-500 mb-4">
+                <CalendarIcon className="w-12 h-12 mx-auto mb-2" />
+                <p className="font-medium">{error}</p>
+              </div>
+              <button 
+                onClick={fetchCalendarData}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 gap-2">
             {/* Day Headers */}
             {dayNames.map(day => (
               <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2">
@@ -486,10 +522,16 @@ export default function MyCalendarPage() {
                             <BookOpen className="w-3 h-3" />
                           )}
                           <span className="truncate">{event.title}</span>
-                          {/* Show indicator for cancellable individual sessions */}
-                          {event.type === 'individual' && canCancelSession(event) && (
-                            <div className="w-2 h-2 bg-yellow-400 rounded-full ml-auto flex-shrink-0" title="Can be cancelled"></div>
-                          )}
+                          <div className="ml-auto flex items-center space-x-1 flex-shrink-0">
+                            {/* Show indicator for cancellable individual sessions */}
+                            {event.type === 'individual' && canCancelSession(event) && (
+                              <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Can be cancelled"></div>
+                            )}
+                            {/* Show indicator when meeting is available to join */}
+                            {event.meetingLink && canJoinMeeting(event) && (
+                              <div className="w-2 h-2 bg-green-400 rounded-full" title="Meeting available"></div>
+                            )}
+                          </div>
                         </div>
                         <div className="text-xs opacity-90">{event.startTime}</div>
                       </div>
@@ -504,6 +546,7 @@ export default function MyCalendarPage() {
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Selected Date Events (if multiple events) */}
@@ -525,6 +568,10 @@ export default function MyCalendarPage() {
                       {/* Show indicator for cancellable individual sessions */}
                       {event.type === 'individual' && canCancelSession(event) && (
                         <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Can be cancelled"></div>
+                      )}
+                      {/* Show indicator when meeting is available to join */}
+                      {event.meetingLink && canJoinMeeting(event) && (
+                        <div className="w-2 h-2 bg-green-400 rounded-full" title="Meeting available"></div>
                       )}
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
@@ -633,16 +680,28 @@ export default function MyCalendarPage() {
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 font-medium">Meeting Link</span>
-                        <a
-                          href={selectedEvent.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                        >
-                          <Video className="w-4 h-4" />
-                          <span>Join Meeting</span>
-                        </a>
+                        {canJoinMeeting(selectedEvent) ? (
+                          <a
+                            href={selectedEvent.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                          >
+                            <Video className="w-4 h-4" />
+                            <span>Join Meeting</span>
+                          </a>
+                        ) : (
+                          <div className="flex items-center space-x-1 text-gray-500">
+                            <Video className="w-4 h-4" />
+                            <span>Available 15 min before session</span>
+                          </div>
+                        )}
                       </div>
+                      {!canJoinMeeting(selectedEvent) && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Meeting link will be available 15 minutes before the session starts
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -653,7 +712,10 @@ export default function MyCalendarPage() {
                     // Individual Session Buttons
                     <>
                       {canCancelSession(selectedEvent) ? (
-                        <button className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2">
+                        <button 
+                          onClick={() => handleCancelSession(selectedEvent.id)}
+                          className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
+                        >
                           <Trash2 className="w-4 h-4" />
                           <span>Cancel Session</span>
                         </button>

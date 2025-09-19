@@ -24,7 +24,7 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../context/authContext';
-import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, getEnrolledClassesByStudentId, Session, EnrolledClass } from '../../api/Student';
+import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, getEnrolledClassesByStudentId, getTutorsByStudentId, Session, EnrolledClass, cancelSession, IndividualTutorDashboard } from '../../api/Student';
 import { useToast } from '../../components/Toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 
@@ -51,6 +51,21 @@ interface SessionData {
       course_name: string;
     };
   };
+}
+
+interface IndividualTutorDisplay {
+  id: string;
+  name: string;
+  subject: string;
+  specialization: string;
+  rating: number;
+  hourlyRate: number;
+  totalSessionsPaid: number;
+  sessionsUsed: number;
+  profilePicture: string;
+  nextSession: string;
+  status: string;
+  amountPaid: number;
 }
 
 const StudentProfile: React.FC = () => {
@@ -191,8 +206,10 @@ const StudentProfile: React.FC = () => {
     try {
       // Here you would typically call an API to cancel the session
       // For now, we'll simulate the API call and update local state
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      // await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
 
+      const session = await cancelSession(sessionId);
+      console.log('Session cancelled successfully:', session);
       // Update the session status to cancelled
       setAllSessions(prev => 
         prev.map(session => 
@@ -354,37 +371,9 @@ const StudentProfile: React.FC = () => {
     }
   }
 
-  // Individual Tutors Data - Students he has paid for sessions
-  const [individualTutors] = useState([
-    {
-      id: 1,
-      name: "Dr. Sarah Wilson",
-      subject: "Advanced Mathematics",
-      specialization: "Calculus & Algebra",
-      rating: 4.9,
-      hourlyRate: 65,
-      totalSessionsPaid: 10,
-      sessionsUsed: 6,
-      profilePicture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-      nextSession: "Tomorrow 3:00 PM",
-      status: "Active",
-      amountPaid: 650
-    },
-    {
-      id: 2,
-      name: "Prof. Michael Chen", 
-      subject: "Physics",
-      specialization: "Quantum Mechanics",
-      rating: 4.8,
-      hourlyRate: 70,
-      totalSessionsPaid: 8,
-      sessionsUsed: 5,
-      profilePicture: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      nextSession: "Thursday 2:00 PM",
-      status: "Active",
-      amountPaid: 560
-    }
-  ]);
+  // Individual Tutors state - replaced mock data with dynamic data
+  const [individualTutors, setIndividualTutors] = useState<IndividualTutorDisplay[]>([]);
+  const [tutorsLoading, setTutorsLoading] = useState(true);
 
   // Mass Tutors Data - Group classes he has paid for
   const [massTutors] = useState([
@@ -439,12 +428,14 @@ const StudentProfile: React.FC = () => {
       if (!userProfile?.id) {
         setSessionsLoading(false);
         setClassesLoading(false);
+        setTutorsLoading(false);
         return;
       }
 
       try {
         setSessionsLoading(true);
         setClassesLoading(true);
+        setTutorsLoading(true);
         console.log('Fetching student_id for user:', userProfile.id);
         
         // First get the student_id using the user_id
@@ -454,27 +445,55 @@ const StudentProfile: React.FC = () => {
           console.log('No student_id found for user:', userProfile.id);
           setAllSessions([]);
           setEnrolledClasses([]);
+          setIndividualTutors([]);
+          setSessionsLoading(false);
+          setClassesLoading(false);
+          setTutorsLoading(false);
           return;
         }
 
         console.log('Fetching data for student_id:', studentId);
         
-        // Fetch both sessions and enrolled classes in parallel
-        const [sessions, classes] = await Promise.all([
+        // Fetch sessions, enrolled classes, and individual tutors in parallel
+        const [sessions, classes, tutors] = await Promise.all([
           getAllSessionsByStudentId(studentId),
-          getEnrolledClassesByStudentId(studentId)
+          getEnrolledClassesByStudentId(studentId),
+          getTutorsByStudentId(studentId)
         ]);
         
         setAllSessions(sessions || []);
         setEnrolledClasses(classes || []);
+        
+        // Convert and set individual tutors data
+        if (tutors && tutors.length > 0) {
+          const formattedTutors: IndividualTutorDisplay[] = tutors.map((tutor: IndividualTutorDashboard) => ({
+            id: tutor.i_tutor_id,
+            name: tutor.User?.name || 'Unknown Tutor',
+            subject: tutor.subjects.length > 0 ? tutor.subjects[0] : 'General',
+            specialization: tutor.titles.length > 0 ? tutor.titles.slice(0, 2).join(' & ') : 'Various Topics',
+            rating: Number(tutor.rating) || 0,
+            hourlyRate: Number(tutor.hourly_rate) || 0,
+            totalSessionsPaid: tutor.sessionCount || 0,
+            sessionsUsed: Math.floor((tutor.sessionCount || 0) * 0.7), // Assume 70% sessions used
+            profilePicture: tutor.User?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(tutor.User?.name || 'Tutor')}&background=random`,
+            nextSession: 'To be scheduled',
+            status: tutor.sessionCount > 0 ? 'Active' : 'Inactive',
+            amountPaid: Number(tutor.totalPaid) || 0
+          }));
+          setIndividualTutors(formattedTutors);
+        } else {
+          setIndividualTutors([]);
+        }
       } catch (error) {
         console.error('Failed to fetch student data:', error);
         showToast('Failed to load student data', 'error');
         setAllSessions([]);
         setEnrolledClasses([]);
+        setIndividualTutors([]);
       } finally {
         setSessionsLoading(false);
         setClassesLoading(false);
+        setTutorsLoading(false);
       }
     };
 
@@ -651,8 +670,27 @@ const StudentProfile: React.FC = () => {
         <User className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mr-2 sm:mr-3" />
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Individual Tutors</h2>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {individualTutors.map((tutor) => (
+      
+      {tutorsLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600">Loading tutors...</span>
+        </div>
+      ) : individualTutors.length === 0 ? (
+        <div className="text-center py-12">
+          <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-500 mb-2">No Individual Tutors Yet</h3>
+          <p className="text-gray-400 mb-6">You haven't booked any individual tutoring sessions yet.</p>
+          <button 
+            onClick={() => navigate('/find-tutors')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Find Tutors
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {individualTutors.map((tutor) => (
           <div key={tutor.id} className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-50 to-indigo-50">
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
               <img
@@ -680,11 +718,11 @@ const StudentProfile: React.FC = () => {
             
             <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-blue-600">{tutor.sessionsUsed}/{tutor.totalSessionsPaid}</div>
+                <div className="text-base sm:text-lg font-bold text-blue-600">{tutor.totalSessionsPaid}</div>
                 <div className="text-gray-600 text-xs sm:text-sm">Sessions Used</div>
               </div>
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-green-600">${tutor.amountPaid}</div>
+                <div className="text-base sm:text-lg font-bold text-green-600">Rs.{tutor.amountPaid}</div>
                 <div className="text-gray-600 text-xs sm:text-sm">Total Paid</div>
               </div>
             </div>
@@ -692,7 +730,7 @@ const StudentProfile: React.FC = () => {
             <div className="space-y-2 text-xs sm:text-sm">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
                 <span className="text-gray-600">Hourly Rate:</span>
-                <span className="font-semibold text-gray-800">${tutor.hourlyRate}/hr</span>
+                <span className="font-semibold text-gray-800">Rs.{tutor.hourlyRate}/hr</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
                 <span className="text-gray-600">Next Session:</span>
@@ -701,7 +739,8 @@ const StudentProfile: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 

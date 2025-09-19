@@ -1,13 +1,16 @@
 import express from 'express';
 import { addStudentController, 
+         cancelSessionController, 
          createASessionController,
          createPaymentRecordController, 
          findTimeSlotsController, 
          getAllIndividualTutorsController ,
          getAllSessionsByStudentIdController,
          getIndividualTutorByIdController,
+         getPaymentHistoryController,
          getSlotsOfIndividualTutorByIdController,
          getStudentIDByUserIDController,
+         getTutorsByStudentIdController,
          testZoomController,
          updateAccessTimeinFreeSlotsController,
          updateSlotStatusController} 
@@ -44,5 +47,11 @@ router.put('/updateAccessTimeinFreeSlots', updateAccessTimeinFreeSlotsController
 
 // helper route to test zoom integration
 router.post('/test-zoom',  testZoomController);
+
+router.post('/cancelSession/:session_id',  cancelSessionController);
+
+router.get('/getTutorsByStudentId/:studentId', getTutorsByStudentIdController);
+
+router.get('/getPaymentHistory/:studentId', getPaymentHistoryController);
 
 export default router;  
