@@ -1,12 +1,14 @@
 import { Request,Response } from "express";
 import {
     addStudent,
+    cancelSession,
     createASession,
     findTimeSlots,
     getAllIndividualTutors
     ,getAllSessionByStudentId,getIndividualTutorById
-    ,getSlotsOfIndividualTutorById,
+    ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
+    getTutorsByStudentId,
     updateAccessTimeinFreeSlots,
     updateSlotStatus
 } from "../services/studentService";
@@ -213,3 +215,49 @@ export const testZoomController = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Failed to create Zoom meeting" });
     }
 }
+
+// for cancelling a session
+
+export const cancelSessionController = async (req: Request, res: Response) => {
+    const { session_id } = req.params;
+    if(!session_id) {
+        return res.status(400).json({ error: "session_id is required" });
+    }
+    console.log("Cancelling session for session_ID:", session_id);
+    try {
+        const result = await cancelSession(session_id);
+        return res.json({ message: "Session canceled successfully", result });
+    } catch (error: any) {
+        console.error("Error canceling session:", error);
+        return res.status(400).json({ error: error.message });
+    }
+};
+
+// for getting individual tutors for dashbord
+
+export const getTutorsByStudentIdController = async (req: Request, res: Response) => {
+    const { studentId } = req.params;
+
+    console.log("Getting tutors for student_ID:", studentId);
+    try {
+        const tutors = await getTutorsByStudentId(studentId);
+        return res.json(tutors);
+    } catch (error) {
+        console.error("Error getting tutors:", error);
+        return res.status(500).json({ error: "Failed to get tutors" });
+    }
+};
+
+// get payment history for a student
+export const  getPaymentHistoryController = async (req: Request, res: Response) => {
+    const { studentId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    try {
+        const paymentHistory = await getPaymentSummaryByStudentId(studentId, page, limit);
+        return res.json(paymentHistory);
+    } catch (error) {
+        console.error("Error getting payment history:", error);
+        return res.status(500).json({ error: "Failed to get payment history" });
+    }
+};
