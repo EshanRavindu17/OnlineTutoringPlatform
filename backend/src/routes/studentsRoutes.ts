@@ -8,6 +8,7 @@ import { addStudentController,
          getIndividualTutorByIdController,
          getSlotsOfIndividualTutorByIdController,
          getStudentIDByUserIDController,
+         testZoomController,
          updateAccessTimeinFreeSlotsController,
          updateSlotStatusController} 
 from '../controllers/studentController';
@@ -39,5 +40,9 @@ router.post('/createPaymentRecord', createPaymentRecordController);
 router.post('/findTimeSlots', findTimeSlotsController);
 
 router.put('/updateAccessTimeinFreeSlots', updateAccessTimeinFreeSlotsController);
+
+
+// helper route to test zoom integration
+router.post('/test-zoom',  testZoomController);
 
 export default router;  
