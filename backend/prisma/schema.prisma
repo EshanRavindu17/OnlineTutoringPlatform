@@ -26,7 +26,7 @@ model Candidates {
   role            UserRole
   bio             String?
   dob             DateTime?       @db.Date
-  phone_number    String?         @db.VarChar(20)
+  phone_number    String?         @db.VarChar(20)  // changed from Int? to String? to store full numbers
   user_id         String?         @db.Uuid
   applied_at      DateTime?       @db.Timestamptz(6)
   status          CandidateStatus @default(pending)

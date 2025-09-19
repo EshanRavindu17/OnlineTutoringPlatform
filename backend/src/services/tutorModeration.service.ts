@@ -39,6 +39,7 @@ export async function listCandidatesService(opts?: {
 export async function approveCandidateService(candidateId: string) {
   return prisma.$transaction(async (tx) => {
     const c = await tx.candidates.findUnique({ where: { id: candidateId } });
+
     if (!c) throw Object.assign(new Error('Candidate not found'), { status: 404 });
     if (c.role !== 'Individual' && c.role !== 'Mass') {
       throw Object.assign(new Error('Candidate role must be Individual or Mass'), { status: 400 });
@@ -62,44 +63,18 @@ export async function approveCandidateService(candidateId: string) {
     if (kind === 'individual') {
       if (c.user_id) tutor = await tx.individual_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
-        // Parse tutor data using hybrid approach
-        let tutorData: any = {};
-        let originalBio = '';
-
-        try {
-          if (c.bio) {
-            // Check if bio contains JSON data with our marker
-            if (c.bio.includes('__TUTOR_DATA__:')) {
-              const parts = c.bio.split('__TUTOR_DATA__:');
-              originalBio = parts[0].replace(/\n\n$/, ''); // Remove trailing newlines
-              tutorData = JSON.parse(parts[1]);
-              console.log(`📖 Parsed Individual tutor data from hybrid storage:`, tutorData);
-              console.log(`📖 Original bio:`, originalBio);
-            } else {
-              // Fallback: try parsing entire bio as JSON (old format)
-              tutorData = JSON.parse(c.bio);
-              originalBio = tutorData.originalBio || '';
-              console.log(`📖 Parsed Individual tutor data from legacy JSON:`, tutorData);
-            }
-          }
-        } catch (error) {
-          console.log('Could not parse bio as JSON, using as plain text');
-          originalBio = c.bio || '';
-          tutorData = {};
-        }
-
         // Create Individual Tutor with hybrid data (direct fields + JSON fields)
         const individualTutorData = {
-          user_id: c.user_id ?? null,
-          subjects: tutorData.subjects || [],
-          titles: tutorData.titles || [],
-          hourly_rate: tutorData.hourly_rate ? parseFloat(tutorData.hourly_rate.toString()) : null,
-          description: tutorData.description || originalBio || '',
-          rating: null,
-          heading: tutorData.heading || c.name || '',
-          location: tutorData.location || null,
-          phone_number: tutorData.phone_number || (c.phone_number ? String(c.phone_number) : null), // Get from JSON first, fallback to candidate field
-          qualifications: tutorData.qualifications || [],
+          user_id: c.user_id,
+          subjects: c.subjects,
+          titles: c.titles,
+          hourly_rate: c.hourly_rate,
+          description: c.description,
+          rating: 0,
+          heading: c.heading,
+          location: c.location,
+          phone_number: c.phone_number,
+          qualifications: c.qualifications,
           status: 'active' as const,
         };
 
@@ -113,39 +88,15 @@ export async function approveCandidateService(candidateId: string) {
       if (c.user_id) tutor = await tx.mass_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
         // Parse tutor data using hybrid approach
-        let tutorData: any = {};
-        let originalBio = '';
-
-        try {
-          if (c.bio) {
-            // Check if bio contains JSON data with our marker
-            if (c.bio.includes('__TUTOR_DATA__:')) {
-              const parts = c.bio.split('__TUTOR_DATA__:');
-              originalBio = parts[0].replace(/\n\n$/, ''); // Remove trailing newlines
-              tutorData = JSON.parse(parts[1]);
-              console.log(`📖 Parsed Mass tutor data from hybrid storage:`, tutorData);
-              console.log(`📖 Original bio:`, originalBio);
-            } else {
-              // Fallback: try parsing entire bio as JSON (old format)
-              tutorData = JSON.parse(c.bio);
-              originalBio = tutorData.originalBio || '';
-              console.log(`📖 Parsed Mass tutor data from legacy JSON:`, tutorData);
-            }
-          }
-        } catch (error) {
-          console.log('Could not parse bio as JSON, using as plain text');
-          originalBio = c.bio || '';
-          tutorData = {};
-        }
-
+        // let tutorData: any = {};
         // Create Mass Tutor with hybrid data (direct fields + JSON fields)
         const massTutorData = {
-          subjects: tutorData.subjects || [],
-          prices: tutorData.prices ? parseFloat(tutorData.prices.toString()) : null,
-          description: tutorData.description || originalBio || '',
-          user_id: c.user_id ?? null,
-          rating: null,
-          heading: tutorData.heading || c.name || '',
+          subjects: c.subjects,
+          prices: c.prices,
+          description: c.description || '',
+          user_id: c.user_id,
+          rating: 0,
+          heading: c.heading,
           status: 'active' as const,
         };
 

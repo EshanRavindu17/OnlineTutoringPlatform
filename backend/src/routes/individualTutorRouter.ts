@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllSubjectsController, getAllTitlesController,getAllTitlesBySubjectController } from '../controllers/individualTutorController';
+import { getAllSubjectsController, getAllTitlesController,getAllTitlesBySubjectController, createSubjectController, createTitleController } from '../controllers/individualTutorController';
 
 const router = express.Router();
 
@@ -8,5 +8,9 @@ const router = express.Router();
 router.get('/subjects', getAllSubjectsController);
 router.get('/titles/:sub_id', getAllTitlesBySubjectController);
 router.get('/titles', getAllTitlesController);
+
+// Routes for creating new subjects and titles
+router.post('/subjects', createSubjectController);
+router.post('/titles', createTitleController);
 
 export default router;
