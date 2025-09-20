@@ -8,6 +8,7 @@ import {
     ,getAllSessionByStudentId,getIndividualTutorById
     ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
+    getTutorNameAndTypeById,
     getTutorsByStudentId,
     updateAccessTimeinFreeSlots,
     updateSlotStatus
@@ -259,5 +260,24 @@ export const  getPaymentHistoryController = async (req: Request, res: Response) 
     } catch (error) {
         console.error("Error getting payment history:", error);
         return res.status(500).json({ error: "Failed to get payment history" });
+    }
+};
+
+
+export const getTutorNameAndTypeByIdController = async (req: Request, res: Response) => {
+    const { tutorId } = req.params;
+    if(!tutorId) {
+        return res.status(400).json({ error: "tutorId is required" });
+    }
+    console.log("Getting tutor name and type for tutor_ID:", tutorId);
+    try {
+        const tutorInfo = await getTutorNameAndTypeById(tutorId);
+        if(!tutorInfo) {
+            return res.status(404).json({ error: "Tutor not found" });
+        }
+        return res.json(tutorInfo);
+    } catch (error) {
+        console.error("Error getting tutor name and type:", error);
+        return res.status(500).json({ error: "Failed to get tutor name and type" });
     }
 };

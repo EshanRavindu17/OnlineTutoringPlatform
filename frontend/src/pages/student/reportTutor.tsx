@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -9,17 +9,26 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getIndividualTutorById, generateReport, getStudentIDByUserID, getTutorNameAndTypeById } from '../../api/Student';
+import { useAuth } from '../../context/authContext';
+import { useToast } from '../../components/Toast';
 
 export default function ReportTutorPage() {
   const { tutorId } = useParams<{ tutorId: string }>();
   const navigate = useNavigate();
+  const { currentUser, userProfile } = useAuth();
+  const { showToast, ToastContainer } = useToast();
+  
   const [reportReason, setReportReason] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [tutorName, setTutorName] = useState("Dr Sarah Johnson");
+  const [tutorType, setTutorType] = useState('unknown');
+  const [studentId, setStudentId] = useState<string | null>(null);
 
   // Mock tutor data - in real app, this would be fetched based on tutorId
-  const tutorName = 'Dr. Sarah Johnson';
+  // const tutorName = 'Dr. Sarah Johnson';
 
   const reportReasons = [
     'Inappropriate behavior',
@@ -32,31 +41,97 @@ export default function ReportTutorPage() {
     'Other'
   ];
 
+  useEffect(() => {
+    // Fetch tutor details and student ID
+    const fetchData = async () => {
+      if (!tutorId) {
+        console.error('No tutor ID provided');
+        return;
+      }
+      
+      try {
+        // Fetch tutor details
+        const tutorDetails = await getIndividualTutorById(tutorId);
+        const response = await getTutorNameAndTypeById(tutorId);
+        console.log("fetchedTutorType", response.type);
+        const tutorName = tutorDetails?.User?.name || 'Unknown Tutor';
+        console.log("Fetched tutor name:", tutorName);
+        setTutorName(tutorName);
+        // setTutorName(response.name);
+        setTutorType(response.type);
+        // Fetch student ID if user is logged in
+        if (userProfile?.id) {
+          const fetchedStudentId = await getStudentIDByUserID(userProfile.id);
+          setStudentId(fetchedStudentId);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        showToast('Failed to load tutor details', 'error');
+      }
+    };
+
+    fetchData();
+  }, [tutorId, userProfile]);
+
+
+  useEffect(()=>{
+    if(tutorType === 'unknown'){
+      console.error('Could not determine tutor type. Please try again later.');
+    }
+    console.log("Tutor type:", tutorType);
+  }, [tutorType]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!reportReason || !description.trim()) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+
+    if (!studentId || !tutorId) {
+      showToast('Missing required information. Please try again.', 'error');
+      return;
+    }
+
+    if (description.trim().length < 20) {
+      showToast('Please provide at least 20 characters in your description', 'error');
       return;
     }
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      console.log('tutorType', tutorType);
+      // Call the generateReport API with tutor_type as "individual"
+      await generateReport(
+        studentId,
+        tutorId,
+        tutorType, // for now, we pass the fetched tutorType
+        description.trim(),
+        reportReason
+      );
+      
       setIsSubmitted(true);
+      showToast('Report submitted successfully', 'success');
       
       // Redirect after 3 seconds
       setTimeout(() => {
         navigate(-1);
       }, 3000);
-    }, 2000);
+    } catch (error: any) {
+      console.error('Error submitting report:', error);
+      showToast(error.message || 'Failed to submit report. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavBar />
+        <ToastContainer />
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="bg-white rounded-xl shadow-lg p-8 text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -84,6 +159,7 @@ export default function ReportTutorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
+      <ToastContainer />
       
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Back Button */}
