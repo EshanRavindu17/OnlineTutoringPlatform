@@ -131,7 +131,7 @@ model Reports {
   reason         String?
   resolve_date   DateTime?     @db.Date
   response       String?
-  status         ReportStatus?
+  status         ReportStatus? @default(under_review)
   submitted_date DateTime?     @db.Date
   Student        Student?      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
 }

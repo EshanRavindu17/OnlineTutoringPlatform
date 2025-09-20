@@ -29,6 +29,9 @@ interface IndividualTutor {
     photo_url: string | null;
     email: string | null;
   } | null;
+  uniqueStudentsCount: number;
+  completedSessionsCount: number;
+
 }
 
 export interface IndividualTutorDashboard {
@@ -643,4 +646,76 @@ const getMockMassPaymentData = (): MassPaymentHistoryData => {
         totalClasses: 2,
         totalMonthsPaid: 3
     };
+};
+
+
+export const createAndReview = async (student_id: string, session_id: string, rating: number, review: string) => {
+    try {
+        const response = await axios.post(`${baseUrl2}/rate-and-review`, {
+            student_id,
+            session_id,
+            rating,
+            review
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to create and review:', error);
+        throw new Error(`Failed to create and review: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+export const getReviewsByIndividualTutorId = async (tutorId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/get-reviews/${tutorId}`
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch reviews for tutor:', error);
+        throw new Error(`Failed to fetch reviews: ${error.message || 'Unknown error occurred'}`);
+    }
+}
+
+
+export const generateReport = async (student_id: string, tutor_id: string, tutor_type: string, description: string, reason: string) => {
+    try {
+        const response = await axios.post(`${baseUrl2}/report-tutor`, {
+            student_id,
+            tutor_id,
+            tutor_type,
+            description,
+            reason
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to generate report:', error);
+        throw new Error(`Failed to generate report: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+export const getReportsByStudentId = async (studentId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/get-reports/${studentId}`
+        );
+        return response.data;
+    }
+    catch (error: any) {
+        console.error('❌ Failed to fetch reports for student:', error);
+        throw new Error(`Failed to fetch reports: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+// to get tutor name and type by tutor ID
+
+export const getTutorNameAndTypeById = async (tutorId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/getTutorNameAndTypeById/${tutorId}`
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch tutor name and type:', error);
+        throw new Error(`Failed to fetch tutor name and type: ${error.message || 'Unknown error occurred'}`);
+    }
 };

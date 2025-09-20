@@ -105,6 +105,25 @@ export const getIndividualTutorById = async (i_tutor_id: string) => {
             }
         }
     });
+
+    const uniqueStudents = await prisma.sessions.findMany({
+        where: { i_tutor_id },
+        distinct: ['student_id'],
+        select: { student_id: true }
+    });
+
+    const completedSessionsCount = await prisma.sessions.count({
+        where: {
+            i_tutor_id,
+            status: 'completed'
+        }
+    });
+
+    if (tutor) {
+    tutor["uniqueStudentsCount"] = uniqueStudents.length;
+    tutor["completedSessionsCount"] = completedSessionsCount;
+  }
+
     return tutor;
 }
 
@@ -535,3 +554,45 @@ export const getPaymentSummaryByStudentId = async (student_id: string, page: num
         canceledSessionCount
     };
 };
+
+
+export const getTutorNameAndTypeById = async (tutor_id: string) => {
+        // Try Individual Tutor first
+        const individualTutor = await prisma.individual_Tutor.findUnique({
+            where: { i_tutor_id: tutor_id },
+            include: {
+            User: { select: { name: true } }
+            }
+        });
+
+        if (individualTutor) {
+            return {
+            name: individualTutor.User.name,
+            type: "individual"
+            };
+        }
+
+        // Try Mass Tutor if not found in Individual
+        const massTutor = await prisma.mass_Tutor.findUnique({
+            where: { m_tutor_id: tutor_id },
+            include: {
+            User: { select: { name: true } }
+            }
+        });
+
+        if (massTutor) {
+            return {
+            name: massTutor.User.name,
+            type: "mass"
+            };
+        }
+
+        // If not found in either
+        return {
+            name: "Unknown Tutor",
+            type: "unknown"
+        };
+};
+
+
+
