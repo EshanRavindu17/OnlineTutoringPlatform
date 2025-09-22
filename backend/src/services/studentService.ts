@@ -1,6 +1,10 @@
 import { SessionStatus, SlotStatus } from "@prisma/client";
 import prisma from "../prismaClient";
 import  {DateTime} from "luxon";
+import { createZoomMeeting } from "./zoom.service";
+import { refundPayment } from "./paymentService";
+import { time } from "console";
+import { title } from "process";
 
 interface Individual{
     i_tutor_id : string;
@@ -101,6 +105,25 @@ export const getIndividualTutorById = async (i_tutor_id: string) => {
             }
         }
     });
+
+    const uniqueStudents = await prisma.sessions.findMany({
+        where: { i_tutor_id },
+        distinct: ['student_id'],
+        select: { student_id: true }
+    });
+
+    const completedSessionsCount = await prisma.sessions.count({
+        where: {
+            i_tutor_id,
+            status: 'completed'
+        }
+    });
+
+    if (tutor) {
+    tutor["uniqueStudentsCount"] = uniqueStudents.length;
+    tutor["completedSessionsCount"] = completedSessionsCount;
+  }
+
     return tutor;
 }
 
@@ -176,6 +199,12 @@ export const createASession = async (
     date: Date,
 ) => {
 
+    const { host_url, join_url } = await createZoomMeeting(
+        "Tutoring Session-" + student_id + "-" + i_tutor_id,
+        date.toISOString(),
+        slots.length * 60 // assuming each slot is 60 minutes
+    );
+
     const time = DateTime.now().setZone("Asia/Colombo").toJSDate();
     const session = await prisma.sessions.create({
         data: {
@@ -186,6 +215,7 @@ export const createASession = async (
             price,
             date,
             created_at: time,
+            meeting_urls: [ host_url, join_url ]
         }
     });
     return session;
@@ -225,3 +255,344 @@ export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_t
     });
     return updatedSlot;
 };
+
+export const cancelSession = async (session_id: string) => {
+    
+    //find session by session_id
+    const session = await prisma.sessions.findUnique({
+        where: { session_id }
+    });
+    if (!session) {
+        throw new Error("Session not found");
+    }
+    if (session.status === 'canceled') {
+        throw new Error("Session is already canceled");
+    }
+
+    const i_tutor_id = session.i_tutor_id;
+    const slotsAsDate = session.slots.map(slot => new Date(slot));
+    const sessionDate = new Date(session.date);
+
+    // Find all booked slots for this session
+    const timeSlots = await prisma.free_Time_Slots.findMany({
+      where: {
+        i_tutor_id: i_tutor_id,
+        date: sessionDate,
+        start_time: {
+          in: slotsAsDate
+        },
+        status: 'booked' // Only update booked slots
+      }
+    });
+
+    if (!timeSlots || timeSlots.length === 0) {
+        throw new Error("No booked slots found for this session");
+    }
+
+    // Retrieve payment intent ID from the payment record
+    const payment = await prisma.individual_Payments.findFirst({
+        where: { session_id }
+    });
+
+    const paymentIntentId = payment?.payment_intent_id;
+
+    const amount = session.price;
+    console.log("Refund amount:", amount);
+    const ammountInCents = Math.round(amount/ 300);
+
+    if (!paymentIntentId) {
+        throw new Error("Payment intent ID not found for this session");
+    }
+
+    // Process the refund
+    const response = await refundPayment(paymentIntentId, ammountInCents);
+    console.log("Refund response from Stripe:", response);
+    
+    // Update all found slots to 'free' status
+    const updatePromises = timeSlots.map(slot => 
+      updateSlotStatus(slot.slot_id, 'free' as any)
+    );
+
+    await Promise.all(updatePromises);
+
+    // const amount = session.price;
+    // console.log("Refund amount:", amount);
+
+    // const ammountInCents = Math.round(amount/ 300); // convert to cents (LKR)
+    // const payment = await prisma.individual_Payments.findFirst({
+    //     where: { session_id }
+    // });
+
+    // const paymentIntentId = payment?.payment_intent_id;
+    console.log("Payment Intent ID:", paymentIntentId);
+
+    // const response = await refundPayment(paymentIntentId, ammountInCents);
+    // console.log("Refund response from Stripe:", response);
+
+    // Finally, update the session status to 'canceled'
+    const updatedSession = await prisma.sessions.update({
+        where: { session_id },
+        data: { status: 'canceled' }
+    });
+
+    // Also update the payment record status to 'refund'
+    const updatedPayment = await prisma.individual_Payments.updateMany({
+        where: { session_id },
+        data: { status: 'refund' }
+    });
+
+    console.log("Updated payment record:", updatedPayment);
+
+    return updatedSession;
+};
+
+
+// get individual tutors by student_id for dashbotd showcase 
+
+export const getTutorsByStudentId = async (student_id: string) => {
+    
+    const paidsessions = await prisma.individual_Payments.findMany({
+        where: { student_id },
+    });
+
+    const totalAmmount = paidsessions
+        .filter(payment => payment.status !== 'refund')
+        .reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
+
+    console.log("Total amount paid by student:", totalAmmount);
+
+    console.log("Paid sessions:", paidsessions);
+
+    const sessionIds = paidsessions.map(payment => payment.session_id);
+
+    const sessions = await prisma.sessions.findMany({
+        where: { 
+            session_id: { in: sessionIds }
+        },
+        select: {
+            session_id: true,
+            i_tutor_id: true
+        }
+    });
+
+    const tutorIds = sessions.map(session => session.i_tutor_id);
+
+    console.log("Tutor IDs:", tutorIds);
+
+    const uniqueTutorIds = [...new Set(tutorIds)];
+
+    console.log("Unique Tutor IDs:", uniqueTutorIds);
+
+    const tutors = await prisma.individual_Tutor.findMany({
+        where: { i_tutor_id: { in: uniqueTutorIds } },
+        include: {
+            User: {
+                select: {
+                    name: true,
+                    photo_url: true
+                }
+            }
+        }
+    });
+
+    const sessionCountByTutor: { [key: string]: number } = {};
+    sessions.forEach(session => {
+        sessionCountByTutor[session.i_tutor_id] = (sessionCountByTutor[session.i_tutor_id] || 0) + 1;
+    });
+
+    const tutorsWithSessionCount = tutors.map(tutor => ({
+        ...tutor,
+        sessionCount: sessionCountByTutor[tutor.i_tutor_id] || 0
+    }));
+
+    console.log("Tutors with session count:", tutorsWithSessionCount);
+
+    const totalPaiedForTutor = tutorsWithSessionCount.map(tutor => {
+        const tutorSessions = sessions.filter(session => session.i_tutor_id === tutor.i_tutor_id);
+        const tutorSessionIds = tutorSessions.map(session => session.session_id);
+        const totalPaid = paidsessions
+            .filter(payment => tutorSessionIds.includes(payment.session_id) && payment.status !== 'refund')
+            .reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
+        return {
+            ...tutor,
+            totalPaid
+        };
+    });
+
+    console.log("Tutors with total paid:", totalPaiedForTutor);
+
+    return totalPaiedForTutor;
+    
+
+    // return tutors;
+
+    // const sessions = await prisma.sessions.findMany({
+    //     where: { student_id },
+    // });
+
+    // const tutorIds = sessions.map(session => session.i_tutor_id);
+    // const uniqueTutorIds = Array.from(new Set(tutorIds));
+
+    // const tutors = await prisma.individual_Tutors.findMany({
+    //     where: { id: { in: uniqueTutorIds } },
+    //     include: {
+    //         User: true,
+    //         Course: true
+    //     }
+    // });
+
+    // return tutors;
+};  
+
+
+// get payment summary for student dashboard
+
+export const getPaymentSummaryByStudentId = async (student_id: string, page: number, limit: number) => {
+    const paidsessionsfull = await prisma.individual_Payments.findMany({
+        where: { student_id },
+        include: {
+            Sessions: {
+                select: {
+                    title: true,
+                    slots: true,
+                    Individual_Tutor: {
+                        select: {
+                            User: {
+                                select: {
+                                    name: true,
+                                    photo_url: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: { payment_date_time: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit
+    });
+
+
+    // const sessionIds = paidsessionsfull.map(payment => payment.session_id);
+
+    // const tutors = await prisma.sessions.findMany({
+    //     where: { session_id: { in: sessionIds } },
+    //     distinct: ['i_tutor_id'],
+    //     select: {
+    //         Individual_Tutor: {
+    //             select:{
+    //                 User: {
+    //                     select: {
+    //                         name: true,
+    //                         photo_url: true
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // });
+
+        //     const paidsessionsfull = await prisma.$queryRaw`
+        // SELECT 
+        //     ip.i_payment_id AS i_payment_id,
+        //     ip.payment_date_time,
+        //     ip.student_id,
+        //     ip.amount,
+        //     ip.status,
+        //     ip.payment_intent_id,
+        //     s.session_id AS session_id,
+        //     u.name,
+        //     u.photo_url
+        // FROM "Individual_Payments" ip
+        // JOIN "Sessions" s 
+        //     ON ip.session_id = s.id
+        // JOIN "Individual_Tutor" it 
+        //     ON s.tutor_id = it.id
+        // JOIN "Users" u 
+        //     ON it.user_id = u.id
+        // WHERE ip.student_id = ${student_id}
+        // ORDER BY ip.payment_date_time DESC
+        // LIMIT ${limit} OFFSET ${(page - 1) * limit};
+        // `;
+
+
+    const paidsessions = await prisma.individual_Payments.findMany({
+        where: { student_id },
+        orderBy: { payment_date_time: 'desc' },
+    });
+
+    const totalAmount = paidsessions.reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
+
+    const successfulPayments = paidsessions.filter(payment => payment.status === 'success');
+
+    const completedSessionCount = await prisma.sessions.count({
+        where: {
+            student_id,
+            status: 'completed'
+        }
+    });
+    const ScheduledSessionCount = await prisma.sessions.count({
+        where: {
+            student_id,
+            status: 'scheduled'
+        }
+    });
+    const canceledSessionCount = await prisma.sessions.count({
+        where: {
+            student_id,
+            status: 'canceled'
+        }
+    });
+
+    return {
+        transactions: paidsessionsfull,
+        totalAmount,
+        successfulPaymentsCount: successfulPayments.length,
+        completedSessionCount,
+        ScheduledSessionCount,
+        canceledSessionCount
+    };
+};
+
+
+export const getTutorNameAndTypeById = async (tutor_id: string) => {
+        // Try Individual Tutor first
+        const individualTutor = await prisma.individual_Tutor.findUnique({
+            where: { i_tutor_id: tutor_id },
+            include: {
+            User: { select: { name: true } }
+            }
+        });
+
+        if (individualTutor) {
+            return {
+            name: individualTutor.User.name,
+            type: "individual"
+            };
+        }
+
+        // Try Mass Tutor if not found in Individual
+        const massTutor = await prisma.mass_Tutor.findUnique({
+            where: { m_tutor_id: tutor_id },
+            include: {
+            User: { select: { name: true } }
+            }
+        });
+
+        if (massTutor) {
+            return {
+            name: massTutor.User.name,
+            type: "mass"
+            };
+        }
+
+        // If not found in either
+        return {
+            name: "Unknown Tutor",
+            type: "unknown"
+        };
+};
+
+
+

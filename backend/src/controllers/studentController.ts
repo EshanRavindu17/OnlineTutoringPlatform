@@ -1,17 +1,21 @@
 import { Request,Response } from "express";
 import {
     addStudent,
+    cancelSession,
     createASession,
     findTimeSlots,
     getAllIndividualTutors
     ,getAllSessionByStudentId,getIndividualTutorById
-    ,getSlotsOfIndividualTutorById,
+    ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
+    getTutorNameAndTypeById,
+    getTutorsByStudentId,
     updateAccessTimeinFreeSlots,
     updateSlotStatus
 } from "../services/studentService";
 import { createPaymentRecord } from "../services/paymentService";
 import { DateTime } from "luxon";
+import { createZoomMeeting } from "../services/zoom.service";
 
 export const addStudentController = async (req: Request, res: Response) => {
     const studentData = req.body;
@@ -195,4 +199,85 @@ export const updateAccessTimeinFreeSlotsController = async (req: Request, res: R
     }
 
     return res.json(updatedSlot);
+};
+
+
+// helper contoller to test zoom 
+
+export const testZoomController = async (req: Request, res: Response) => {
+
+    const { topic, startTime, duration } = req.body;
+
+    try {
+        const meeting = await createZoomMeeting(topic, startTime, duration);
+        return res.status(200).json(meeting);
+    } catch (error) {
+        console.error("Error creating Zoom meeting:", error);
+        return res.status(500).json({ error: "Failed to create Zoom meeting" });
+    }
+}
+
+// for cancelling a session
+
+export const cancelSessionController = async (req: Request, res: Response) => {
+    const { session_id } = req.params;
+    if(!session_id) {
+        return res.status(400).json({ error: "session_id is required" });
+    }
+    console.log("Cancelling session for session_ID:", session_id);
+    try {
+        const result = await cancelSession(session_id);
+        return res.json({ message: "Session canceled successfully", result });
+    } catch (error: any) {
+        console.error("Error canceling session:", error);
+        return res.status(400).json({ error: error.message });
+    }
+};
+
+// for getting individual tutors for dashbord
+
+export const getTutorsByStudentIdController = async (req: Request, res: Response) => {
+    const { studentId } = req.params;
+
+    console.log("Getting tutors for student_ID:", studentId);
+    try {
+        const tutors = await getTutorsByStudentId(studentId);
+        return res.json(tutors);
+    } catch (error) {
+        console.error("Error getting tutors:", error);
+        return res.status(500).json({ error: "Failed to get tutors" });
+    }
+};
+
+// get payment history for a student
+export const  getPaymentHistoryController = async (req: Request, res: Response) => {
+    const { studentId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    try {
+        const paymentHistory = await getPaymentSummaryByStudentId(studentId, page, limit);
+        return res.json(paymentHistory);
+    } catch (error) {
+        console.error("Error getting payment history:", error);
+        return res.status(500).json({ error: "Failed to get payment history" });
+    }
+};
+
+
+export const getTutorNameAndTypeByIdController = async (req: Request, res: Response) => {
+    const { tutorId } = req.params;
+    if(!tutorId) {
+        return res.status(400).json({ error: "tutorId is required" });
+    }
+    console.log("Getting tutor name and type for tutor_ID:", tutorId);
+    try {
+        const tutorInfo = await getTutorNameAndTypeById(tutorId);
+        if(!tutorInfo) {
+            return res.status(404).json({ error: "Tutor not found" });
+        }
+        return res.json(tutorInfo);
+    } catch (error) {
+        console.error("Error getting tutor name and type:", error);
+        return res.status(500).json({ error: "Failed to get tutor name and type" });
+    }
 };

@@ -39,3 +39,18 @@ export const createPaymentRecord = async (paymentData: {}) => {
     throw error;
   }
 };
+
+
+
+export const refundPayment = async (paymentIntentId: string, amount?: number) => {
+  try {
+    const refund = await stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      amount: amount, // Optional: partial refund if specified, full refund if not
+    });
+    return refund;
+  } catch (error) {
+    console.error("Error processing refund:", error);
+    throw error;
+  }
+};

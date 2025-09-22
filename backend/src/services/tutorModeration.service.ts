@@ -39,6 +39,7 @@ export async function listCandidatesService(opts?: {
 export async function approveCandidateService(candidateId: string) {
   return prisma.$transaction(async (tx) => {
     const c = await tx.candidates.findUnique({ where: { id: candidateId } });
+
     if (!c) throw Object.assign(new Error('Candidate not found'), { status: 404 });
     if (c.role !== 'Individual' && c.role !== 'Mass') {
       throw Object.assign(new Error('Candidate role must be Individual or Mass'), { status: 400 });
@@ -62,35 +63,47 @@ export async function approveCandidateService(candidateId: string) {
     if (kind === 'individual') {
       if (c.user_id) tutor = await tx.individual_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
+        // Create Individual Tutor with hybrid data (direct fields + JSON fields)
+        const individualTutorData = {
+          user_id: c.user_id,
+          subjects: c.subjects,
+          titles: c.titles,
+          hourly_rate: c.hourly_rate,
+          description: c.description,
+          rating: 0,
+          heading: c.heading,
+          location: c.location,
+          phone_number: c.phone_number,
+          qualifications: c.qualifications,
+          status: 'active' as const,
+        };
+
+        console.log(`🏗️ Creating Individual tutor with hybrid data:`, individualTutorData);
+
         tutor = await tx.individual_Tutor.create({
-          data: {
-            user_id: c.user_id ?? null,
-            subjects: [],
-            titles: [],
-            hourly_rate: null,
-            description: c.bio ?? '',
-            rating: null,
-            heading: c.name ?? '',
-            location: null,
-            phone_number: c.phone_number ? String(c.phone_number) : null,
-            qualifications: [],
-            status: 'active',
-          },
+          data: individualTutorData,
         });
       }
     } else {
       if (c.user_id) tutor = await tx.mass_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
+        // Parse tutor data using hybrid approach
+        // let tutorData: any = {};
+        // Create Mass Tutor with hybrid data (direct fields + JSON fields)
+        const massTutorData = {
+          subjects: c.subjects,
+          prices: c.prices,
+          description: c.description || '',
+          user_id: c.user_id,
+          rating: 0,
+          heading: c.heading,
+          status: 'active' as const,
+        };
+
+        console.log(`🏗️ Creating Mass tutor with hybrid data:`, massTutorData);
+
         tutor = await tx.mass_Tutor.create({
-          data: {
-            user_id: c.user_id ?? null,
-            subjects: [],
-            prices: null,
-            description: c.bio ?? '',
-            rating: null,
-            heading: c.name ?? '',
-            status: 'active',
-          },
+          data: massTutorData,
         });
       }
     }
