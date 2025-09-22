@@ -20,17 +20,27 @@ model Admin {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Candidates {
-  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String?         @db.VarChar
-  email        String?         @db.VarChar
-  role         UserRole
-  bio          String?
-  dob          DateTime?       @db.Date
-  phone_number Int?
-  user_id      String?         @db.Uuid
-  applied_at   DateTime?       @db.Timestamptz(6)
-  status       CandidateStatus @default(pending)
-  User         User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String?         @db.VarChar
+  email           String?         @db.VarChar
+  role            UserRole
+  bio             String?
+  dob             DateTime?       @db.Date
+  phone_number    String?         @db.VarChar(20)
+  user_id         String?         @db.Uuid
+  applied_at      DateTime?       @db.Timestamptz(6)
+  status          CandidateStatus @default(pending)
+  cvUrl           String?
+  certificateUrls String[]
+  description     String?
+  heading         String?
+  hourly_rate     Float?
+  location        String?
+  prices          Float?
+  qualifications  String[]
+  subjects        String[]
+  titles          String[]
+  User            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
 }
 
 model Free_Time_Slots {
@@ -70,6 +80,8 @@ model Individual_Tutor {
   phone_number    String?           @db.VarChar
   qualifications  String[]
   status          TutorStatus       @default(active)
+  cvUrl           String?           @default("")
+  certificateUrls String[]
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
   Sessions        Sessions[]
@@ -85,6 +97,7 @@ model Mass_Tutor {
   rating      Decimal?    @db.Decimal(3, 1)
   heading     String?
   status      TutorStatus @default(active)
+  Class       Class[]
   User        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
 
@@ -145,7 +158,9 @@ model Student {
   student_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id                 String                    @db.Uuid
   points                  Int?                      @default(0)
+  Enrolment               Enrolment[]
   Individual_Payments     Individual_Payments[]
+  Rating_N_Review_Class   Rating_N_Review_Class[]
   Rating_N_Review_Session Rating_N_Review_Session[]
   Reports                 Reports[]
   Sessions                Sessions[]
@@ -180,6 +195,68 @@ model User {
   Mass_Tutor       Mass_Tutor[]
   Notifications    Notifications[]
   Student          Student[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Class {
+  class_id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  m_tutor_id            String?                 @db.Uuid
+  subject               String?                 @db.Uuid
+  date_time             String[]                @db.VarChar
+  Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
+  ClassSlot             ClassSlot[]
+  Enrolment             Enrolment[]
+  Rating_N_Review_Class Rating_N_Review_Class[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ClassSlot {
+  cslot_id     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  class_id     String?   @db.Uuid
+  materials    String[]
+  meetingURLs  String[]
+  dateTime     DateTime? @db.Timestamp(6)
+  duration     Float?    @db.Real
+  announcement String?
+  recording    String?
+  Class        Class?    @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Enrolment {
+  enrol_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student    Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Mass_Payments {
+  m_payment_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_time      DateTime @default(now()) @db.Timestamptz(6)
+  student_id        String?  @db.Uuid
+  amount            Float?
+  class_id          String?  @db.Uuid
+  paidMonth         String?  @db.VarChar
+  status            Status?
+  method            String?
+  payment_intent_id String?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Rating_N_Review_Class {
+  r_id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  student_id String?  @db.Uuid
+  class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  raiting    Int?     @default(0) @db.SmallInt
+  review     String?
+  Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student    Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
