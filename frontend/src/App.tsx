@@ -19,7 +19,6 @@ import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './individualTutor/tutorProfile';
 import StartZoom from './individualTutor/startZoom';
 import ScheduleMeeting from './individualTutor/ScheduleMeeting';
-// import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import UploadVideo from  './individualTutor/uploadvideo';
 import NotFound from './pages/notfoundpage';
@@ -37,7 +36,8 @@ import PaymentHistoryPage from './pages/student/paymentHistory';
 import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './individualTutor/TutorRejected';
-import MassTutorDashboard from './pages/massTutor/masstutordashbord';
+
+import { massTutorRoutes } from './pages/massTutor/routes';
 
 import MassTutorProfile from './pages/student/massTutorProfile';
 import MassClassPage from './pages/student/massClass';
@@ -54,6 +54,7 @@ import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
 
@@ -127,7 +128,7 @@ const App = () => {
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
-          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
+          {massTutorRoutes()}
         </Route>
 
         {/* ===== Admin portal ===== */}

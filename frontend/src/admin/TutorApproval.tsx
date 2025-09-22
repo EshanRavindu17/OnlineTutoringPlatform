@@ -169,12 +169,12 @@ export default function TutorApproval() {
           <table className="min-w-full text-sm">
             <thead className="sticky top-0 bg-gray-50 text-gray-700 border-b">
               <tr>
-                <th className="text-left font-medium p-3">Name</th>
-                <th className="text-left font-medium p-3">Email</th>
-                <th className="text-left font-medium p-3">Role</th>
-                <th className="text-left font-medium p-3">Applied at</th>
-                <th className="text-left font-medium p-3">Status</th>
-                <th className="text-left font-medium p-3">Actions</th>
+                <th className="text-left font-medium p-3 w-48">Name</th>
+                <th className="text-left font-medium p-3 w-64">Email</th>
+                <th className="text-left font-medium p-3 w-24">Role</th>
+                <th className="text-left font-medium p-3 w-40">Applied at</th>
+                <th className="text-left font-medium p-3 w-32">Status</th>
+                <th className="text-left font-medium p-3 w-48">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -199,10 +199,10 @@ export default function TutorApproval() {
                   return (
                     <tr key={c.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-50">
                       <td className="p-3">
-                        <div className="font-medium">{c.name ?? '—'}</div>
-                        {c.bio && <div className="text-xs text-gray-500 line-clamp-1">{c.bio}</div>}
+                        <div className="font-medium truncate">{c.name ?? '—'}</div>
+                        {c.bio && <div className="text-xs text-gray-500 line-clamp-1 max-w-[12rem]">{c.bio}</div>}
                       </td>
-                      <td className="p-3">{c.email ?? c.User?.email ?? '—'}</td>
+                      <td className="p-3 truncate">{c.email ?? c.User?.email ?? '—'}</td>
                       <td className="p-3">{c.role}</td>
                       <td className="p-3">{fmtDateTime(c.applied_at)}</td>
                       <td className="p-3"><StatusPill status={c.status} /></td>
