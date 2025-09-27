@@ -1,19 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Calendar, 
-  DollarSign, 
-  Star, 
-  BookOpen, 
-  Clock, 
-  TrendingUp, 
-  Award, 
-  Users, 
-  Edit3, 
-  Save, 
-  X, 
-  Plus, 
+import {User,Calendar,DollarSign,Star,BookOpen,Clock,TrendingUp,Award,Users,Edit3,Save,X,Plus, 
   ChevronRight,
   Briefcase,
   GraduationCap,
@@ -37,30 +24,31 @@ import {
   Download,
   Upload,
   VideoIcon,
-  Camera
+  Camera,
+  Search
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/authContext';
+import { Subject, Title, tutorService } from '../../api/TutorService';
 import { ScheduleService } from '../../api/ScheduleService';
 import { NotificationCenter } from './NotificationCenter';
+import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
 
-interface TutorProfile {
+interface LocalTutorProfile {
   name: string;
   description: string;
-  age: number;
-  dob: string;
   phone: string;
-  alQualifications: string;
-  degree: string;
-  cvUrl: string;
-  sampleVideoUrl: string;
+  heading?: string;  // Added heading field
+  subjects: string[];      // Subject IDs
+  titles: string[];       // Title IDs
+  qualifications: string[];  // Changed from alQualifications and degree to array
   hourlyRate: number;
   rating: number;
   totalReviews: number;
   totalEarnings: number;
   adminCommission: number;
   profit: number;
-  photo_url?: string;
+  photo_url?: string | null;
 }
 
 interface TimeSlot {
@@ -70,7 +58,7 @@ interface TimeSlot {
   studentName: string | null;
 }
 
-interface Subject {
+interface SubjectWithTitles {
   subject: string;
   titles: string[];
 }
@@ -113,8 +101,6 @@ interface Notification {
 const TutorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [showCVModal, setShowCVModal] = useState(false);
   const [showImageEditModal, setShowImageEditModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -180,18 +166,22 @@ const TutorDashboard: React.FC = () => {
 
   const { currentUser, userProfile } = useAuth();
 
+  // Predefined qualifications list (imported from shared constants)
+  const standardQualifications = STANDARD_QUALIFICATIONS;
+
+  // Qualifications management state
+  const [customQualification, setCustomQualification] = useState('');
+  const [qualificationFilter, setQualificationFilter] = useState('');
+
   // Tutor Profile State
-  const [tutorProfile, setTutorProfile] = useState<TutorProfile>({
+  const [tutorProfile, setTutorProfile] = useState<LocalTutorProfile>({
     name: userProfile?.name || '',
     description: 'Experienced tutor with passion for teaching mathematics and physics. I help students understand complex concepts through clear explanations and practical examples.',
-    age: 32,
-    dob: '1992-03-15',
     photo_url: userProfile?.photo_url || '',
-    phone: '+1 (555) 123-4567',
-    alQualifications: 'A/L: Mathematics (A), Physics (A), Chemistry (B)',
-    degree: 'Ph.D. in Applied Mathematics, MIT',
-    cvUrl: 'https://drive.google.com/file/d/1234567890/view',
-    sampleVideoUrl: 'https://drive.google.com/file/d/0987654321/view',
+    phone: '(+94) 435-123-4567',
+    subjects: [],
+    titles: [], 
+    qualifications: [],
     hourlyRate: 65,
     rating: 4.9,
     totalReviews: 127,
@@ -214,12 +204,118 @@ const TutorDashboard: React.FC = () => {
     onTimeRate: 95
   });
 
+  // Load subjects when component mounts
+  useEffect(() => {
+    loadSubjects();
+  }, []);
+
+  // Load titles when tutor profile subjects change (for display purposes)
+  useEffect(() => {
+    if (tutorProfile.subjects.length > 0) {
+      loadTitlesForSubjects(tutorProfile.subjects);
+    }
+  }, [tutorProfile.subjects]);
+
+  // Load subjects from API
+  const loadSubjects = async () => {
+    setLoadingSubjects(true);
+    try {
+      const subjects = await tutorService.getAllSubjects();
+      console.log('Loaded available subjects:', subjects); // Debug log
+      setAvailableSubjects(subjects);
+    } catch (error) {
+      console.error('Failed to load subjects:', error);
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
+
+  // Load titles when subjects change
+  const loadTitlesForSubjects = async (selectedSubjectIds: string[]) => {
+    if (selectedSubjectIds.length === 0) {
+      setAvailableTitles([]);
+      return;
+    }
+
+    setLoadingTitles(true);
+    try {
+      console.log('Loading titles for subjects:', selectedSubjectIds); // Debug log
+      // Load titles for all selected subjects
+      const allTitles = [];
+      for (const subjectId of selectedSubjectIds) {
+        const titles = await tutorService.getTitlesBySubject(subjectId);
+        allTitles.push(...titles);
+      }
+      
+      // Remove duplicates if any
+      const uniqueTitles = allTitles.filter((title, index, self) => 
+        index === self.findIndex(t => t.title_id === title.title_id)
+      );
+      
+      console.log('Loaded available titles:', uniqueTitles); // Debug log
+      setAvailableTitles(uniqueTitles);
+    } catch (error) {
+      console.error('Failed to load titles:', error);
+    } finally {
+      setLoadingTitles(false);
+    }
+  };
+
   // Load real data
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
         if (currentUser?.uid) {
+          // Load tutor profile from backend
+          try {
+            const profile = await tutorService.getTutorProfile(currentUser.uid);
+            console.log('Loaded tutor profile:', profile); // Debug log
+            setTutorProfile(prev => ({
+              ...prev,
+              name: profile.User.name,
+              photo_url: profile.User.photo_url || '',
+              description: profile.description,
+              hourlyRate: profile.hourly_rate,
+              rating: profile.rating,
+              subjects: profile.subjects,   // Load subjects from backend
+              titles: profile.titles,       // Load titles from backend
+              qualifications: profile.qualifications,
+              phone: profile.phone_number, // Load phone from backend
+              heading: profile.heading,     // Load heading from backend
+              // Keep existing mock values for fields not in backend
+              totalReviews: prev.totalReviews,
+              totalEarnings: prev.totalEarnings,
+              adminCommission: prev.adminCommission,
+              profit: prev.profit
+            }));
+
+            // Load titles for the selected subjects
+            if (profile.subjects && profile.subjects.length > 0) {
+              loadTitlesForSubjects(profile.subjects);
+            }
+
+            // Load tutor statistics
+            const statistics = await tutorService.getTutorStatistics(profile.i_tutor_id);
+            setStats(prev => ({
+              ...prev,
+              completedSessions: statistics.totalSessions,
+              monthlyEarnings: statistics.totalEarnings,
+              upcomingSessions: statistics.upcomingSessions
+            }));
+
+            // Update profile with statistics data
+            setTutorProfile(prev => ({
+              ...prev,
+              // rating: statistics.averageRating,
+              totalReviews: statistics.reviewsCount,
+              totalEarnings: statistics.totalEarnings
+            }));
+          } catch (profileError) {
+            console.error('Error loading tutor profile:', profileError);
+            // Continue with schedule loading even if profile fails
+          }
+
           // Load schedule stats
           const tutorIdResponse = await ScheduleService.getTutorId(currentUser.uid);
           if (tutorIdResponse.success) {
@@ -259,12 +355,6 @@ const TutorDashboard: React.FC = () => {
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (showVideoModal) {
-          setShowVideoModal(false);
-        }
-        if (showCVModal) {
-          setShowCVModal(false);
-        }
         if (showImageEditModal) {
           setShowImageEditModal(false);
           setSelectedImage(null);
@@ -273,7 +363,7 @@ const TutorDashboard: React.FC = () => {
       }
     };
 
-    if (showVideoModal || showCVModal || showImageEditModal) {
+    if (showImageEditModal) {
       document.addEventListener('keydown', handleEscapeKey);
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
@@ -283,13 +373,22 @@ const TutorDashboard: React.FC = () => {
       document.removeEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'unset';
     };
-  }, [showVideoModal, showCVModal, showImageEditModal]);
+  }, [showImageEditModal]);
 
-  // Subjects and Titles
-  const [subjects, setSubjects] = useState<Subject[]>([
-    { subject: 'Mathematics', titles: ['Algebra', 'Calculus', 'Real Analysis'] },
-    { subject: 'Physics', titles: ['Thermodynamics', 'Quantum Mechanics', 'Electromagnetism'] }
-  ]);
+  // Subjects and Titles from backend
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [availableTitles, setAvailableTitles] = useState<Title[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingTitles, setLoadingTitles] = useState(false);
+  
+  // State for adding custom subjects and titles
+  const [customSubject, setCustomSubject] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [selectedSubjectForCustomTitle, setSelectedSubjectForCustomTitle] = useState('');
+  
+  // State for filtering/searching
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
 
 
   // Sessions Data
@@ -393,11 +492,239 @@ const TutorDashboard: React.FC = () => {
     }));
   };
 
-  const handleProfileChange = (field: keyof TutorProfile, value: any) => {
+  const handleProfileChange = (field: keyof LocalTutorProfile, value: any) => {
     setTutorProfile(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Qualification handlers
+  const handleQualificationChange = (qualification: string) => {
+    const isSelected = tutorProfile.qualifications.includes(qualification);
+    let newQualifications;
+    
+    if (isSelected) {
+      // Remove qualification
+      newQualifications = tutorProfile.qualifications.filter(q => q !== qualification);
+    } else {
+      // Add qualification
+      newQualifications = [...tutorProfile.qualifications, qualification];
+    }
+    
+    setTutorProfile(prev => ({
+      ...prev,
+      qualifications: newQualifications
+    }));
+  };
+
+  const handleAddCustomQualification = () => {
+    if (customQualification.trim() && !tutorProfile.qualifications.includes(customQualification.trim())) {
+      const newQualifications = [...tutorProfile.qualifications, customQualification.trim()];
+      setTutorProfile(prev => ({
+        ...prev,
+        qualifications: newQualifications
+      }));
+      setCustomQualification('');
+    }
+  };
+
+  const handleRemoveQualification = (qualification: string) => {
+    const newQualifications = tutorProfile.qualifications.filter(q => q !== qualification);
+    setTutorProfile(prev => ({
+      ...prev,
+      qualifications: newQualifications
+    }));
+  };
+
+  const getFilteredQualifications = () => {
+    if (!qualificationFilter.trim()) return standardQualifications;
+    return standardQualifications.filter(qualification => 
+      qualification.toLowerCase().includes(qualificationFilter.toLowerCase())
+    );
+  };
+
+  // Subject and Title handlers
+  const handleSubjectChange = (subjectId: string) => {
+    const isSelected = tutorProfile.subjects.includes(subjectId);
+    let newSubjects;
+    
+    if (isSelected) {
+      // Remove subject
+      newSubjects = tutorProfile.subjects.filter(id => id !== subjectId);
+    } else {
+      // Add subject
+      newSubjects = [...tutorProfile.subjects, subjectId];
+    }
+    
+    setTutorProfile(prev => ({
+      ...prev,
+      subjects: newSubjects
+    }));
+    
+    // Load titles for the new subject selection
+    loadTitlesForSubjects(newSubjects);
+  };
+
+  const handleTitleChange = (titleId: string) => {
+    const isSelected = tutorProfile.titles.includes(titleId);
+    let newTitles;
+    
+    if (isSelected) {
+      // Remove title
+      newTitles = tutorProfile.titles.filter(id => id !== titleId);
+    } else {
+      // Add title
+      newTitles = [...tutorProfile.titles, titleId];
+    }
+    
+    setTutorProfile(prev => ({
+      ...prev,
+      titles: newTitles
+    }));
+  };
+
+  // Handle adding custom subject
+  const handleAddCustomSubject = async () => {
+    if (customSubject.trim() && !availableSubjects.some(s => s.name.toLowerCase() === customSubject.trim().toLowerCase())) {
+      try {
+        const newSubject = await tutorService.createSubject(customSubject.trim());
+        setAvailableSubjects(prev => [...prev, newSubject]);
+        
+        // Automatically select the new subject
+        const newSubjects = [...tutorProfile.subjects, newSubject.sub_id];
+        setTutorProfile(prev => ({
+          ...prev,
+          subjects: newSubjects
+        }));
+        
+        setCustomSubject('');
+        
+        // Load titles for the new selection
+        loadTitlesForSubjects(newSubjects);
+      } catch (error: any) {
+        console.error('Failed to create subject:', error);
+        alert(error.message || 'Failed to create subject');
+      }
+    }
+  };
+
+  // Handle adding custom title
+  const handleAddCustomTitle = async () => {
+    if (customTitle.trim() && selectedSubjectForCustomTitle && 
+        !availableTitles.some(t => t.name.toLowerCase() === customTitle.trim().toLowerCase() && t.sub_id === selectedSubjectForCustomTitle)) {
+      try {
+        const newTitle = await tutorService.createTitle(customTitle.trim(), selectedSubjectForCustomTitle);
+        setAvailableTitles(prev => [...prev, newTitle]);
+        
+        // Automatically select the new title
+        const newTitles = [...tutorProfile.titles, newTitle.title_id];
+        setTutorProfile(prev => ({
+          ...prev,
+          titles: newTitles
+        }));
+        
+        setCustomTitle('');
+        setSelectedSubjectForCustomTitle('');
+      } catch (error: any) {
+        console.error('Failed to create title:', error);
+        alert(error.message || 'Failed to create title');
+      }
+    }
+  };
+
+  // Filter functions
+  const getFilteredSubjects = () => {
+    if (!subjectFilter.trim()) return availableSubjects;
+    return availableSubjects.filter(subject => 
+      subject.name.toLowerCase().includes(subjectFilter.toLowerCase())
+    );
+  };
+
+  const getFilteredTitles = () => {
+    if (!titleFilter.trim()) return availableTitles;
+    return availableTitles.filter(title => 
+      title.name.toLowerCase().includes(titleFilter.toLowerCase())
+    );
+  };
+
+  // Helper function to get subject name by ID
+  const getSubjectNameById = (subjectId: string): string => {
+    const subject = availableSubjects.find(s => s.sub_id === subjectId);
+    return subject ? subject.name : subjectId;
+  };
+
+  // Helper function to get title name by ID
+  const getTitleNameById = (titleId: string): string => {
+    const title = availableTitles.find(t => t.title_id === titleId);
+    return title ? title.name : titleId;
+  };
+
+  // Save qualifications to backend
+  const handleSaveQualifications = async () => {
+    if (currentUser?.uid) {
+      try {
+        await tutorService.updateTutorQualifications(currentUser.uid, tutorProfile.qualifications);
+        // Turn off edit mode after successful save
+        toggleEditMode('qualifications');
+        alert('Qualifications updated successfully!');
+      } catch (error) {
+        console.error('Error updating qualifications:', error);
+        alert('Failed to update qualifications. Please try again.');
+      }
+    }
+  };
+
+  // Save subjects and titles to backend
+  const handleSaveSubjectsAndTitles = async () => {
+    if (currentUser?.uid) {
+      try {
+        await tutorService.updateTutorSubjectsAndTitles(currentUser.uid, tutorProfile.subjects, tutorProfile.titles);
+        // Turn off edit mode after successful save
+        toggleEditMode('subjects');
+        alert('Subjects and titles updated successfully!');
+      } catch (error) {
+        console.error('Error updating subjects and titles:', error);
+        alert('Failed to update subjects and titles. Please try again.');
+      }
+    }
+  };
+
+  // Save hourly rate to backend
+  const handleSaveHourlyRate = async () => {
+    if (currentUser?.uid) {
+      try {
+        await tutorService.updateTutorHourlyRate(currentUser.uid, tutorProfile.hourlyRate);
+        // Turn off edit mode after successful save
+        toggleEditMode('pricing');
+        alert('Hourly rate updated successfully!');
+      } catch (error) {
+        console.error('Error updating hourly rate:', error);
+        alert('Failed to update hourly rate. Please try again.');
+      }
+    }
+  };
+
+  // Save personal information to backend
+  const handleSavePersonalInfo = async () => {
+    if (currentUser?.uid) {
+      try {
+        const personalData = {
+          name: tutorProfile.name,
+          description: tutorProfile.description,
+          phone_number: tutorProfile.phone,
+          heading: tutorProfile.heading || null
+        };
+        
+        await tutorService.updateTutorPersonalInfo(currentUser.uid, personalData);
+        // Turn off edit mode after successful save
+        toggleEditMode('basic');
+        alert('Personal information updated successfully!');
+      } catch (error) {
+        console.error('Error updating personal information:', error);
+        alert('Failed to update personal information. Please try again.');
+      }
+    }
   };
 
   // Notification handlers
@@ -450,22 +777,40 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  const handleImageSave = () => {
-    if (selectedImage && imagePreview) {
-      // Update the tutor profile with the new image
-      // In a real implementation, you would upload to server here
-      setTutorProfile(prev => ({
-        ...prev,
-        photo_url: imagePreview
-      }));
-      
-      // Close modal and reset state
-      setShowImageEditModal(false);
-      setSelectedImage(null);
-      setImagePreview(null);
-      
-      // Show success message
-      alert('Profile image updated successfully!');
+  const handleImageSave = async () => {
+    if (selectedImage && currentUser?.uid) {
+      try {
+        // Show loading state
+        const saveButton = document.querySelector('[data-save-button]') as HTMLButtonElement;
+        if (saveButton) {
+          saveButton.disabled = true;
+          saveButton.textContent = 'Uploading...';
+        }
+
+        // Upload image to backend
+        const result = await tutorService.uploadUserPhoto(currentUser.uid, selectedImage);
+        
+        // Update the tutor profile with the new image URL from server
+        setTutorProfile(prev => ({
+          ...prev,
+          photo_url: result.user.photo_url
+        }));
+        
+        // Close modal and reset state
+        setShowImageEditModal(false);
+        setSelectedImage(null);
+        setImagePreview(null);
+        
+        // Show success message
+        alert('Profile image updated successfully!');
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image. Please try again.');
+      }
+    } else if (!currentUser?.uid) {
+      alert('User not authenticated. Please log in and try again.');
+    } else {
+      alert('No image selected.');
     }
   };
 
@@ -508,46 +853,6 @@ const TutorDashboard: React.FC = () => {
     // Or trigger your actual video calling service
   };
 
-  const addSubject = (newSubject: string) => {
-    if (newSubject.trim()) {
-      setSubjects(prev => [...prev, { subject: newSubject.trim(), titles: [] }]);
-    }
-  };
-
-  const addTitle = (subjectIndex: number, newTitle: string) => {
-    if (newTitle.trim()) {
-      setSubjects(prev => prev.map((subject, index) => 
-        index === subjectIndex 
-          ? { ...subject, titles: [...subject.titles, newTitle.trim()] }
-          : subject
-      ));
-    }
-  };
-
-  // Function to convert Google Drive URL to embeddable format
-  const getEmbeddableVideoUrl = (url: string) => {
-    if (url.includes('drive.google.com')) {
-      // Extract file ID from Google Drive URL
-      const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-      if (fileIdMatch) {
-        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
-      }
-    }
-    return url; // Return original URL if not a Google Drive URL
-  };
-
-  // Function to convert Google Drive URL to embeddable format for documents
-  const getEmbeddableDocumentUrl = (url: string) => {
-    if (url.includes('drive.google.com')) {
-      // Extract file ID from Google Drive URL
-      const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-      if (fileIdMatch) {
-        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
-      }
-    }
-    return url; // Return original URL if not a Google Drive URL
-  };
-
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'profile', label: 'Profile', icon: User },
@@ -559,7 +864,23 @@ const TutorDashboard: React.FC = () => {
 
   const EditButton = ({ section, className = "" }: { section: keyof typeof editMode, className?: string }) => (
     <button
-      onClick={() => toggleEditMode(section)}
+      onClick={() => {
+        if (editMode[section] && section === 'basic') {
+          // Save personal information when clicking save
+          handleSavePersonalInfo();
+        } else if (editMode[section] && section === 'qualifications') {
+          // Save qualifications when clicking save
+          handleSaveQualifications();
+        } else if (editMode[section] && section === 'subjects') {
+          // Save subjects and titles when clicking save
+          handleSaveSubjectsAndTitles();
+        } else if (editMode[section] && section === 'pricing') {
+          // Save hourly rate when clicking save
+          handleSaveHourlyRate();
+        } else {
+          toggleEditMode(section);
+        }
+      }}
       className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
         editMode[section] 
           ? 'bg-green-100 text-green-700 hover:bg-green-200' 
@@ -644,7 +965,7 @@ const TutorDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Rating</p>
-              <p className="text-3xl font-bold text-yellow-600">{stats.averageRating}</p>
+              <p className="text-3xl font-bold text-yellow-600">{tutorProfile.rating}</p>
               <p className="text-xs text-gray-500 mt-1">Average rating</p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -820,21 +1141,13 @@ const TutorDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Heading</label>
                   <input
-                    type="number"
-                    value={tutorProfile.age}
-                    onChange={(e) => handleProfileChange('age', parseInt(e.target.value))}
+                    type="text"
+                    value={tutorProfile.heading || ''}
+                    onChange={(e) => handleProfileChange('heading', e.target.value)}
                     className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={tutorProfile.dob}
-                    onChange={(e) => handleProfileChange('dob', e.target.value)}
-                    className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="Brief title or specialization..."
                   />
                 </div>
               </>
@@ -847,20 +1160,15 @@ const TutorDashboard: React.FC = () => {
                   </div>
                   <p className="text-lg font-medium text-gray-800">{tutorProfile.name}</p>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="w-5 h-5 text-gray-500 mr-2" />
-                    <span className="text-sm font-semibold text-gray-500">Age</span>
+                {tutorProfile.heading && (
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <div className="flex items-center mb-2">
+                      <BookOpen className="w-5 h-5 text-gray-500 mr-2" />
+                      <span className="text-sm font-semibold text-gray-500">Heading</span>
+                    </div>
+                    <p className="text-lg font-medium text-gray-800">{tutorProfile.heading}</p>
                   </div>
-                  <p className="text-lg font-medium text-gray-800">{tutorProfile.age} years old</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="w-5 h-5 text-gray-500 mr-2" />
-                    <span className="text-sm font-semibold text-gray-500">Date of Birth</span>
-                  </div>
-                  <p className="text-lg font-medium text-gray-800">{new Date(tutorProfile.dob).toLocaleDateString()}</p>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -925,124 +1233,483 @@ const TutorDashboard: React.FC = () => {
         
         {editMode.qualifications ? (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">A/L Qualifications</label>
-              <input
-                type="text"
-                value={tutorProfile.alQualifications}
-                onChange={(e) => handleProfileChange('alQualifications', e.target.value)}
-                className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                placeholder="e.g., A/L: Mathematics (A), Physics (A), Chemistry (B)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Degree & University</label>
-              <input
-                type="text"
-                value={tutorProfile.degree}
-                onChange={(e) => handleProfileChange('degree', e.target.value)}
-                className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                placeholder="e.g., Ph.D. in Applied Mathematics, MIT"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Selected Qualifications Display */}
+            {tutorProfile.qualifications.length > 0 && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">CV/Resume Link</label>
-                <input
-                  type="url"
-                  value={tutorProfile.cvUrl}
-                  onChange={(e) => handleProfileChange('cvUrl', e.target.value)}
-                  className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="Google Drive link to your CV"
-                />
+                <p className="text-sm font-semibold text-gray-700 mb-3">Selected Qualifications:</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tutorProfile.qualifications.map((qualification, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200"
+                    >
+                      {qualification}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQualification(qualification)}
+                        className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-green-600 hover:text-green-800 hover:bg-green-200"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Sample Video Link</label>
-                <input
-                  type="url"
-                  value={tutorProfile.sampleVideoUrl}
-                  onChange={(e) => handleProfileChange('sampleVideoUrl', e.target.value)}
-                  className="w-full p-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  placeholder="Google Drive link to your sample lecture video"
-                />
+            )}
+
+            {/* Standard Qualifications Dropdown */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Choose from Standard Qualifications
+              </label>
+              <div className="border border-gray-300 rounded-xl bg-white">
+                {/* Search Filter */}
+                <div className="p-3 border-b border-gray-200">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={16} className="text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={qualificationFilter}
+                      onChange={(e) => setQualificationFilter(e.target.value)}
+                      className="pl-9 block w-full py-2 border-0 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 sm:text-sm"
+                      placeholder="Search qualifications..."
+                    />
+                  </div>
+                </div>
+                
+                {/* Qualifications List */}
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="p-2">
+                    <div className="p-2 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                      <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                        {qualificationFilter ? `Results for "${qualificationFilter}"` : 'Available Qualifications'}
+                      </p>
+                    </div>
+                    {getFilteredQualifications().length === 0 ? (
+                      <div className="p-4 text-gray-500 text-sm text-center">
+                        No qualifications found for "{qualificationFilter}"
+                      </div>
+                    ) : (
+                      getFilteredQualifications().map((qualification, index) => (
+                        <label
+                          key={index}
+                          className="flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tutorProfile.qualifications.includes(qualification)}
+                            onChange={() => handleQualificationChange(qualification)}
+                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-3 text-sm text-gray-700">{qualification}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Add Custom Qualification */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Add Custom Qualification
+              </label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={customQualification}
+                    onChange={(e) => setCustomQualification(e.target.value)}
+                    className="block w-full py-3 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent sm:text-sm"
+                    placeholder="e.g., MSc Data Science, Professional Certificate..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomQualification();
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddCustomQualification}
+                  disabled={!customQualification.trim()}
+                  className="px-4 py-3 border border-green-300 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Search and select from standard qualifications or add your own custom qualification
+              </p>
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="bg-green-50 p-6 rounded-xl border border-green-200">
-              <div className="flex items-center mb-3">
-                <Award className="w-5 h-5 text-green-600 mr-2" />
-                <span className="text-sm font-semibold text-green-700">A/L Qualifications</span>
-              </div>
-              <p className="text-lg font-medium text-gray-800">{tutorProfile.alQualifications}</p>
-            </div>
-            <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
-              <div className="flex items-center mb-3">
-                <GraduationCap className="w-5 h-5 text-blue-600 mr-2" />
-                <span className="text-sm font-semibold text-blue-700">Degree & University</span>
-              </div>
-              <p className="text-lg font-medium text-gray-800">{tutorProfile.degree}</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center">
-                    <FileText className="w-5 h-5 text-purple-600 mr-2" />
-                    <span className="text-sm font-semibold text-purple-700">CV/Resume</span>
+          <div>
+            {tutorProfile.qualifications.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tutorProfile.qualifications.map((qualification, index) => (
+                  <div key={index} className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-xl border border-green-200">
+                    <div className="flex items-center">
+                      <Award className="w-5 h-5 text-green-600 mr-3 flex-shrink-0" />
+                      <p className="text-sm font-medium text-gray-800">{qualification}</p>
+                    </div>
                   </div>
-                  <button 
-                    onClick={() => setShowCVModal(true)}
-                    className="flex items-center text-purple-600 hover:text-purple-800 transition-colors"
-                  >
-                    <FileText className="w-4 h-4 mr-1" />
-                    View
-                  </button>
-                </div>
-                <p className="text-sm text-gray-600">Click to view your CV document</p>
+                ))}
               </div>
-              <div className="bg-orange-50 p-6 rounded-xl border border-orange-200">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center">
-                    <Video className="w-5 h-5 text-orange-600 mr-2" />
-                    <span className="text-sm font-semibold text-orange-700">Sample Video</span>
-                  </div>
-                  <button 
-                    onClick={() => setShowVideoModal(true)}
-                    className="flex items-center text-orange-600 hover:text-orange-800 transition-colors"
-                  >
-                    <VideoIcon className="w-4 h-4 mr-1" />
-                    Watch
-                  </button>
-                </div>
-                <p className="text-sm text-gray-600">Your sample lecture video</p>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <GraduationCap className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">No Qualifications Added</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Click Edit to add your educational qualifications and certifications.
+                </p>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Subjects and Titles */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Subjects & Titles</h2>
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+              <BookOpen className="mr-3 text-blue-600" size={24} />
+              Subjects & Titles
+            </h2>
+            <p className="text-gray-600 mt-1">Your teaching subjects and areas of expertise</p>
+          </div>
           <EditButton section="subjects" />
         </div>
         
-        <div className="space-y-4">
-          {subjects.map((subjectItem, index) => (
-            <div key={index} className="border border-gray-200 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg text-gray-800 mb-2">{subjectItem.subject}</h3>
-              <div className="flex flex-wrap gap-2">
-                {subjectItem.titles.map((title, titleIndex) => (
-                  <span key={titleIndex} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                    {title}
-                  </span>
-                ))}
+        {editMode.subjects ? (
+          <div className="space-y-6">
+            {/* Subjects Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subjects <span className="text-red-500">*</span>
+              </label>
+              <div className="border border-gray-300 rounded-xl bg-white">
+                {/* Search Filter */}
+                <div className="p-3 border-b border-gray-200">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={16} className="text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={subjectFilter}
+                      onChange={(e) => setSubjectFilter(e.target.value)}
+                      className="pl-9 block w-full py-2 border-0 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                      placeholder="Search subjects..."
+                    />
+                  </div>
+                </div>
+                
+                {/* Subjects List */}
+                <div className="max-h-64 overflow-y-auto">
+                  {loadingSubjects ? (
+                    <div className="p-4 text-gray-500 text-sm text-center">Loading subjects...</div>
+                  ) : getFilteredSubjects().length === 0 ? (
+                    <div className="p-4 text-gray-500 text-sm text-center">
+                      {subjectFilter ? `No subjects found for "${subjectFilter}"` : 'No subjects available'}
+                    </div>
+                  ) : (
+                    <div className="p-2">
+                      {getFilteredSubjects().map((subject) => (
+                        <label
+                          key={subject.sub_id}
+                          className="flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tutorProfile.subjects.includes(subject.sub_id)}
+                            onChange={() => handleSubjectChange(subject.sub_id)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-3 text-sm text-gray-700">{subject.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+              {tutorProfile.subjects.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tutorProfile.subjects.map((subjectId) => {
+                    const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                    return subject ? (
+                      <span
+                        key={subjectId}
+                        className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                      >
+                        {subject.name}
+                        <button
+                          type="button"
+                          onClick={() => handleSubjectChange(subjectId)}
+                          className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-200"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+
+            {/* Add Custom Subject */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Add Custom Subject
+              </label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={customSubject}
+                    onChange={(e) => setCustomSubject(e.target.value)}
+                    className="block w-full py-3 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"
+                    placeholder="e.g., Data Science, Robotics..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomSubject();
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddCustomSubject}
+                  disabled={!customSubject.trim()}
+                  className="px-4 py-3 border border-blue-300 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Can't find your subject? Add it here and it will be available for other tutors too
+              </p>
+            </div>
+
+            {/* Titles Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Titles/Expertise <span className="text-red-500">*</span>
+              </label>
+              {tutorProfile.subjects.length === 0 ? (
+                <div className="border border-gray-300 rounded-xl bg-gray-50 p-4 text-gray-500 text-sm text-center">
+                  Please select subjects first to see available titles
+                </div>
+              ) : (
+                <div className="border border-gray-300 rounded-xl bg-white">
+                  {/* Search Filter */}
+                  <div className="p-3 border-b border-gray-200">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search size={16} className="text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={titleFilter}
+                        onChange={(e) => setTitleFilter(e.target.value)}
+                        className="pl-9 block w-full py-2 border-0 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 sm:text-sm"
+                        placeholder="Search titles..."
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Titles List */}
+                  <div className="max-h-64 overflow-y-auto">
+                    {loadingTitles ? (
+                      <div className="p-4 text-gray-500 text-sm text-center">Loading titles...</div>
+                    ) : getFilteredTitles().length === 0 ? (
+                      <div className="p-4 text-gray-500 text-sm text-center">
+                        {titleFilter ? `No titles found for "${titleFilter}"` : 'No titles available for selected subjects'}
+                      </div>
+                    ) : (
+                      <div className="p-2">
+                        {getFilteredTitles().map((title) => (
+                          <label
+                            key={title.title_id}
+                            className="flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={tutorProfile.titles.includes(title.title_id)}
+                              onChange={() => handleTitleChange(title.title_id)}
+                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-3 text-sm text-gray-700">{title.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {tutorProfile.titles.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tutorProfile.titles.map((titleId) => {
+                    const title = availableTitles.find(t => t.title_id === titleId);
+                    return title ? (
+                      <span
+                        key={titleId}
+                        className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200"
+                      >
+                        {title.name}
+                        <button
+                          type="button"
+                          onClick={() => handleTitleChange(titleId)}
+                          className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-green-600 hover:text-green-800 hover:bg-green-200"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Add Custom Title */}
+            {tutorProfile.subjects.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Add Custom Title
+                </label>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <select
+                        value={selectedSubjectForCustomTitle}
+                        onChange={(e) => setSelectedSubjectForCustomTitle(e.target.value)}
+                        className="block w-full py-3 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent sm:text-sm"
+                      >
+                        <option value="">Select subject for new title</option>
+                        {tutorProfile.subjects.map(subjectId => {
+                          const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                          return subject ? (
+                            <option key={subjectId} value={subjectId}>
+                              {subject.name}
+                            </option>
+                          ) : null;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                  {selectedSubjectForCustomTitle && (
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={customTitle}
+                          onChange={(e) => setCustomTitle(e.target.value)}
+                          className="block w-full py-3 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent sm:text-sm"
+                          placeholder="e.g., Machine Learning, Advanced Calculus..."
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomTitle();
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddCustomTitle}
+                        disabled={!customTitle.trim()}
+                        className="px-4 py-3 border border-green-300 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Can't find your area of expertise? Add it here and it will be available for other tutors too
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {tutorProfile.subjects.length > 0 ? (
+              <div className="space-y-6">
+                {/* Show loading state if subjects/titles are still loading */}
+                {(loadingSubjects || loadingTitles) && (
+                  <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                      <p className="text-sm text-blue-700">Loading subjects and titles...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Display subjects with their titles */}
+                {tutorProfile.subjects.map((subjectId) => {
+                  const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                  const subjectTitles = tutorProfile.titles
+                    .map(titleId => availableTitles.find(t => t.title_id === titleId))
+                    .filter(title => title && title.sub_id === subjectId);
+                  
+                  return (
+                    <div key={subjectId} className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200">
+                      <div className="flex items-center mb-4">
+                        <BookOpen className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0" />
+                        <h3 className="font-semibold text-xl text-gray-800">
+                          {subject ? subject.name : `Subject ID: ${subjectId}`}
+                        </h3>
+                      </div>
+                      {subjectTitles.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {subjectTitles.map((title) => (
+                            <span key={title!.title_id} className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">
+                              {title!.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : tutorProfile.titles.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {tutorProfile.titles.map((titleId) => {
+                            const title = availableTitles.find(t => t.title_id === titleId);
+                            if (!title && !loadingTitles) {
+                              return (
+                                <span key={titleId} className="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium text-gray-600 border border-gray-300">
+                                  Title ID: {titleId}
+                                </span>
+                              );
+                            }
+                            return title ? (
+                              <span key={titleId} className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">
+                                {title.name}
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-gray-600 italic">No specific titles selected for this subject</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">No Subjects Added</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Click Edit to add your teaching subjects and areas of expertise.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hourly Rate */}
@@ -1553,173 +2220,6 @@ const TutorDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Video Modal */}
-      {showVideoModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowVideoModal(false)}
-        >
-          <div 
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <Video className="w-6 h-6 text-orange-600" />
-                <h3 className="text-xl font-semibold text-gray-800">Sample Lecture Video</h3>
-              </div>
-              <button
-                onClick={() => setShowVideoModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* Video Content */}
-            <div className="p-6">
-              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                <iframe
-                  src={getEmbeddableVideoUrl(tutorProfile.sampleVideoUrl)}
-                  className="absolute top-0 left-0 w-full h-full rounded-lg"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Sample Lecture Video"
-                />
-              </div>
-              
-              {/* Video Description */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">About This Video</h4>
-                <p className="text-gray-600 text-sm">
-                  This is a sample lecture video that demonstrates my teaching style and approach. 
-                  It gives students an idea of what to expect in my tutoring sessions.
-                </p>
-              </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <VideoIcon className="w-4 h-4" />
-                <span>Sample video preview</span>
-              </div>
-              <div className="flex space-x-3">
-                <a
-                  href={tutorProfile.sampleVideoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 text-orange-600 hover:text-orange-700 font-medium transition-colors flex items-center space-x-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Open in New Tab</span>
-                </a>
-                <button
-                  onClick={() => setShowVideoModal(false)}
-                  className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CV/Resume Modal */}
-      {showCVModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowCVModal(false)}
-        >
-          <div 
-            className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <FileText className="w-6 h-6 text-purple-600" />
-                <h3 className="text-xl font-semibold text-gray-800">CV/Resume</h3>
-              </div>
-              <button
-                onClick={() => setShowCVModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* Document Content */}
-            <div className="p-6">
-              <div className="relative w-full bg-gray-100 rounded-lg" style={{ height: '70vh' }}>
-                <iframe
-                  src={getEmbeddableDocumentUrl(tutorProfile.cvUrl)}
-                  className="absolute top-0 left-0 w-full h-full rounded-lg border-0"
-                  title="CV/Resume Document"
-                  onError={() => {
-                    console.log('Failed to load document preview');
-                  }}
-                />
-                {/* Fallback message overlay (hidden by iframe if loads successfully) */}
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500 pointer-events-none">
-                  <div className="text-center">
-                    <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">Document Preview</p>
-                    <p className="text-sm">Loading CV/Resume...</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Document Description */}
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">About This Document</h4>
-                <p className="text-gray-600 text-sm">
-                  This is my professional CV/Resume that showcases my educational background, 
-                  qualifications, teaching experience, and professional achievements.
-                </p>
-              </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <FileText className="w-4 h-4" />
-                <span>CV/Resume document preview</span>
-              </div>
-              <div className="flex space-x-3">
-                <a
-                  href={tutorProfile.cvUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium transition-colors flex items-center space-x-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Open in New Tab</span>
-                </a>
-                <a
-                  href={tutorProfile.cvUrl.replace('/view', '/export?format=pdf')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 text-green-600 hover:text-green-700 font-medium transition-colors flex items-center space-x-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download</span>
-                </a>
-                <button
-                  onClick={() => setShowCVModal(false)}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Image Edit Modal */}
       {showImageEditModal && (
         <div 
@@ -1816,6 +2316,7 @@ const TutorDashboard: React.FC = () => {
                 <button
                   onClick={handleImageSave}
                   disabled={!selectedImage || !imagePreview}
+                  data-save-button
                   className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                     selectedImage && imagePreview
                       ? 'bg-blue-600 text-white hover:bg-blue-700'

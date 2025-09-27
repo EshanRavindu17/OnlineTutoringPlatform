@@ -4,19 +4,19 @@ import apiClient from './apiClient';
 // const API_BASE_URL = 'http://localhost:5000/api';
 
 // Types matching the backend response
-export interface IndividualTutor {
-  i_tutor_id: string;
-  subjects: string[];
-  titles: string[];
-  hourly_rate: number;
-  rating: number;
-  description: string;
-  heading?: string;
-  User?: {
-    name: string;
-    photo_url: string | null;
-  } | null;
-}
+// export interface IndividualTutor {
+//   i_tutor_id: string;
+//   subjects: string[];
+//   titles: string[];
+//   hourly_rate: number;
+//   rating: number;
+//   description: string;
+//   heading?: string;
+//   User?: {
+//     name: string;
+//     photo_url: string | null;
+//   } | null;
+// }
 
 // Interface for subjects from database
 export interface Subject {
@@ -50,10 +50,38 @@ export interface TutorFilters {
   limit?: number;
 }
 
+// Interface for tutor profile data from dashboard
+export interface TutorProfile {
+  i_tutor_id: string;
+  subjects: string[];
+  titles: string[];
+  hourly_rate: number;
+  rating: number;
+  description: string;
+  heading?: string;
+  phone_number: string;
+  qualifications: string[];
+  User: {
+    dob: string;
+    name: string;
+    photo_url: string | null;
+  };
+}
+
+// Interface for tutor statistics from dashboard
+export interface TutorStatistics {
+  totalSessions: number;
+  totalEarnings: number;
+  averageRating: number;
+  reviewsCount: number;
+  upcomingSessions: number;
+}
+
 // API service for fetching individual tutors
 export const tutorService = {
   // Get individual tutors with filters
-  getIndividualTutors: async (filters: TutorFilters = {}): Promise<IndividualTutor[]> => {
+  // getIndividualTutors: async (filters: TutorFilters = {}): Promise<IndividualTutor[]> => {
+  getIndividualTutors: async (filters: TutorFilters = {}): Promise<TutorProfile[]> => {  
     console.log('Fetching individual tutors with filters:', filters);
     try {
       const params = new URLSearchParams();
@@ -136,6 +164,127 @@ export const tutorService = {
     } catch (error) {
       console.error('Error creating title:', error);
       throw new Error('Failed to create title');
+    }
+  },
+
+  // Get tutor profile for dashboard
+  getTutorProfile: async (firebaseUid: string): Promise<TutorProfile> => {
+    try {
+      const response = await apiClient.get(`/individual-tutor/profile/${firebaseUid}`);
+      console.log('Fetched tutor profile:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tutor profile:', error);
+      throw new Error('Failed to fetch tutor profile');
+    }
+  },
+
+  // Get tutor statistics for dashboard
+  getTutorStatistics: async (tutorId: string): Promise<TutorStatistics> => {
+    try {
+      const response = await apiClient.get(`/individual-tutor/stats/${tutorId}`);
+      console.log('Fetched tutor statistics:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching tutor statistics:', error);
+      throw new Error('Failed to fetch tutor statistics');
+    }
+  },
+
+  // Update user profile photo
+  updateUserPhoto: async (firebaseUid: string, photoUrl: string): Promise<any> => {
+    try {
+      const response = await apiClient.put(`/individual-tutor/photo/${firebaseUid}`, {
+        photoUrl: photoUrl
+      });
+      console.log('Updated user photo:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user photo:', error);
+      throw new Error('Failed to update profile photo');
+    }
+  },
+
+  // Upload user profile photo file
+  uploadUserPhoto: async (firebaseUid: string, file: File): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const response = await apiClient.post(`/individual-tutor/photo/upload/${firebaseUid}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      console.log('Uploaded user photo:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading user photo:', error);
+      throw new Error('Failed to upload profile photo');
+    }
+  },
+
+  // Update tutor qualifications
+  updateTutorQualifications: async (firebaseUid: string, qualifications: string[]): Promise<any> => {
+    try {
+      console.log('Updating tutor qualifications:', { firebaseUid, qualifications });
+      const response = await apiClient.put(`/individual-tutor/qualifications/${firebaseUid}`, {
+        qualifications
+      });
+      console.log('Qualifications updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating qualifications:', error);
+      throw new Error('Failed to update qualifications');
+    }
+  },
+
+  // Update tutor hourly rate
+  updateTutorHourlyRate: async (firebaseUid: string, hourlyRate: number): Promise<any> => {
+    try {
+      console.log('Updating tutor hourly rate:', { firebaseUid, hourlyRate });
+      const response = await apiClient.put(`/individual-tutor/hourly-rate/${firebaseUid}`, {
+        hourlyRate
+      });
+      console.log('Hourly rate updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating hourly rate:', error);
+      throw new Error('Failed to update hourly rate');
+    }
+  },
+
+  // Update tutor subjects and titles
+  updateTutorSubjectsAndTitles: async (firebaseUid: string, subjects: string[], titles: string[]): Promise<any> => {
+    try {
+      console.log('Updating tutor subjects and titles:', { firebaseUid, subjects, titles });
+      const response = await apiClient.put(`/individual-tutor/subjects-titles/${firebaseUid}`, {
+        subjects,
+        titles
+      });
+      console.log('Subjects and titles updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating subjects and titles:', error);
+      throw new Error('Failed to update subjects and titles');
+    }
+  },
+
+  // Update tutor personal information
+  updateTutorPersonalInfo: async (firebaseUid: string, personalInfo: {
+    name: string;
+    description: string;
+    phone_number: string;
+    heading?: string | null;
+  }): Promise<any> => {
+    try {
+      console.log('Updating tutor personal information:', { firebaseUid, personalInfo });
+      const response = await apiClient.put(`/individual-tutor/personal-info/${firebaseUid}`, personalInfo);
+      console.log('Personal information updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating personal information:', error);
+      throw new Error('Failed to update personal information');
     }
   }
 };
