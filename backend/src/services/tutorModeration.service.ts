@@ -78,8 +78,6 @@ export async function approveCandidateService(candidateId: string) {
           status: 'active' as const,
         };
 
-        console.log(`🏗️ Creating Individual tutor with hybrid data:`, individualTutorData);
-
         tutor = await tx.individual_Tutor.create({
           data: individualTutorData,
         });
@@ -87,9 +85,6 @@ export async function approveCandidateService(candidateId: string) {
     } else {
       if (c.user_id) tutor = await tx.mass_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
-        // Parse tutor data using hybrid approach
-        // let tutorData: any = {};
-        // Create Mass Tutor with hybrid data (direct fields + JSON fields)
         const massTutorData = {
           subjects: c.subjects,
           prices: c.prices,
@@ -99,8 +94,6 @@ export async function approveCandidateService(candidateId: string) {
           heading: c.heading,
           status: 'active' as const,
         };
-
-        console.log(`🏗️ Creating Mass tutor with hybrid data:`, massTutorData);
 
         tutor = await tx.mass_Tutor.create({
           data: massTutorData,

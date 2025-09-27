@@ -8,6 +8,7 @@ import { addStudent } from '../api/Student.ts';
 import { sendVerificationEmail } from '../utils/emailVerification';
 import { uploadAllDocuments } from '../api/Documents';
 import { tutorService, Subject, Title } from '../api/TutorService';
+import { STANDARD_QUALIFICATIONS } from '../constants/qualifications';
 
 export default function SignupForm({ role = 'student' }) {
   const navigate = useNavigate();
@@ -51,34 +52,8 @@ export default function SignupForm({ role = 'student' }) {
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingTitles, setLoadingTitles] = useState(false);
 
-  // Predefined qualifications list
-  const [standardQualifications] = useState<string[]>([
-    // University Degrees
-    'BSc Mathematics',
-    'BSc Physics',
-    'BSc Chemistry',
-    'BSc Biology',
-    'BSc Computer Science',
-    'BSc Engineering',
-    'BA English Literature',
-    'BA Economics',
-    'BA Geography',
-    'BA History',
-    'MSc Mathematics',
-    'MSc Physics',
-    'MSc Chemistry',
-    'MSc Biology',
-    'PhD Mathematics',
-    'PhD Physics',
-    'PhD Chemistry',
-    'PhD Biology',
-    // Teaching Qualifications
-    'PGDE (Postgraduate Diploma in Education)',
-    'Teaching Diploma',
-    'Certificate in Teaching',
-    'B.Ed (Bachelor of Education)',
-    'M.Ed (Master of Education)'
-  ]);
+  // Predefined qualifications list (imported from shared constants)
+  const standardQualifications = STANDARD_QUALIFICATIONS;
 
   // State for custom qualification input
   const [customQualification, setCustomQualification] = useState('');
