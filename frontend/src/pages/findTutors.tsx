@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import NavBar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { tutorService, IndividualTutor, Subject, Title, TitleWithSubject } from '../api/TutorService';
+import { tutorService,TutorProfile, Subject, Title, TitleWithSubject } from '../api/TutorService';
 import { getAllMassClasses, MassClass } from '../api/Student';
 
 import { useAuth } from '../context/authContext';
@@ -202,7 +202,7 @@ export default function FindTutorsPage() {
   };
 
   // Function to convert backend data to frontend format
-  const convertBackendToFrontend = (backendTutors: IndividualTutor[]): Tutor[] => {
+  const convertBackendToFrontend = (backendTutors: TutorProfile[]): Tutor[] => {
     return backendTutors.map(tutor => ({
       id: tutor.i_tutor_id,
       name: tutor.User?.name || 'Unknown Tutor',
