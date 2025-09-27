@@ -15,7 +15,11 @@ import { addStudentController,
          getTutorsByStudentIdController,
          testZoomController,
          updateAccessTimeinFreeSlotsController,
-         updateSlotStatusController} 
+         updateSlotStatusController,
+         getMassTutorProfileByIdController,
+         getClassSlotsByClassIdAndStudentIdController,
+         getClassSlotsByClassIdController,
+         getClassesByStudentIdController} 
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
@@ -78,6 +82,10 @@ router.get('/get-reports/:studentId', getReportsByStudentIdController);
 // Mass Class routes will be in massClassRoutes.ts
 
 router.get('/getAllMassClasses', getAllMassClassesController);
+router.get('/getMassTutorById/:tutorId', getMassTutorProfileByIdController);
+router.get('/getClassSlotsByClassIdAndStudentId/:classId/:studentId', getClassSlotsByClassIdAndStudentIdController);
+router.get('/getClassSlotsByClassID/:classId/:month', getClassSlotsByClassIdController);
+router.get('/getClassByStudentId/:student_id', getClassesByStudentIdController);
 
 
 export default router;

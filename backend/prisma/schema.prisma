@@ -90,16 +90,19 @@ model Individual_Tutor {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Mass_Tutor {
-  m_tutor_id  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjects    String[]    @db.VarChar
-  prices      Decimal?    @db.Decimal(10, 2)
-  description String?
-  user_id     String?     @db.Uuid
-  rating      Decimal?    @db.Decimal(3, 1)
-  heading     String?
-  status      TutorStatus @default(active)
-  Class       Class[]
-  User        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
+  m_tutor_id     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjects       String[]    @db.VarChar
+  prices         Decimal?    @db.Decimal(10, 2)
+  description    String?
+  user_id        String?     @db.Uuid
+  rating         Decimal?    @db.Decimal(3, 1)
+  heading        String?
+  status         TutorStatus @default(active)
+  phone_number   String?     @db.VarChar
+  qualifications String[]
+  location       String?
+  Class          Class[]
+  User           User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
 
 model Notifications {
@@ -208,6 +211,7 @@ model Class {
   time                  DateTime?               @db.Time(6)
   day                   String?                 @db.VarChar
   title                 String?
+  description           String?
   Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
   ClassSlot             ClassSlot[]
   Enrolment             Enrolment[]
@@ -230,12 +234,13 @@ model ClassSlot {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Enrolment {
-  enrol_id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  student_id String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
-  Student    Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+  enrol_id   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime         @default(now()) @db.Timestamptz(6)
+  class_id   String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status     EnrolmentStatus? @default(valid)
+  Class      Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student    Student?         @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -257,7 +262,7 @@ model Rating_N_Review_Class {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   student_id String?  @db.Uuid
   class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  raiting    Int?     @default(0) @db.SmallInt
+  rating     Float?   @db.Real
   review     String?
   Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
   Student    Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
@@ -310,4 +315,9 @@ enum UserRole {
   Individual
   Mass
   Admin
+}
+
+enum EnrolmentStatus {
+  valid
+  invalid
 }

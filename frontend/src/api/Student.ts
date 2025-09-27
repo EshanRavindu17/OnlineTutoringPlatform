@@ -757,6 +757,53 @@ export interface MassClass {
   monthlyRate: string;
 }
 
+
+// Interfaces for Mass Tutor Profile
+
+export interface MassTutor {
+  m_tutor_id: string;
+  subjects: string[];
+  prices: string;
+  description: string;
+  user_id: string;
+  rating: string;
+  heading: string;
+  status: string;
+  phone_number: string;
+  qualifications: string[];
+  location: string;
+  User: {
+    name: string;
+    photo_url: string;
+  };
+  Class: ClassInfo[];
+}
+
+export interface ClassInfo {
+  class_id: string;
+  title: string;
+  subject: string;
+  time: string; // ISO date string (e.g. "1970-01-01T08:00:00.000Z")
+  day: string;
+  description: string;
+  Rating_N_Review_Class: RatingReview[];
+  _count: {
+    Enrolment: number;
+  };
+}
+
+export interface RatingReview {
+  rating: number;
+  review: string;
+  Student: {
+    User: {
+      name: string;
+      photo_url: string;
+    };
+  };
+}
+
+
 export const getAllMassClasses = async (subjects:string,page: number, limit: number, sort?: string, rating?: number, minMonthRate?: number, maxMonthRate?: number, searchTerm?: string): Promise<MassClass[]> => {
     console.log('Fetching all mass classes with params:', { page, limit, sort, rating, minMonthRate, maxMonthRate, searchTerm });
     try {
@@ -778,5 +825,18 @@ export const getAllMassClasses = async (subjects:string,page: number, limit: num
     } catch (error: any) {
         console.error('❌ Failed to fetch all mass classes:', error);
         throw new Error(`Failed to fetch all mass classes: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+
+export const getMassTutorById = async (tutorId: string): Promise<MassTutor> => {
+    console.log('Fetching mass tutor by ID:', tutorId);
+    try {
+        const response = await axios.get<MassTutor>(`${baseUrl2}/getMassTutorById/${tutorId}`);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass tutor by ID:', error);
+        throw new Error(`Failed to fetch mass tutor by ID: ${error.message || 'Unknown error occurred'}`);
     }
 };

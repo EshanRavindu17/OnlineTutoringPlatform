@@ -54,3 +54,29 @@ export const refundPayment = async (paymentIntentId: string, amount?: number) =>
     throw error;
   }
 };
+
+
+// for create a strype product and price for mass class subscription
+export const createStripeProductAndPrice = async (tutorId: number, tutorName: string, monthlyRate: number) => {
+  try {
+    // Create a product
+    const product = await stripe.products.create({
+      name: `Mass Class Subscription - ${tutorName}`,
+      description: `Monthly subscription for mass classes by ${tutorName}`,
+      metadata: {
+        tutorId: tutorId.toString(),
+      },
+    });
+    // Create a price for the product
+    const price = await stripe.prices.create({
+      unit_amount: monthlyRate * 100, // Amount in cents
+      currency: 'usd',
+      recurring: { interval: 'month' },
+      product: product.id,
+    });
+    return { product, price };
+  } catch (error) {
+    console.error("Error creating Stripe product and price:", error);
+    throw error;
+  }
+};
