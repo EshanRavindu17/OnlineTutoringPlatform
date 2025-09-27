@@ -27,6 +27,7 @@ export const addStudentController = async (req: Request, res: Response) => {
 
 export const getAllIndividualTutorsController = async (req: Request, res: Response) => {
     const {
+        name,
         subjects,
         titles,
         min_hourly_rate,
@@ -39,6 +40,7 @@ export const getAllIndividualTutorsController = async (req: Request, res: Respon
     } = req.query;
 
     const tutors = await getAllIndividualTutors(
+        name as string,
         subjects as string,
         titles as string,
         Number(min_hourly_rate),
@@ -279,5 +281,52 @@ export const getTutorNameAndTypeByIdController = async (req: Request, res: Respo
     } catch (error) {
         console.error("Error getting tutor name and type:", error);
         return res.status(500).json({ error: "Failed to get tutor name and type" });
+    }
+};
+
+
+
+
+// Mass Class Controller in studentController file
+
+import { getAllMassClasses } from "../services/studentService";
+
+
+export const getAllMassClassesController = async (req: Request, res: Response) => {
+    const {
+        subjects,
+        min_monthly_rate,
+        max_monthly_rate,
+        rating,
+        sort,
+        searchTerm,
+        // classTitle,
+        // tutorName,
+        page,
+        limit
+    } = req.query;
+
+    // console.log("Query Parameters:", req.query);
+
+    const subjectsArray = (subjects as string)?.split(",").map(sub => sub.trim());
+
+
+    try {
+        const massClasses = await getAllMassClasses(
+            subjectsArray,
+            Number(min_monthly_rate),
+            Number(max_monthly_rate),
+            rating as unknown as number,
+            // tutorName as string,
+            // classTitle as string,
+            searchTerm as string,
+            sort as string,
+            Number(page),
+            Number(limit)
+        );
+        return res.json(massClasses);
+    } catch (error) {
+        console.error("Error getting mass classes:", error);
+        return res.status(500).json({ error: "Failed to get mass classes" });
     }
 };
