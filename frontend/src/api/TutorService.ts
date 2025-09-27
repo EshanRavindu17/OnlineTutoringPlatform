@@ -40,6 +40,7 @@ export interface Title {
 }
 
 export interface TutorFilters {
+  name?: string;
   subjects?: string;
   titles?: string;
   min_hourly_rate?: number;
@@ -85,7 +86,8 @@ export const tutorService = {
     console.log('Fetching individual tutors with filters:', filters);
     try {
       const params = new URLSearchParams();
-      
+
+      if (filters.name) params.append('name', filters.name);
       if (filters.subjects) params.append('subjects', filters.subjects);
       if (filters.titles) params.append('titles', filters.titles);
       if (filters.min_hourly_rate) params.append('min_hourly_rate', filters.min_hourly_rate.toString());

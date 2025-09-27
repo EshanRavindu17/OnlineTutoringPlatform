@@ -719,3 +719,64 @@ export const getTutorNameAndTypeById = async (tutorId: string) => {
         throw new Error(`Failed to fetch tutor name and type: ${error.message || 'Unknown error occurred'}`);
     }
 };
+
+
+
+
+// Mass Tutors 
+
+export interface MassTutorUser {
+  name: string;
+  photo_url: string;
+}
+
+export interface MassTutor {
+  rating: string; // you might convert this to number if needed
+  prices: string; // you might convert this to number if needed
+  User: MassTutorUser;
+}
+
+export interface ClassCount {
+  Enrolment: number;
+}
+
+export interface MassClass {
+  class_id: string;
+  created_at: string; // or Date if you parse it
+  m_tutor_id: string;
+  subject: string;
+  time: string; // or Date if you parse it
+  day: string;
+  title: string;
+  Mass_Tutor: MassTutor;
+  _count: ClassCount;
+  enrollmentCount: number;
+  tutorName: string;
+  tutorPhoto: string;
+  tutorRating: string;
+  monthlyRate: string;
+}
+
+export const getAllMassClasses = async (subjects:string,page: number, limit: number, sort?: string, rating?: number, minMonthRate?: number, maxMonthRate?: number, searchTerm?: string): Promise<MassClass[]> => {
+    console.log('Fetching all mass classes with params:', { page, limit, sort, rating, minMonthRate, maxMonthRate, searchTerm });
+    try {
+        const response = await axios.get<MassClass[]>(`${baseUrl2}/getAllMassClasses`, {
+            params: {
+                subjects,
+                page,
+                limit,
+                sort,
+                rating,
+                // tutorName,
+                // classTitle,
+                minMonthRate,
+                maxMonthRate,
+                searchTerm
+            }
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch all mass classes:', error);
+        throw new Error(`Failed to fetch all mass classes: ${error.message || 'Unknown error occurred'}`);
+    }
+};

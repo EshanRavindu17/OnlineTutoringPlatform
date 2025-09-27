@@ -5,6 +5,7 @@ import { addStudentController,
          createPaymentRecordController, 
          findTimeSlotsController, 
          getAllIndividualTutorsController ,
+         getAllMassClassesController,
          getAllSessionsByStudentIdController,
          getIndividualTutorByIdController,
          getPaymentHistoryController,
@@ -72,4 +73,11 @@ router.get('/get-reviews/:tutorId', getReviewsByIndividualTutorIdController);
 router.post('/report-tutor', generateReportController);
 router.get('/get-reports/:studentId', getReportsByStudentIdController);
 
-export default router;  
+
+
+// Mass Class routes will be in massClassRoutes.ts
+
+router.get('/getAllMassClasses', getAllMassClassesController);
+
+
+export default router;
