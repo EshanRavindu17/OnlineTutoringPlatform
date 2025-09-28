@@ -22,9 +22,17 @@ const fmtDateTime = (iso: string | null) => {
 };
 
 const StatusPill = ({ status }: { status: Candidate['status'] }) => {
-  const tone =
-    status === 'approved' ? 'badge-green' : status === 'rejected' ? 'badge-red' : 'badge-gray';
-  return <span className={`admin-badge ${tone} capitalize`}>{status}</span>;
+  const colorMap = {
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    approved: 'bg-green-100 text-green-800 border-green-200',
+    rejected: 'bg-red-100 text-red-800 border-red-200',
+  };
+  
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colorMap[status]} capitalize`}>
+      {status}
+    </span>
+  );
 };
 
 const IconCheck = () => (
@@ -112,120 +120,230 @@ export default function TutorApproval() {
     } finally { setActionId(null); }
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Approve / Reject Tutor</h1>
-        <p className="text-sm text-gray-500">Review tutor applications and update their status.</p>
+      {/* Compact Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tutor Applications 📋</h1>
+          <p className="text-gray-600">Review and manage tutor applications</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-yellow-800">{counts.pending}</div>
+            <div className="text-xs text-yellow-600">Pending</div>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-green-800">{counts.approved}</div>
+            <div className="text-xs text-green-600">Approved</div>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-red-800">{counts.rejected}</div>
+            <div className="text-xs text-red-600">Rejected</div>
+          </div>
+        </div>
       </div>
 
-      {/* Filters / toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-xl bg-gray-100 p-1">
-          {([
-            { key: 'all', label: `All (${counts.all})` },
-            { key: 'pending', label: `Pending (${counts.pending})` },
-            { key: 'approved', label: `Approved (${counts.approved})` },
-            { key: 'rejected', label: `Rejected (${counts.rejected})` },
-          ] as const).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setStatusTab(key)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition ${
-                statusTab === key ? 'bg-white shadow' : 'opacity-75 hover:opacity-100'
-              }`}
+      {/* Compact Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'all', label: 'All', count: counts.all },
+              { key: 'pending', label: 'Pending', count: counts.pending },
+              { key: 'approved', label: 'Approved', count: counts.approved },
+              { key: 'rejected', label: 'Rejected', count: counts.rejected },
+            ].map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setStatusTab(key as any)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  statusTab === key
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {label} ({count})
+              </button>
+            ))}
+          </div>
+
+          {/* Role Filter */}
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value as any)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">All Types</option>
+            <option value="Individual">Individual</option>
+            <option value="Mass">Mass</option>
+          </select>
+
+          {/* Search */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <IconSearch />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
+            />
+          </div>
+
+          {/* Results Info & Refresh */}
+          <div className="flex items-center gap-4 ml-auto">
+            <span className="text-sm text-gray-600">
+              <strong>{filtered.length}</strong> of <strong>{counts.all}</strong>
+            </span>
+            <button 
+              onClick={load}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
-              {label}
+              ↻
             </button>
-          ))}
+          </div>
         </div>
-
-        <select
-          className="border rounded-lg px-3 py-2 text-sm"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value as any)}
-        >
-          <option value="all">All roles</option>
-          <option value="Individual">Individual</option>
-          <option value="Mass">Mass</option>
-        </select>
-
-        <div className="relative">
-          <span className="absolute left-2 top-2.5 text-gray-400"><IconSearch /></span>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name or email…"
-            className="pl-7 pr-3 py-2 border rounded-lg text-sm w-64"
-          />
-        </div>
-
-        <button onClick={load} className="ml-auto admin-btn admin-btn-ghost">Refresh</button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border overflow-hidden">
+      {/* Applications Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-auto">
-          <table className="min-w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 text-gray-700 border-b">
+          <table className="min-w-full">
+            <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left font-medium p-3 w-48">Name</th>
-                <th className="text-left font-medium p-3 w-64">Email</th>
-                <th className="text-left font-medium p-3 w-24">Role</th>
-                <th className="text-left font-medium p-3 w-40">Applied at</th>
-                <th className="text-left font-medium p-3 w-32">Status</th>
-                <th className="text-left font-medium p-3 w-48">Actions</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-48">Applicant</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-64">Contact</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-32">Type</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-40">Applied</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-32">Status</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-48">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {loading ? (
-                [...Array(6)].map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="p-3"><div className="h-3 w-40 bg-gray-200 rounded" /></td>
-                    <td className="p-3"><div className="h-3 w-48 bg-gray-200 rounded" /></td>
-                    <td className="p-3"><div className="h-3 w-20 bg-gray-200 rounded" /></td>
-                    <td className="p-3"><div className="h-3 w-36 bg-gray-200 rounded" /></td>
-                    <td className="p-3"><div className="h-5 w-20 bg-gray-200 rounded-full" /></td>
-                    <td className="p-3"><div className="h-8 w-48 bg-gray-200 rounded" /></td>
-                  </tr>
-                ))
-              ) : filtered.length === 0 ? (
+            <tbody className="divide-y divide-gray-200">
+              {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-gray-500">No candidates match your filters.</td>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="text-6xl mb-4">📭</div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No applications found</h3>
+                    <p className="text-gray-500">
+                      {q.trim() || statusTab !== 'all' || roleFilter !== 'all' 
+                        ? 'Try adjusting your filters or search terms'
+                        : 'No tutor applications have been submitted yet'
+                      }
+                    </p>
+                  </td>
                 </tr>
               ) : (
-                filtered.map((c) => {
-                  const disabled = c.status !== 'pending' || actionId === c.id;
+                filtered.map((candidate) => {
+                  const isProcessing = actionId === candidate.id;
+                  const isPending = candidate.status === 'pending';
+                  
                   return (
-                    <tr key={c.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-50">
-                      <td className="p-3">
-                        <div className="font-medium truncate">{c.name ?? '—'}</div>
-                        {c.bio && <div className="text-xs text-gray-500 line-clamp-1 max-w-[12rem]">{c.bio}</div>}
-                      </td>
-                      <td className="p-3 truncate">{c.email ?? c.User?.email ?? '—'}</td>
-                      <td className="p-3">{c.role}</td>
-                      <td className="p-3">{fmtDateTime(c.applied_at)}</td>
-                      <td className="p-3"><StatusPill status={c.status} /></td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => onApprove(c.id)}
-                            disabled={disabled}
-                            className={`admin-btn admin-btn-primary ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            title="Create tutor row & mark approved"
-                          >
-                            <IconCheck /> Approve
-                          </button>
-                          <button
-                            onClick={() => onReject(c.id)}
-                            disabled={disabled}
-                            className={`admin-btn admin-btn-ghost text-red-600 ring-1 ring-red-200 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            title="Mark as rejected"
-                          >
-                            <IconX /> Reject
-                          </button>
-                          {actionId === c.id && <span className="text-xs text-gray-500">Saving…</span>}
+                    <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
+                      {/* Applicant Info */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {candidate.User?.photo_url && (
+                            <img 
+                              src={candidate.User.photo_url} 
+                              alt={candidate.User.name || 'User'} 
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-900 truncate">
+                              {candidate.name || candidate.User?.name || 'Unknown'}
+                            </div>
+                            {candidate.bio && (
+                              <div className="text-sm text-gray-500 truncate max-w-[200px]">
+                                {candidate.bio}
+                              </div>
+                            )}
+                          </div>
                         </div>
+                      </td>
+                      
+                      {/* Contact Info */}
+                      <td className="p-4">
+                        <div className="text-sm">
+                          <div className="text-gray-900 font-medium">
+                            {candidate.email || candidate.User?.email || '—'}
+                          </div>
+                          {candidate.phone_number && (
+                            <div className="text-gray-500">
+                              {candidate.phone_number}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      
+                      {/* Tutor Type */}
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          candidate.role === 'Individual' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-purple-100 text-purple-700'
+                        }`}>
+                          {candidate.role}
+                        </span>
+                      </td>
+                      
+                      {/* Applied Date */}
+                      <td className="p-4 text-sm text-gray-600">
+                        {fmtDateTime(candidate.applied_at)}
+                      </td>
+                      
+                      {/* Status */}
+                      <td className="p-4">
+                        <StatusPill status={candidate.status} />
+                      </td>
+                      
+                      {/* Actions */}
+                      <td className="p-4">
+                        {isPending ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => onApprove(candidate.id)}
+                              disabled={isProcessing}
+                              className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
+                            >
+                              <IconCheck />
+                              {isProcessing ? 'Processing...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => onReject(candidate.id)}
+                              disabled={isProcessing}
+                              className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
+                            >
+                              <IconX />
+                              {isProcessing ? 'Processing...' : 'Reject'}
+                            </button>
+                            {isProcessing && (
+                              <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full ml-2"></div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500 italic">
+                            {candidate.status === 'approved' ? 'Approved' : 'Rejected'}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -236,8 +354,27 @@ export default function TutorApproval() {
         </div>
       </div>
 
-      {err && <div className="text-red-600 text-sm">{err}</div>}
-      {toast && <div className="fixed bottom-6 right-6 bg-black text-white text-sm px-3 py-2 rounded-xl shadow">{toast}</div>}
+      {err && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center">
+            <span className="text-red-500 mr-2">⚠️</span>
+            <span className="text-red-700">{err}</span>
+            <button 
+              onClick={load}
+              className="ml-auto text-red-600 hover:text-red-700 text-sm font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-green-600 text-white text-sm px-4 py-3 rounded-xl shadow-lg z-50 flex items-center gap-2">
+          <span>✅</span>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

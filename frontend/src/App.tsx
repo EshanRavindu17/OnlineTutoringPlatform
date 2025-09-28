@@ -35,9 +35,7 @@ import PaymentHistoryPage from './pages/student/paymentHistory';
 import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './pages/individualTutor/TutorRejected';
-import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 import EmailVerification from './pages/EmailVerification';
-import TutorRejected from './individualTutor/TutorRejected';
 
 import { massTutorRoutes } from './pages/massTutor/routes';
 

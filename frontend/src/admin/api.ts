@@ -103,6 +103,27 @@ export const adminApi = {
   async metrics() {
     return request('/dashboard/metrics');
   },
+
+  // Get current admin profile
+  async getProfile() {
+    return request('/profile');
+  },
+
+  // Update admin profile
+  async updateProfile(data: { name?: string; email?: string; phone?: string }) {
+    return request('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Change password
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    return request('/profile/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Tutor application moderation endpoints
@@ -166,4 +187,6 @@ export const tutorsApi = {
   unsuspend(kind: 'individual'|'mass', id: string) {
     return request(`/tutors/${kind}/${id}/unsuspend`, { method: 'POST' });
   },
+
+  // Get detailed profile of a specific tutor
 };
