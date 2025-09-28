@@ -253,10 +253,13 @@ async function getWeeklyActivity() {
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       });
     }
+
+    console.log('Weekly activity data:', weeklyData);
     
     return weeklyData;
   } catch (error) {
     console.error('Error fetching weekly activity:', error);
+    console.log('Returning mock weekly activity data.');
     // Return mock data for 7 days
     const mockData = [];
     const today = new Date();

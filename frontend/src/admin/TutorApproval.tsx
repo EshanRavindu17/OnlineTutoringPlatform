@@ -27,7 +27,6 @@ const StatusPill = ({ status }: { status: Candidate['status'] }) => {
     approved: 'bg-green-100 text-green-800 border-green-200',
     rejected: 'bg-red-100 text-red-800 border-red-200',
   };
-  
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colorMap[status]} capitalize`}>
       {status}
@@ -51,6 +50,65 @@ const IconSearch = () => (
   </svg>
 );
 
+/** Reusable confirmation dialog with color variants */
+function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmText,
+  cancelText = 'No',
+  variant = 'green',
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  confirmText: string;
+  cancelText?: string;
+  variant?: 'green' | 'red';
+  busy?: boolean;
+  onConfirm: () => void | Promise<void>;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+  const confirmClasses =
+    variant === 'red'
+      ? 'bg-red-600 hover:bg-red-700'
+      : 'bg-green-600 hover:bg-green-700';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={busy ? undefined : onCancel} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative bg-white w-full max-w-md mx-4 rounded-2xl shadow-xl border border-gray-200 p-6"
+      >
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        {description && <p className="mt-2 text-gray-600 text-sm">{description}</p>}
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={busy}
+            className={`px-4 py-2 rounded-lg text-white ${confirmClasses} disabled:opacity-50`}
+          >
+            {busy ? 'Working…' : confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TutorApproval() {
   const [allRows, setAllRows] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +118,14 @@ export default function TutorApproval() {
   const [q, setQ] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // confirmation state
+  const [confirm, setConfirm] = useState<{
+    open: boolean;
+    id: string | null;
+    name: string;
+    mode: 'approve' | 'reject';
+  }>({ open: false, id: null, name: '', mode: 'approve' });
 
   async function load() {
     try {
@@ -254,6 +320,7 @@ export default function TutorApproval() {
                 filtered.map((candidate) => {
                   const isProcessing = actionId === candidate.id;
                   const isPending = candidate.status === 'pending';
+                  const displayName = candidate.name || candidate.User?.name || candidate.email || candidate.User?.email || 'this candidate';
                   
                   return (
                     <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
@@ -320,7 +387,7 @@ export default function TutorApproval() {
                         {isPending ? (
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => onApprove(candidate.id)}
+                              onClick={() => setConfirm({ open: true, id: candidate.id, name: displayName, mode: 'approve' })}
                               disabled={isProcessing}
                               className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
                             >
@@ -328,7 +395,7 @@ export default function TutorApproval() {
                               {isProcessing ? 'Processing...' : 'Approve'}
                             </button>
                             <button
-                              onClick={() => onReject(candidate.id)}
+                              onClick={() => setConfirm({ open: true, id: candidate.id, name: displayName, mode: 'reject' })}
                               disabled={isProcessing}
                               className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
                             >
@@ -375,6 +442,30 @@ export default function TutorApproval() {
           {toast}
         </div>
       )}
+
+      {/* Confirm Approve/Reject */}
+      <ConfirmDialog
+        open={confirm.open}
+        title={confirm.mode === 'approve' ? 'Approve candidate?' : 'Reject candidate?'}
+        description={
+          confirm.mode === 'approve'
+            ? `Are you sure you want to approve ${confirm.name}? They will be activated as a tutor.`
+            : `Are you sure you want to reject ${confirm.name}? They will be notified of the decision.`
+        }
+        confirmText={confirm.mode === 'approve' ? 'Yes, approve' : 'Yes, reject'}
+        variant={confirm.mode === 'approve' ? 'green' : 'red'}
+        busy={!!(confirm.id && actionId === confirm.id)}
+        onCancel={() => setConfirm({ open: false, id: null, name: '', mode: 'approve' })}
+        onConfirm={async () => {
+          if (!confirm.id) return;
+          if (confirm.mode === 'approve') {
+            await onApprove(confirm.id);
+          } else {
+            await onReject(confirm.id);
+          }
+          setConfirm({ open: false, id: null, name: '', mode: 'approve' });
+        }}
+      />
     </div>
   );
 }

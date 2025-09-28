@@ -45,9 +45,12 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Get current page info for breadcrumb
+  // Sidebar expands only while hovered
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const isExpanded = sidebarHovered; // collapsed by default; expands on hover only
+
+  // Get current page info for header
   const currentPage = nav.find(item => item.to === location.pathname) || nav[0];
 
   const handleLogout = async () => {
@@ -63,20 +66,24 @@ export default function AdminLayout() {
       navigate('/admin/auth', { replace: true });
     }
   };
+
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Modern Sidebar */}
-      <aside className={`bg-white border-r border-gray-200 transition-all duration-300 ${
-        sidebarCollapsed ? 'w-16' : 'w-64'
-      } flex flex-col`}>
+      {/* Sidebar (auto-expand on hover) */}
+      <aside
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+        aria-expanded={isExpanded}
+        className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out ${isExpanded ? 'w-64' : 'w-16'} flex flex-col`}
+      >
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
               T
             </div>
-            {!sidebarCollapsed && (
-              <div>
+            {isExpanded && (
+              <div className="overflow-hidden">
                 <div className="font-semibold text-gray-900">Tutorly Admin</div>
                 <div className="text-xs text-gray-500">Management Portal</div>
               </div>
@@ -90,17 +97,18 @@ export default function AdminLayout() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/admin'} 
               className={({ isActive }) =>
-                `group flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
+                `group flex items-center rounded-lg transition-all duration-200 px-3 py-3 ${
                   isActive
                     ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 }`
               }
-              title={sidebarCollapsed ? label : ''}
+              title={!isExpanded ? label : ''}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
-              {!sidebarCollapsed && (
+              {isExpanded && (
                 <div className="ml-3 flex-1">
                   <div className="text-sm font-medium">{label}</div>
                   <div className="text-xs text-gray-500 group-hover:text-gray-600">
@@ -112,16 +120,7 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        {/* Sidebar Toggle */}
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <MenuIcon className={`h-5 w-5 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
+        {/* No manual toggle; auto by hover */}
       </aside>
 
       {/* Main Content Area */}
@@ -153,7 +152,7 @@ export default function AdminLayout() {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
 
-              {/* Profile Dropdown */}
+              {/* Profile */}
               <div className="relative">
                 <Link
                   to="/admin/profile"
@@ -224,10 +223,6 @@ function DocIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 function UserIcon({ className = "w-4 h-4" }: { className?: string }) {
   return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M10 10a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1c0-2-3-4-7-4z"/></svg>;
-}
-
-function MenuIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M3 5h14v2H3V5zm0 4h14v2H3V9zm0 4h14v2H3v-2z"/></svg>;
 }
 
 function NotificationIcon({ className = "w-4 h-4" }: { className?: string }) {
