@@ -919,8 +919,179 @@ export const getAllMassClasses = async (
 };
 
 
+export const getMassTutorById = async (m_tutor_id: string) => {
+    const tutor = await prisma.mass_Tutor.findUnique({
+        where: { m_tutor_id },
+        include: {
+            User: { select: { name: true, photo_url: true } },
+            Class : {
+                select: {
+                    class_id: true,
+                    title: true,
+                    subject: true,
+                    time: true,
+                    day: true,
+                    description: true,
+                    Rating_N_Review_Class:{
+                        select: {
+                            rating: true,
+                            review: true,
+                            Student:{
+                                select: {
+                                    User:{
+                                        select:{
+                                            name:true,
+                                            photo_url:true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    _count:{
+                        select:{ Enrolment:true }
+                    }
+                },
+            },
+            
+        },
+
+    });
+
+    if (!tutor) throw new Error("Tutor not found");
+
+    // return {
+    //     id: tutor.m_tutor_id,
+    //     name: tutor.User.name,
+    //     photo: tutor.User.photo_url,
+    //     rating: tutor.rating,
+    //     prices: tutor.prices,
+    // };
+    return tutor;
+};
 
 
 
+export const getClassByClassIdAndStudentId = async (class_id: string,student_id:string) => {
+    const classInfo = await prisma.class.findUnique({
+        where: { class_id },
+        select: {
+            title: true,
+            description: true,
+            subject: true,
+            day: true,
+            time: true,
+            Mass_Tutor:{
+                include:{
+                    User:{
+                        select:{
+                            name:true,
+                            photo_url:true
+                        }
+                    }
+            }
+            },
+            _count:{
+                select:{ Enrolment:true }
+            }
+        }
+    })
+
+    const enrollmentStatus = await prisma.enrolment.findMany({
+        where: { class_id, student_id },
+        select: {
+            status: true,
+        }
+    });
 
 
+    return {
+        ...classInfo, 
+        enrollmentStatus: enrollmentStatus.length > 0 ? enrollmentStatus[0] : null
+    };
+
+};
+
+
+export const getClassSlotsByClassID = async (class_id: string, month: number) => {
+    const slots = await prisma.classSlot.findMany({
+        where: {
+            class_id,
+            dateTime: {
+                gte: new Date(new Date().getFullYear(), month - 1, 1),
+                lt: new Date(new Date().getFullYear(), month, 1),
+            },
+        },
+        orderBy: { dateTime: 'desc' },
+    });
+
+    return slots;
+};
+
+export const getClassByStudentId = async (student_id: string) => {
+    const classes = await prisma.class.findMany({
+        where: { Enrolment: { some: { student_id } } },
+        include: {
+            Mass_Tutor: {
+                include: {
+                    User: { select: { name: true, photo_url: true } },
+                },
+            },
+            _count: { select: { Enrolment: true } },
+            ClassSlot:{
+                where:{
+                    dateTime: {gte: new Date()}
+                },
+                orderBy:{
+                    dateTime:'asc'
+                },
+                take:1
+            },
+            Enrolment:{
+                where:{student_id},
+                select:{status:true}
+            }
+        },
+    });
+
+
+    return classes;
+
+    // return classes.map((cls) => ({
+    //     ...cls,
+    //     enrollmentCount: cls._count.Enrolment,
+    //     tutorName: cls.Mass_Tutor.User.name,
+    //     tutorPhoto: cls.Mass_Tutor.User.photo_url,
+    // }));
+};
+
+
+export const getMassTutorsByStudentId = async (student_id: string) => {
+    
+    const enrolments = await prisma.enrolment.findMany({
+        where: { student_id },
+    });
+    const classIds = enrolments.map(enrol => enrol.class_id);
+
+    const classes = await prisma.class.findMany({
+        where: { class_id: { in: classIds } },
+        select: {
+            m_tutor_id: true
+        }
+    });
+
+   const massTutorIds = classes.map(cls => cls.m_tutor_id);
+   const massTutors = await prisma.mass_Tutor.findMany({
+       where: { m_tutor_id: { in: massTutorIds } },
+       include: {
+           User: {
+               select: {
+                   name: true,
+                   photo_url: true
+               }
+           }
+       }
+   });
+
+   return massTutors;
+};

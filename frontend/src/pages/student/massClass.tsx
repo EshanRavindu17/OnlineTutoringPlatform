@@ -17,10 +17,15 @@ import {
   Award,
   CheckCircle,
   PlayCircle,
-  Bookmark
+  Bookmark,
+  ChevronLeft,
+  AlertCircle
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID } from '../../api/Student';
+import type { MassClassPage, MassClassSlots } from '../../api/Student';
+import { useAuth } from '../../context/authContext';
 
 interface ClassMaterial {
   id: string;
@@ -76,225 +81,389 @@ interface MassClass {
   sessions: ClassSession[];
 }
 
-export default function MassClassPage() {
+function MassClassPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  
+  // State management
+  const [classData, setClassData] = useState<MassClassPage | null>(null);
+  const [classSlots, setClassSlots] = useState<MassClassSlots[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isClassSaved, setIsClassSaved] = useState(false);
-
-  // Mock data - this would come from API
-  const massClass: MassClass = {
-    id: "class-1",
-    name: "Advanced Mathematics Masterclass",
-    subject: "Mathematics",
-    tutor: {
-      id: "tutor-1",
-      name: "Dr. Sarah Johnson",
-      profilePicture: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      rating: 4.8,
-      totalStudents: 450,
-      experience: "8+ years"
-    },
-    description: "Comprehensive calculus and algebra preparation for advanced students",
-    longDescription: "This masterclass covers advanced mathematical concepts including differential and integral calculus, linear algebra, and complex analysis. Perfect for students preparing for university entrance exams or those seeking to strengthen their mathematical foundation. The course is designed with interactive sessions, practical examples, and comprehensive practice materials.",
-    price: 12000,
-    duration: "2 hours",
-    startDate: "2025-09-01",
-    endDate: "2025-12-15",
-    schedule: "Every Sunday at 6:00 PM",
-    studentsEnrolled: 28,
-    maxStudents: 50,
-    verified: true,
-    level: "Advanced",
-    prerequisites: ["Basic Calculus", "Algebra Fundamentals"],
-    learningOutcomes: [
-      "Master advanced calculus concepts",
-      "Solve complex mathematical problems",
-      "Prepare for university-level mathematics",
-      "Develop analytical thinking skills"
-    ],
-    totalSessions: 16,
-    completedSessions: 2,
-    sessions: [
-      {
-        id: "session-1",
-        date: "2025-09-01",
-        dayName: "Sunday",
-        dayNumber: 1,
-        isPast: true,
-        isToday: false,
-        isUpcoming: false,
-        status: "completed",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Introduction to Advanced Calculus - Limits and Continuity",
-        materials: [
-          {
-            id: "mat-1",
-            name: "Lecture Video - Limits and Continuity",
-            type: "video",
-            url: "#",
-            downloadable: false,
-            uploadDate: "2025-09-01"
-          },
-          {
-            id: "mat-2",
-            name: "Class Notes - Session 1",
-            type: "document",
-            url: "#",
-            downloadable: true,
-            uploadDate: "2025-09-01"
-          },
-          {
-            id: "mat-3",
-            name: "Practice Problems Set 1",
-            type: "assignment",
-            url: "#",
-            downloadable: true,
-            uploadDate: "2025-09-01"
-          }
-        ]
-      },
-      {
-        id: "session-2",
-        date: "2025-09-08",
-        dayName: "Sunday",
-        dayNumber: 8,
-        isPast: true,
-        isToday: false,
-        isUpcoming: false,
-        status: "completed",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Differentiation Techniques and Applications",
-        materials: [
-          {
-            id: "mat-4",
-            name: "Lecture Video - Differentiation",
-            type: "video",
-            url: "#",
-            downloadable: false,
-            uploadDate: "2025-09-08"
-          },
-          {
-            id: "mat-5",
-            name: "Class Notes - Session 2",
-            type: "document",
-            url: "#",
-            downloadable: true,
-            uploadDate: "2025-09-08"
-          }
-        ]
-      },
-      {
-        id: "session-3",
-        date: "2025-09-15",
-        dayName: "Sunday",
-        dayNumber: 15,
-        isPast: false,
-        isToday: true,
-        isUpcoming: false,
-        status: "live",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Integration Methods and Techniques",
-        materials: []
-      },
-      {
-        id: "session-4",
-        date: "2025-09-22",
-        dayName: "Sunday",
-        dayNumber: 22,
-        isPast: false,
-        isToday: false,
-        isUpcoming: true,
-        status: "upcoming",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Advanced Integration Applications",
-        materials: []
-      },
-      {
-        id: "session-5",
-        date: "2025-09-29",
-        dayName: "Sunday",
-        dayNumber: 29,
-        isPast: false,
-        isToday: false,
-        isUpcoming: true,
-        status: "upcoming",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Linear Algebra Fundamentals",
-        materials: []
-      },
-      {
-        id: "session-6",
-        date: "2025-10-06",
-        dayName: "Sunday",
-        dayNumber: 6,
-        isPast: false,
-        isToday: false,
-        isUpcoming: true,
-        status: "upcoming",
-        duration: "2 hours",
-        startTime: "6:00 PM",
-        description: "Matrix Operations and Determinants",
-        materials: []
-      }
-    ]
+  const [monthLoading, setMonthLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Get enrollment status
+  const enrollmentStatus = classData?.enrollmentStatus?.status || null;
+  
+  // Helper functions
+  const getCurrentWeek = () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayOfMonth = now.getDate();
+    return Math.ceil(dayOfMonth / 7);
   };
 
+  const isFirstWeekOfMonth = () => getCurrentWeek() === 1;
+
+  // Month navigation helpers
+  const getMonthName = (month: number) => {
+    return new Date(2025, month - 1, 1).toLocaleString('default', { month: 'long' });
+  };
+
+  const canNavigateToMonth = (month: number, enrollmentStatus: string | null) => {
+    const currentMonth = new Date().getMonth() + 1;
+    
+    if (enrollmentStatus === 'valid') {
+      // Valid users can navigate to any month up to current month
+      return month <= currentMonth;
+    } else if (enrollmentStatus === 'invalid') {
+      // Invalid users can navigate to any past month
+      return month < currentMonth;
+    } else if (enrollmentStatus === null) {
+      // Non-enrolled users can only see current month
+      return month === currentMonth;
+    }
+    return false;
+  };
+
+  const handlePrevMonth = () => {
+    const prevMonth = selectedMonth - 1;
+    if (prevMonth >= 1 && canNavigateToMonth(prevMonth, enrollmentStatus)) {
+      setMonthLoading(true);
+      setSelectedMonth(prevMonth);
+      setTimeout(() => setMonthLoading(false), 300); // Brief loading state
+    }
+  };
+
+  const handleNextMonth = () => {
+    const nextMonth = selectedMonth + 1;
+    if (nextMonth <= 12 && canNavigateToMonth(nextMonth, enrollmentStatus)) {
+      setMonthLoading(true);
+      setSelectedMonth(nextMonth);
+      setTimeout(() => setMonthLoading(false), 300); // Brief loading state
+    }
+  };
+
+  // Status helper functions
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return {
+          label: 'Completed',
+          bgColor: 'bg-green-100',
+          textColor: 'text-green-800',
+          barColor: 'bg-green-500',
+          buttonBg: 'bg-green-50 hover:bg-green-100',
+          icon: <CheckCircle className="w-3 h-3" />
+        };
+      case 'live':
+        return {
+          label: 'Live Now',
+          bgColor: 'bg-red-100',
+          textColor: 'text-red-800',
+          barColor: 'bg-red-500',
+          buttonBg: 'bg-red-50 hover:bg-red-100',
+          icon: <PlayCircle className="w-3 h-3" />
+        };
+      case 'upcoming':
+        return {
+          label: 'Upcoming',
+          bgColor: 'bg-blue-100',
+          textColor: 'text-blue-800',
+          barColor: 'bg-blue-500',
+          buttonBg: 'bg-blue-50 hover:bg-blue-100',
+          icon: <Clock className="w-3 h-3" />
+        };
+      default:
+        return {
+          label: 'Unknown',
+          bgColor: 'bg-gray-100',
+          textColor: 'text-gray-800',
+          barColor: 'bg-gray-500',
+          buttonBg: 'bg-gray-50 hover:bg-gray-100',
+          icon: <AlertCircle className="w-3 h-3" />
+        };
+    }
+  };
+//--------------------------------------------------------------------------------------------
+  // Check if class is within 15 minutes of starting
+  const isWithin15Minutes = (classDateTime: string) => {
+    console.log('Checking if class is within 15 minutes of starting:', classDateTime);
+    const classTime = new Date(classDateTime.replace("Z", ""));
+    console.log('Class time:', classTime);
+    const currentTime = new Date();
+    console.log('Current time:', currentTime);
+    const timeDifference = classTime.getTime() - currentTime.getTime();
+    console.log('Time difference (ms):', timeDifference);
+    const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+    
+    return timeDifference <= fifteenMinutes && timeDifference > 0;
+  };
+
+  // Check if join button should be shown
+  const canJoinClass = (status: string, dateTime: string) => {
+    if (status === 'live') return true;
+    if (status === 'upcoming') return isWithin15Minutes(dateTime);
+    return false;
+  };
+
+  // Check if the join button just became available (within 2 minutes of becoming available)
+  const isJoinButtonRecentlyAvailable = (dateTime: string) => {
+    const classTime = new Date(dateTime);
+    console.log('Class time for join button check:', classTime);
+    const joinTime = new Date(classTime.getTime() - (15 * 60 * 1000)); // 15 minutes before class
+    console.log('Join time (15 mins before class):', joinTime);
+    const timeSinceJoinAvailable = currentTime.getTime() - joinTime.getTime();
+    console.log('Time since join button became available (ms):', timeSinceJoinAvailable);
+    
+    return timeSinceJoinAvailable >= 0 && timeSinceJoinAvailable <= (2 * 60 * 1000); // Within 2 minutes of becoming available
+  };
+
+  // Get time remaining until join button becomes available
+  const getTimeUntilJoinAvailable = (classDateTime: string) => {
+    const classTime = new Date(classDateTime.replace("Z", ""));
+    const joinTime = new Date(classTime.getTime() - (15 * 60 * 1000)); // 15 minutes before class
+    const timeDifference = joinTime.getTime() - currentTime.getTime();
+    
+    if (timeDifference <= 0) return null;
+    
+    const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+//----------------------------------------------------------------------------------------
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.target && (event.target as HTMLElement).tagName === 'INPUT') return; // Don't interfere with input fields
+      
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handlePrevMonth();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handleNextMonth();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [selectedMonth, enrollmentStatus]);
+
+  // Update current time every minute for real-time countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const canViewSlots = (enrollmentStatus: string | null) => {
+    const currentMonth = new Date().getMonth() + 1;
+    
+    if (enrollmentStatus === 'valid') {
+      // Valid users can see all months up to current month (including past months)
+      return selectedMonth <= currentMonth;
+    } else if (enrollmentStatus === 'invalid') {
+      // Invalid users can see all past months but NOT current month
+      return selectedMonth < currentMonth;
+    } else if (enrollmentStatus === null) {
+      // Non-enrolled users can only see current month's first week
+      return selectedMonth === currentMonth && isFirstWeekOfMonth();
+    }
+    return false;
+  };
+
+  // Fetch class data and slots
+  useEffect(() => {
+    const fetchClassData = async () => {
+      if (!classId || !userProfile?.id) {
+        setError('Class ID or user information missing');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Get student ID first
+        const studentId = await getStudentIDByUserID(userProfile.id);
+        if (!studentId) {
+          throw new Error('Student ID not found');
+        }
+
+        // Get class details and enrollment status
+        const classInfo = await getClassByClassIdAndStudentId(classId, studentId);
+        setClassData(classInfo);
+
+        console.log('Class data:', classInfo);
+        console.log('Enrollment status:', classInfo.enrollmentStatus?.status);
+
+      } catch (err) {
+        console.error('Error fetching class data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load class data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClassData();
+  }, [classId, userProfile]);
+
+  // Fetch slots for selected month
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!classId || !classData) return;
+      
+      if (!canViewSlots(enrollmentStatus)) {
+        setClassSlots([]);
+        return;
+      }
+
+      try {
+        const slots = await getClassSlotsByClassId(classId, selectedMonth);
+        
+        // If enrollment is null and it's first week, filter to show only first week slots
+        if (enrollmentStatus === null && isFirstWeekOfMonth()) {
+          const firstWeekSlots = slots.filter(slot => {
+            const slotDate = new Date(slot.dateTime);
+            const dayOfMonth = slotDate.getDate();
+            return dayOfMonth <= 7;
+          });
+          setClassSlots(firstWeekSlots);
+        } else {
+          setClassSlots(slots);
+        }
+        
+        console.log('Fetched slots for month', selectedMonth, ':', slots);
+      } catch (err) {
+        console.error('Error fetching slots:', err);
+        setClassSlots([]);
+      }
+    };
+
+    fetchSlots();
+  }, [classId, selectedMonth, classData]);
+
+  // Helper functions
   const toggleSaveClass = () => {
     setIsClassSaved(!isClassSaved);
   };
 
-  const handleJoinClass = (sessionId: string) => {
-    // Handle joining the live class
-    console.log('Joining class session:', sessionId);
-    // This would typically open a video conferencing interface
+  const renderStars = (rating: number) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Star
+          key={i}
+          className={`w-4 h-4 ${
+            i <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+          }`}
+        />
+      );
+    }
+    return stars;
   };
 
-  const getSessionStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Completed
-          </span>
-        );
-      case 'live':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse">
-            <PlayCircle className="w-3 h-3 mr-1" />
-            Live Now
-          </span>
-        );
-      case 'upcoming':
-        return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <Clock className="w-3 h-3 mr-1" />
-            Upcoming
-          </span>
-        );
-      default:
-        return null;
-    }
+  // Use additional course details that supplement the API data
+  const massClass = {
+    longDescription: classData?.description || "Comprehensive course covering all essential topics with expert guidance.",
+    learningOutcomes: [
+      "Master key concepts and fundamentals",
+      "Apply knowledge to real-world scenarios", 
+      "Develop problem-solving skills",
+      "Prepare for advanced topics",
+      "Build confidence in the subject"
+    ],
+    prerequisites: [
+      "Basic understanding of the subject",
+      "Commitment to regular attendance"
+    ],
+    totalSessions: 24,
+    duration: "90 minutes", 
+    level: "Intermediate",
+    maxStudents: 50
   };
 
-  const getMaterialIcon = (type: string) => {
-    switch (type) {
-      case 'video':
-        return <Video className="w-4 h-4" />;
-      case 'document':
-        return <FileText className="w-4 h-4" />;
-      case 'assignment':
-        return <BookOpen className="w-4 h-4" />;
-      default:
-        return <FileText className="w-4 h-4" />;
-    }
-  };
+  // Remove duplicate and unused functions - these are handled in the slot-based implementation
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading class details...</p>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Class</h2>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // No data state
+  if (!classData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Class Not Found</h2>
+              <p className="text-gray-600 mb-4">The requested class could not be found.</p>
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -317,24 +486,44 @@ export default function MassClassPage() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <h1 className="text-3xl font-bold text-gray-900">{massClass.name}</h1>
-                    {massClass.verified && (
-                      <CheckCircle className="w-6 h-6 text-purple-600" />
-                    )}
+                    <h1 className="text-3xl font-bold text-gray-900">{classData.title}</h1>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                     <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">
-                      {massClass.subject}
-                    </span>
-                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
-                      {massClass.level}
+                      {classData.subject}
                     </span>
                     <span className="flex items-center">
                       <Users className="w-4 h-4 mr-1" />
-                      {massClass.studentsEnrolled}/{massClass.maxStudents} students
+                      {classData._count.Enrolment} students enrolled
+                    </span>
+                    <span className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {classData.day} at {new Date(classData.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
                     </span>
                   </div>
-                  <p className="text-gray-700 mb-4">{massClass.description}</p>
+                  <p className="text-gray-700 mb-4">{classData.description}</p>
+                  
+                  {/* Enrollment Status Badge */}
+                  <div className="mb-4">
+                    {enrollmentStatus === 'valid' && (
+                      <div className="bg-green-100 text-green-800 text-sm px-3 py-2 rounded-lg font-semibold flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Enrolled - Full Access
+                      </div>
+                    )}
+                    {enrollmentStatus === 'invalid' && (
+                      <div className="bg-red-100 text-red-800 text-sm px-3 py-2 rounded-lg font-semibold flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Enrollment Expired - Limited Access
+                      </div>
+                    )}
+                    {enrollmentStatus === null && (
+                      <div className="bg-yellow-100 text-yellow-800 text-sm px-3 py-2 rounded-lg font-semibold flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Not Enrolled - Preview Mode
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <button
@@ -369,26 +558,24 @@ export default function MassClassPage() {
               {/* Tutor Info */}
               <div className="flex items-center gap-4 mb-6">
                 <img
-                  src={massClass.tutor.profilePicture}
-                  alt={massClass.tutor.name}
+                  src={classData.Mass_Tutor.User.photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face'}
+                  alt={classData.Mass_Tutor.User.name}
                   className="w-12 h-12 rounded-full object-cover"
                 />
                 <div>
                   <button
-                    onClick={() => navigate(`/student/mass-tutor-profile/${massClass.tutor.id}`)}
+                    onClick={() => navigate(`/student/mass-tutor-profile/${classData.Mass_Tutor.m_tutor_id}`)}
                     className="font-semibold text-gray-900 hover:text-purple-600 transition-colors"
                   >
-                    {massClass.tutor.name}
+                    {classData.Mass_Tutor.User.name}
                   </button>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <div className="flex items-center">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
-                      {massClass.tutor.rating}
+                      {parseFloat(classData.Mass_Tutor.rating).toFixed(1)}
                     </div>
                     <span>•</span>
-                    <span>{massClass.tutor.experience} experience</span>
-                    <span>•</span>
-                    <span>{massClass.tutor.totalStudents} students taught</span>
+                    <span>Rs. {classData.Mass_Tutor.prices}/month</span>
                   </div>
                 </div>
               </div>
@@ -398,145 +585,334 @@ export default function MassClassPage() {
             <div className="bg-gray-50 rounded-xl p-6 lg:w-80">
               <div className="text-center mb-4">
                 <div className="text-3xl font-bold text-purple-600 mb-1">
-                  Rs. {massClass.price.toLocaleString()}
+                  Rs. {parseFloat(classData.Mass_Tutor.prices).toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-600">per month</div>
               </div>
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-center text-sm">
-                  <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                  <span>{massClass.duration} per session</span>
-                </div>
-                <div className="flex items-center text-sm">
                   <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                  <span>{massClass.schedule}</span>
+                  <span>{classData.day} at {new Date(classData.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <Users className="w-4 h-4 text-gray-400 mr-2" />
-                  <span>{massClass.studentsEnrolled} students enrolled</span>
+                  <span>{classData._count.Enrolment} students enrolled</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <BookOpen className="w-4 h-4 text-gray-400 mr-2" />
+                  <span>{classData.subject}</span>
                 </div>
               </div>
-
-              <div className="space-y-2 text-xs text-gray-600 mb-6">
-                <div>Start: {new Date(massClass.startDate).toLocaleDateString()}</div>
-                <div>End: {new Date(massClass.endDate).toLocaleDateString()}</div>
-              </div>
-              <button className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors">
-                Enroll Now
+              
+              <button 
+                className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                disabled={enrollmentStatus === 'valid'}
+              >
+                {enrollmentStatus === 'valid' ? 'Already Enrolled' : 'Enroll Now'}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Class Sessions */}
+      {/* Month Selector and Class Sessions */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Class Sessions</h2>
-        
-        <div className="grid gap-4">
-          {massClass.sessions.map((session) => (
-            <div key={session.id} className="bg-white rounded-xl border overflow-hidden">
-              {/* Session Header Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Class Sessions</h2>
+          
+          {/* Modern Month Selector with Arrows */}
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-gray-700">Month:</span>
+            <div className="flex items-center space-x-1 bg-white rounded-lg border border-gray-200 shadow-sm">
               <button
-                onClick={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
-                className={`w-full px-6 py-4 text-left transition-colors ${
-                  session.isPast
-                    ? 'bg-green-50 hover:bg-green-100'
-                    : session.isToday
-                    ? 'bg-red-50 hover:bg-red-100'
-                    : 'bg-blue-50 hover:bg-blue-100'
+                onClick={handlePrevMonth}
+                disabled={selectedMonth <= 1 || !canNavigateToMonth(selectedMonth - 1, enrollmentStatus)}
+                className={`p-2 rounded-l-lg transition-all duration-200 ${
+                  selectedMonth <= 1 || !canNavigateToMonth(selectedMonth - 1, enrollmentStatus)
+                    ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                    : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50 active:bg-purple-100'
                 }`}
+                title={selectedMonth <= 1 ? "No previous months" : "Previous month"}
+                aria-label="Previous month"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-12 rounded-full ${
-                      session.isPast
-                        ? 'bg-green-500'
-                        : session.isToday
-                        ? 'bg-red-500'
-                        : 'bg-blue-500'
-                    }`}></div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-semibold text-gray-900">
-                          {session.dayNumber}{getOrdinalSuffix(session.dayNumber)} {session.dayName}
-                        </h3>
-                        {getSessionStatusBadge(session.status)}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {new Date(session.date).toLocaleDateString()} • {session.startTime} • {session.duration}
-                      </div>
-                      <div className="text-sm font-medium text-gray-800 mt-1">
-                        {session.description}
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${
-                    selectedSession === session.id ? 'rotate-90' : ''
-                  }`} />
-                </div>
+                <ChevronLeft className="w-4 h-4" />
               </button>
-
-              {/* Session Details */}
-              {selectedSession === session.id && (
-                <div className="px-6 pb-6 border-t bg-gray-50">
-                  <div className="pt-4">
-                    {/* Materials Section */}
-                    {session.materials.length > 0 ? (
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-3">Class Materials</h4>
-                        <div className="grid gap-2">
-                          {session.materials.map((material) => (
-                            <div
-                              key={material.id}
-                              className="flex items-center justify-between bg-white p-3 rounded-lg border"
-                            >
-                              <div className="flex items-center gap-3">
-                                {getMaterialIcon(material.type)}
-                                <div>
-                                  <div className="font-medium text-gray-900">{material.name}</div>
-                                  <div className="text-xs text-gray-500">
-                                    Uploaded: {new Date(material.uploadDate).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              </div>
-                              {material.downloadable && (
-                                <button className="text-purple-600 hover:text-purple-700">
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p>Materials will be available after the class</p>
-                      </div>
-                    )}
-
-                    {/* Join Class Button (only for upcoming sessions) */}
-                    {(session.isToday || session.isUpcoming) && (
-                      <div className="mt-4 pt-4 border-t">
-                        <button
-                          onClick={() => handleJoinClass(session.id)}
-                          className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                            session.isToday
-                              ? 'bg-red-600 text-white hover:bg-red-700'
-                              : 'bg-purple-600 text-white hover:bg-purple-700'
-                          }`}
-                        >
-                          {session.isToday ? 'Join Live Class' : 'Set Reminder'}
-                        </button>
-                      </div>
-                    )}
+              
+              <div className="px-6 py-2 min-w-[150px] text-center border-x border-gray-100">
+                {monthLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
                   </div>
-                </div>
+                ) : (
+                  <span className="font-semibold text-gray-900 text-sm">
+                    {getMonthName(selectedMonth)} 2025
+                  </span>
+                )}
+              </div>
+              
+              <button
+                onClick={handleNextMonth}
+                disabled={selectedMonth >= 12 || !canNavigateToMonth(selectedMonth + 1, enrollmentStatus)}
+                className={`p-2 rounded-r-lg transition-all duration-200 ${
+                  selectedMonth >= 12 || !canNavigateToMonth(selectedMonth + 1, enrollmentStatus)
+                    ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                    : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50 active:bg-purple-100'
+                }`}
+                title={selectedMonth >= 12 ? "No more months" : "Next month"}
+                aria-label="Next month"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Navigation Hint */}
+            <div className="text-xs text-gray-500 mt-1 flex items-center">
+              {enrollmentStatus === 'valid' && (
+                <>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                  <span>Navigate through all months up to {getMonthName(new Date().getMonth() + 1)} • Use ← → keys</span>
+                </>
+              )}
+              {enrollmentStatus === 'invalid' && (
+                <>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></div>
+                  <span>Navigate through previous months only • Use ← → keys</span>
+                </>
+              )}
+              {enrollmentStatus === null && (
+                <>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div>
+                  <span>Preview mode: {getMonthName(new Date().getMonth() + 1)} only</span>
+                </>
               )}
             </div>
-          ))}
+          </div>
+        </div>
+        
+        {/* Access Information */}
+        {enrollmentStatus === 'invalid' && selectedMonth >= new Date().getMonth() + 1 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+              <p className="text-yellow-800 text-sm">
+                Your enrollment has expired. You can only view sessions from previous months. Current month sessions are not available.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {enrollmentStatus === null && !isFirstWeekOfMonth() && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+              <p className="text-yellow-800 text-sm">
+                Preview access is only available during the first week of each month.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {enrollmentStatus === null && isFirstWeekOfMonth() && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <CheckCircle className="w-5 h-5 text-blue-600 mr-2" />
+              <p className="text-blue-800 text-sm">
+                You're viewing preview sessions for the first week. Enroll to access all sessions.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Class Slots */}
+        <div className="grid gap-4">
+          {classSlots.length > 0 ? (
+            classSlots.map((slot) => {
+              const slotDate = new Date(slot.dateTime);
+              const slotStatus = slot.status; // Use API-provided status
+              const isCompleted = slotStatus === 'completed';
+              const isUpcoming = slotStatus === 'upcoming';
+              const isLive = slotStatus === 'live';
+              const statusDisplay = getStatusDisplay(slotStatus);
+              
+              return (
+                <div key={slot.cslot_id} className="bg-white rounded-xl border overflow-hidden">
+                  {/* Session Header Bar */}
+                  <button
+                    onClick={() => setSelectedSession(selectedSession === slot.cslot_id ? null : slot.cslot_id)}
+                    className={`w-full px-6 py-4 text-left transition-colors ${statusDisplay.buttonBg}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-2 h-12 rounded-full ${statusDisplay.barColor}`}></div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {slotDate.toLocaleDateString('en-US', { 
+                                weekday: 'long',
+                                month: 'long', 
+                                day: 'numeric'
+                              })}
+                            </h3>
+                            <div className={`${statusDisplay.bgColor} ${statusDisplay.textColor} text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1 ${
+                              isLive ? 'animate-pulse' : ''
+                            }`}>
+                              {statusDisplay.icon}
+                              {statusDisplay.label}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {slotDate.toLocaleDateString()} • {slotDate.toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              timeZone: 'UTC'
+                            })} • {slot.duration} Hours
+                          </div>
+                          {slot.announcement && (
+                            <div className="text-sm font-medium text-gray-800 mt-1">
+                              {slot.announcement}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${
+                        selectedSession === slot.cslot_id ? 'rotate-90' : ''
+                      }`} />
+                    </div>
+                  </button>
+
+                  {/* Session Details */}
+                  {selectedSession === slot.cslot_id && (
+                    <div className="px-6 pb-6 border-t bg-gray-50">
+                      <div className="pt-4">
+                        {/* Materials Section */}
+                        {slot.materials && slot.materials.length > 0 ? (
+                          <div>
+                            <h4 className="font-medium text-gray-900 mb-3">Class Materials</h4>
+                            <div className="grid gap-2">
+                              {slot.materials.map((materialUrl: string, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between bg-white p-3 rounded-lg border"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <FileText className="w-4 h-4 text-gray-400" />
+                                    <div>
+                                      <div className="font-medium text-gray-900">Material {index + 1}</div>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={() => window.open(materialUrl, '_blank')}
+                                    className="text-purple-600 hover:text-purple-700"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p>
+                              {isCompleted 
+                                ? "No materials available for this session"
+                                : isLive 
+                                ? "Materials will be shared during the live class"
+                                : "Materials will be available after the class"
+                              }
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Join Class Button */}
+                        {slot.meetingURLs && slot.meetingURLs.length > 0 && canJoinClass(slotStatus, slot.dateTime) && (
+                          <div className="mt-4 pt-4 border-t">
+                            <button
+                              onClick={() => window.open(slot.meetingURLs[0], '_blank')}
+                              className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                                isLive
+                                  ? 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 shadow-lg animate-pulse'
+                                  : isUpcoming && isJoinButtonRecentlyAvailable(slot.dateTime)
+                                  ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg animate-pulse shadow-md'
+                                  : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md'
+                              }`}
+                            >
+                              <Video className="w-4 h-4 mr-2 inline" />
+                              {isLive 
+                                ? '🔴 Join Live Class Now!' 
+                                : isJoinButtonRecentlyAvailable(slot.dateTime)
+                                ? '🟢 Join Class - Just Available!'
+                                : '✅ Join Class Now Available!'
+                              }
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Join Not Available Message */}
+                        {slot.meetingURLs && slot.meetingURLs.length > 0 && isUpcoming && !isWithin15Minutes(slot.dateTime) && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <Clock className="w-4 h-4 text-yellow-600 mr-2" />
+                                  <p className="text-yellow-800 text-sm">
+                                    Join button available 15 min before class
+                                  </p>
+                                </div>
+                                {getTimeUntilJoinAvailable(slot.dateTime) && (
+                                  <div className="bg-yellow-200 text-yellow-900 text-xs px-2 py-1 rounded-full font-semibold">
+                                    {getTimeUntilJoinAvailable(slot.dateTime)} left
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-1 text-xs text-yellow-700">
+                                Class starts at {new Date(slot.dateTime).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  timeZone: 'UTC'
+                                })} • Join available from {new Date(new Date(slot.dateTime).getTime() - (15 * 60 * 1000)).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  timeZone: 'UTC'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Recording Section */}
+                        {slot.recording && isCompleted && (
+                          <div className="mt-4 pt-4 border-t">
+                            <button
+                              onClick={() => slot.recording && window.open(slot.recording, '_blank')}
+                              className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+                            >
+                              <PlayCircle className="w-4 h-4 mr-2 inline" />
+                              Watch Recording
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-8">
+              <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Sessions Available</h3>
+              <p className="text-gray-500">
+                {enrollmentStatus === null 
+                  ? "No preview sessions available for this period."
+                  : enrollmentStatus === 'invalid'
+                  ? "No sessions available for this month. Check previous months."
+                  : "No sessions scheduled for this month yet."
+                }
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -620,3 +996,5 @@ function getOrdinalSuffix(num: number): string {
   if (j === 3 && k !== 13) return 'rd';
   return 'th';
 }
+
+export default MassClassPage;

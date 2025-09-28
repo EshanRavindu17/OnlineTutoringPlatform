@@ -5,7 +5,7 @@ import {
     createASession,
     findTimeSlots,
     getAllIndividualTutors
-    ,getAllSessionByStudentId,getIndividualTutorById
+    ,getAllSessionByStudentId,getClassSlotsByClassID,getIndividualTutorById
     ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
     getTutorNameAndTypeById,
@@ -289,7 +289,12 @@ export const getTutorNameAndTypeByIdController = async (req: Request, res: Respo
 
 // Mass Class Controller in studentController file
 
-import { getAllMassClasses } from "../services/studentService";
+import { getAllMassClasses,
+         getMassTutorById,
+         getClassByClassIdAndStudentId,
+         getClassByStudentId,
+         getMassTutorsByStudentId
+       } from "../services/studentService";
 
 
 export const getAllMassClassesController = async (req: Request, res: Response) => {
@@ -328,5 +333,84 @@ export const getAllMassClassesController = async (req: Request, res: Response) =
     } catch (error) {
         console.error("Error getting mass classes:", error);
         return res.status(500).json({ error: "Failed to get mass classes" });
+    }
+};
+
+
+export const getMassTutorProfileByIdController = async (req: Request, res: Response) => {
+    const { tutorId } = req.params;
+    if(!tutorId) {
+        return res.status(400).json({ error: "tutorId is required" });
+    }
+    console.log("Getting mass tutor profile for tutor_ID:", tutorId);
+    try {
+        const tutorProfile = await getMassTutorById(tutorId);
+        if(!tutorProfile) {
+            return res.status(404).json({ error: "Tutor not found" });
+        }
+        return res.json(tutorProfile);
+    } catch (error) {
+        console.error("Error getting mass tutor profile:", error);
+        return res.status(500).json({ error: "Failed to get mass tutor profile" });
+    }
+};
+
+
+
+export const  getClassSlotsByClassIdAndStudentIdController = async (req: Request, res: Response) => {
+    const { classId, studentId } = req.params;
+
+    console.log("Getting class slots for class_ID:", classId, "and student_ID:", studentId);
+
+    if(!classId || !studentId) {
+        return res.status(400).json({ error: "classId and studentId are required" });
+    }
+    try {
+        const classSlots = await getClassByClassIdAndStudentId(classId, studentId);
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+}
+
+export const getClassSlotsByClassIdController = async (req: Request, res: Response) => {
+    const { classId ,month} = req.params;
+
+    console.log("Getting class slots for class_ID:", classId, "and month:", month);
+    if(!classId || !month) {
+        return res.status(400).json({ error: "classId and month are required" });
+    }
+    try {
+        const classSlots = await getClassSlotsByClassID(classId, Number(month));
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+};
+
+export const getClassesByStudentIdController = async (req: Request, res: Response) => {
+    const { student_id } = req.params;
+
+    console.log("Getting classes for student_ID:", student_id);
+    try {
+        const classSlots = await getClassByStudentId(student_id);
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+};
+
+export const getMassTutorsByStudentIdController = async (req: Request, res: Response) => {
+    const { student_id } = req.params;
+    console.log("Getting mass tutors for student_ID:", student_id);
+    try {
+        const massTutors = await getMassTutorsByStudentId(student_id);
+        return res.json(massTutors);
+    } catch (error) {
+        console.error("Error getting mass tutors:", error);
+        return res.status(500).json({ error: "Failed to get mass tutors" });
     }
 };
