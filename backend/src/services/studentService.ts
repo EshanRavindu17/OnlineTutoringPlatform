@@ -1022,6 +1022,7 @@ export const getClassSlotsByClassID = async (class_id: string, month: number) =>
                 lt: new Date(new Date().getFullYear(), month, 1),
             },
         },
+        orderBy: { dateTime: 'desc' },
     });
 
     return slots;
@@ -1045,6 +1046,10 @@ export const getClassByStudentId = async (student_id: string) => {
                     dateTime:'asc'
                 },
                 take:1
+            },
+            Enrolment:{
+                where:{student_id},
+                select:{status:true}
             }
         },
     });
@@ -1061,4 +1066,32 @@ export const getClassByStudentId = async (student_id: string) => {
 };
 
 
+export const getMassTutorsByStudentId = async (student_id: string) => {
+    
+    const enrolments = await prisma.enrolment.findMany({
+        where: { student_id },
+    });
+    const classIds = enrolments.map(enrol => enrol.class_id);
 
+    const classes = await prisma.class.findMany({
+        where: { class_id: { in: classIds } },
+        select: {
+            m_tutor_id: true
+        }
+    });
+
+   const massTutorIds = classes.map(cls => cls.m_tutor_id);
+   const massTutors = await prisma.mass_Tutor.findMany({
+       where: { m_tutor_id: { in: massTutorIds } },
+       include: {
+           User: {
+               select: {
+                   name: true,
+                   photo_url: true
+               }
+           }
+       }
+   });
+
+   return massTutors;
+};

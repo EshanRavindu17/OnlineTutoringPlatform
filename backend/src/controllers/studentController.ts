@@ -292,7 +292,8 @@ export const getTutorNameAndTypeByIdController = async (req: Request, res: Respo
 import { getAllMassClasses,
          getMassTutorById,
          getClassByClassIdAndStudentId,
-         getClassByStudentId
+         getClassByStudentId,
+         getMassTutorsByStudentId
        } from "../services/studentService";
 
 
@@ -399,5 +400,17 @@ export const getClassesByStudentIdController = async (req: Request, res: Respons
     } catch (error) {
         console.error("Error getting class slots:", error);
         return res.status(500).json({ error: "Failed to get class slots" });
+    }
+};
+
+export const getMassTutorsByStudentIdController = async (req: Request, res: Response) => {
+    const { student_id } = req.params;
+    console.log("Getting mass tutors for student_ID:", student_id);
+    try {
+        const massTutors = await getMassTutorsByStudentId(student_id);
+        return res.json(massTutors);
+    } catch (error) {
+        console.error("Error getting mass tutors:", error);
+        return res.status(500).json({ error: "Failed to get mass tutors" });
     }
 };

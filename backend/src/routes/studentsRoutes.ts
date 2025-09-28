@@ -19,7 +19,8 @@ import { addStudentController,
          getMassTutorProfileByIdController,
          getClassSlotsByClassIdAndStudentIdController,
          getClassSlotsByClassIdController,
-         getClassesByStudentIdController} 
+         getClassesByStudentIdController,
+         getMassTutorsByStudentIdController} 
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
@@ -86,6 +87,7 @@ router.get('/getMassTutorById/:tutorId', getMassTutorProfileByIdController);
 router.get('/getClassSlotsByClassIdAndStudentId/:classId/:studentId', getClassSlotsByClassIdAndStudentIdController);
 router.get('/getClassSlotsByClassID/:classId/:month', getClassSlotsByClassIdController);
 router.get('/getClassByStudentId/:student_id', getClassesByStudentIdController);
+router.get('/getMassTutorsByStudentId/:studentId', getMassTutorsByStudentIdController);
 
 
 export default router;
