@@ -55,7 +55,8 @@ export interface TutorFilters {
 export interface TutorProfile {
   i_tutor_id: string;
   subjects: string[];
-  titles: string[];
+  titles: string[]; 
+  titlesGroupedBySubject?: { [subjectName: string]: string[] }; 
   hourly_rate: number;
   rating: number;
   description: string;
@@ -257,12 +258,11 @@ export const tutorService = {
   },
 
   // Update tutor subjects and titles
-  updateTutorSubjectsAndTitles: async (firebaseUid: string, subjects: string[], titles: string[]): Promise<any> => {
+  updateTutorSubjectsAndTitles: async (firebaseUid: string, subjectsWithTitles: { [subjectName: string]: string[] }): Promise<any> => {
     try {
-      console.log('Updating tutor subjects and titles:', { firebaseUid, subjects, titles });
+      console.log('Updating tutor subjects and titles:', { firebaseUid, subjectsWithTitles });
       const response = await apiClient.put(`/individual-tutor/subjects-titles/${firebaseUid}`, {
-        subjects,
-        titles
+        subjectsWithTitles
       });
       console.log('Subjects and titles updated:', response.data);
       return response.data;

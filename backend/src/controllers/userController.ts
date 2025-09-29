@@ -12,6 +12,8 @@ import {
 /**
  * Controller for user-related HTTP requests
  * Handles request/response logic and delegates business logic to userService
+ * 
+ * NOTE: Individual tutors now store subject and title names instead of IDs
  */
 
 /**

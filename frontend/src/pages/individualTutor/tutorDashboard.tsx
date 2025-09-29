@@ -31,16 +31,21 @@ import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/authContext';
 import { Subject, Title, tutorService } from '../../api/TutorService';
 import { ScheduleService } from '../../api/ScheduleService';
+import { sessionService } from '../../api/SessionService';
+import { SessionWithDetails, SessionStatistics } from '../../types/session';
 import { NotificationCenter } from './NotificationCenter';
 import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
+import { EarningsService, EarningsDashboard, EarningsStatistics, RecentPayment } from '../../api/EarningsService';
+import { ReviewsService, ReviewData, ReviewStatistics, ReviewAnalytics } from '../../api/ReviewsService';
 
 interface LocalTutorProfile {
   name: string;
   description: string;
   phone: string;
   heading?: string;  // Added heading field
-  subjects: string[];      // Subject IDs
-  titles: string[];       // Title IDs
+  subjects: string[];      // Subject names instead of IDs
+  titles: string[];       // Title names instead of IDs
+  titlesGroupedBySubject?: { [subjectName: string]: string[] }; // Grouped titles for display
   qualifications: string[];  // Changed from alQualifications and degree to array
   hourlyRate: number;
   rating: number;
@@ -76,6 +81,7 @@ interface Session {
   review?: string;
   reason?: string;
   refunded?: boolean;
+  meeting_urls?: string[];
 }
 
 interface Review {
@@ -204,6 +210,21 @@ const TutorDashboard: React.FC = () => {
     onTimeRate: 95
   });
 
+  // Subjects and Titles from backend
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [availableTitles, setAvailableTitles] = useState<Title[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingTitles, setLoadingTitles] = useState(false);
+  
+  // State for adding custom subjects and titles
+  const [customSubject, setCustomSubject] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [selectedSubjectForCustomTitle, setSelectedSubjectForCustomTitle] = useState('');
+  
+  // State for filtering/searching
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
+
   // Load subjects when component mounts
   useEffect(() => {
     loadSubjects();
@@ -211,17 +232,16 @@ const TutorDashboard: React.FC = () => {
 
   // Load titles when tutor profile subjects change (for display purposes)
   useEffect(() => {
-    if (tutorProfile.subjects.length > 0) {
+    if (tutorProfile.subjects.length > 0 && availableSubjects.length > 0) {
       loadTitlesForSubjects(tutorProfile.subjects);
     }
-  }, [tutorProfile.subjects]);
+  }, [tutorProfile.subjects, availableSubjects]);
 
   // Load subjects from API
   const loadSubjects = async () => {
     setLoadingSubjects(true);
     try {
       const subjects = await tutorService.getAllSubjects();
-      console.log('Loaded available subjects:', subjects); // Debug log
       setAvailableSubjects(subjects);
     } catch (error) {
       console.error('Failed to load subjects:', error);
@@ -231,15 +251,27 @@ const TutorDashboard: React.FC = () => {
   };
 
   // Load titles when subjects change
-  const loadTitlesForSubjects = async (selectedSubjectIds: string[]) => {
-    if (selectedSubjectIds.length === 0) {
+  const loadTitlesForSubjects = async (selectedSubjectNames: string[]) => {
+    if (selectedSubjectNames.length === 0) {
       setAvailableTitles([]);
       return;
     }
 
     setLoadingTitles(true);
     try {
-      console.log('Loading titles for subjects:', selectedSubjectIds); // Debug log
+      // Convert subject names to IDs for API calls
+      const selectedSubjectIds = selectedSubjectNames.map(subjectName => {
+        const subject = availableSubjects.find(s => s.name === subjectName);
+        return subject?.sub_id;
+      }).filter(Boolean) as string[];
+
+      if (selectedSubjectIds.length === 0) {
+        console.warn('No matching subject IDs found for names:', selectedSubjectNames);
+        setAvailableTitles([]);
+        setLoadingTitles(false);
+        return;
+      }
+
       // Load titles for all selected subjects
       const allTitles = [];
       for (const subjectId of selectedSubjectIds) {
@@ -261,6 +293,95 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
+  // Load sessions data
+  const loadSessionsData = async () => {
+    if (currentUser?.uid) {
+      try {
+        // Load all sessions
+        const allSessions = await sessionService.getAllSessions(currentUser.uid);
+        
+        // Load session statistics
+        const statistics = await sessionService.getSessionStatistics(currentUser.uid);
+        setSessionStats(statistics);
+        
+        // Categorize sessions
+        const upcoming = allSessions.filter(session => 
+          session.status === 'scheduled' && 
+          session.date && 
+          new Date(session.date) > new Date()
+        );
+        
+        const previous = allSessions.filter(session => 
+          session.status === 'completed'
+        );
+        
+        const cancelled = allSessions.filter(session => 
+          session.status === 'canceled'
+        );
+        
+        setSessions({
+          upcoming,
+          previous,
+          cancelled,
+          all: allSessions
+        });
+      } catch (error) {
+        console.error('Error loading sessions data:', error);
+      }
+    }
+  };
+
+  // Load earnings data
+  const loadEarningsData = async () => {
+    if (currentUser?.uid) {
+      try {
+        setEarningsLoading(true);
+        const dashboard = await EarningsService.getEarningsDashboard(currentUser.uid);
+        setEarningsData(dashboard.earnings);
+        setRecentPayments(dashboard.recentPayments);
+        
+        // Update tutor profile with real earnings data
+        setTutorProfile(prev => ({
+          ...prev,
+          totalEarnings: dashboard.earnings.totalEarnings,
+          adminCommission: dashboard.earnings.adminCommission,
+          profit: dashboard.earnings.netEarnings
+        }));
+      } catch (error) {
+        console.error('Error loading earnings data:', error);
+      } finally {
+        setEarningsLoading(false);
+      }
+    }
+  };
+
+  // Load reviews data
+  const loadReviewsData = async () => {
+    if (currentUser?.uid) {
+      try {
+        setReviewsLoading(true);
+        const [reviewsDataResult, statisticsResult] = await Promise.all([
+          ReviewsService.getTutorReviews(currentUser.uid, { limit: 20 }),
+          ReviewsService.getReviewStatistics(currentUser.uid)
+        ]);
+        
+        setReviewsData(reviewsDataResult);
+        setReviewStats(statisticsResult);
+        
+        // Update tutor profile with real reviews data
+        setTutorProfile(prev => ({
+          ...prev,
+          rating: statisticsResult.averageRating,
+          totalReviews: statisticsResult.totalReviews
+        }));
+      } catch (error) {
+        console.error('Error loading reviews data:', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    }
+  };
+
   // Load real data
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -270,7 +391,6 @@ const TutorDashboard: React.FC = () => {
           // Load tutor profile from backend
           try {
             const profile = await tutorService.getTutorProfile(currentUser.uid);
-            console.log('Loaded tutor profile:', profile); // Debug log
             setTutorProfile(prev => ({
               ...prev,
               name: profile.User.name,
@@ -280,6 +400,7 @@ const TutorDashboard: React.FC = () => {
               rating: profile.rating,
               subjects: profile.subjects,   // Load subjects from backend
               titles: profile.titles,       // Load titles from backend
+              titlesGroupedBySubject: profile.titlesGroupedBySubject || {}, // Load grouped titles
               qualifications: profile.qualifications,
               phone: profile.phone_number, // Load phone from backend
               heading: profile.heading,     // Load heading from backend
@@ -290,10 +411,8 @@ const TutorDashboard: React.FC = () => {
               profit: prev.profit
             }));
 
-            // Load titles for the selected subjects
-            if (profile.subjects && profile.subjects.length > 0) {
-              loadTitlesForSubjects(profile.subjects);
-            }
+            // Load titles for the selected subjects (will be handled by useEffect when availableSubjects loads)
+            // Titles will be loaded automatically by the useEffect dependency
 
             // Load tutor statistics
             const statistics = await tutorService.getTutorStatistics(profile.i_tutor_id);
@@ -340,6 +459,13 @@ const TutorDashboard: React.FC = () => {
               }));
             }
           }
+
+          // Load all dashboard data
+          await Promise.all([
+            loadSessionsData(),
+            loadEarningsData(),
+            loadReviewsData()
+          ]);
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -375,86 +501,28 @@ const TutorDashboard: React.FC = () => {
     };
   }, [showImageEditModal]);
 
-  // Subjects and Titles from backend
-  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
-  const [availableTitles, setAvailableTitles] = useState<Title[]>([]);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [loadingTitles, setLoadingTitles] = useState(false);
-  
-  // State for adding custom subjects and titles
-  const [customSubject, setCustomSubject] = useState('');
-  const [customTitle, setCustomTitle] = useState('');
-  const [selectedSubjectForCustomTitle, setSelectedSubjectForCustomTitle] = useState('');
-  
-  // State for filtering/searching
-  const [subjectFilter, setSubjectFilter] = useState('');
-  const [titleFilter, setTitleFilter] = useState('');
-
-
-  // Sessions Data
+  // Sessions Data - Real data from backend
   const [sessions, setSessions] = useState({
-    upcoming: [
-      {
-        id: 1,
-        studentName: 'John Doe',
-        subject: 'Mathematics',
-        title: 'Calculus',
-        date: '2025-08-26',
-        time: '14:00-16:00',
-        amount: 130,
-        materials: ['Calculus Workbook', 'Practice Problems']
-      },
-      {
-        id: 2,
-        studentName: 'Jane Smith',
-        subject: 'Physics',
-        title: 'Thermodynamics',
-        date: '2025-08-27',
-        time: '09:00-11:00',
-        amount: 130,
-        materials: []
-      }
-    ] as Session[],
-    previous: [
-      {
-        id: 3,
-        studentName: 'Mike Johnson',
-        subject: 'Mathematics',
-        title: 'Algebra',
-        date: '2025-08-20',
-        time: '10:00-12:00',
-        amount: 130,
-        rating: 5,
-        review: 'Excellent explanation of quadratic equations!'
-      },
-      {
-        id: 4,
-        studentName: 'Sarah Wilson',
-        subject: 'Physics',
-        title: 'Quantum Mechanics',
-        date: '2025-08-18',
-        time: '15:00-17:00',
-        amount: 130,
-        rating: 4,
-        review: 'Good session, but could use more examples.'
-      }
-    ] as Session[],
-    cancelled: [
-      {
-        id: 5,
-        studentName: 'Tom Brown',
-        subject: 'Mathematics',
-        title: 'Real Analysis',
-        date: '2025-08-15',
-        time: '13:00-15:00',
-        amount: 130,
-        reason: 'Student emergency',
-        refunded: true
-      }
-    ] as Session[]
+    upcoming: [] as SessionWithDetails[],
+    previous: [] as SessionWithDetails[],
+    cancelled: [] as SessionWithDetails[],
+    all: [] as SessionWithDetails[]
   });
 
-  // Reviews and Ratings
+  // Session statistics
+  const [sessionStats, setSessionStats] = useState<SessionStatistics | null>(null);
+
+  // Earnings state
+  const [earningsData, setEarningsData] = useState<EarningsStatistics | null>(null);
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [earningsLoading, setEarningsLoading] = useState(false);
+
+  // Reviews state
+  const [reviewsData, setReviewsData] = useState<ReviewData[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStatistics | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Reviews and Ratings (keep old for backward compatibility)
   const [reviews, setReviews] = useState<Review[]>([
     {
       id: 1,
@@ -483,7 +551,29 @@ const TutorDashboard: React.FC = () => {
   ]);
 
   const [newMaterial, setNewMaterial] = useState('');
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // Helper function to format session data
+  const formatSession = (session: SessionWithDetails) => {
+    return {
+      id: session.session_id,
+      studentName: session.Student?.User?.name || 'Unknown Student',
+      subject: session.title || 'No Subject',
+      title: session.title || 'No Title',
+      date: session.date ? new Date(session.date).toLocaleDateString() : '',
+      time: session.start_time && session.end_time 
+        ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
+        : 'Time not set',
+      amount: session.price || 0,
+      materials: session.materials || [],
+      rating: session.Rating_N_Review_Session?.[0]?.rating || null,
+      review: session.Rating_N_Review_Session?.[0]?.review || null,
+      status: session.status,
+      meeting_urls: session.meeting_urls || [],
+      refunded: false, // TODO: Add refund status to backend
+      reason: null // TODO: Add cancellation reason to backend
+    };
+  };
 
   const toggleEditMode = (section: keyof typeof editMode) => {
     setEditMode(prev => ({
@@ -545,42 +635,61 @@ const TutorDashboard: React.FC = () => {
   };
 
   // Subject and Title handlers
-  const handleSubjectChange = (subjectId: string) => {
-    const isSelected = tutorProfile.subjects.includes(subjectId);
+  const handleSubjectChange = (subjectName: string) => {
+    const isSelected = tutorProfile.subjects.includes(subjectName);
     let newSubjects;
+    let newTitlesGrouped = tutorProfile.titlesGroupedBySubject ? { ...tutorProfile.titlesGroupedBySubject } : {};
     
     if (isSelected) {
-      // Remove subject
-      newSubjects = tutorProfile.subjects.filter(id => id !== subjectId);
+      // Remove subject and its titles
+      newSubjects = tutorProfile.subjects.filter(name => name !== subjectName);
+      // Remove titles associated with this subject
+      delete newTitlesGrouped[subjectName];
     } else {
       // Add subject
-      newSubjects = [...tutorProfile.subjects, subjectId];
+      newSubjects = [...tutorProfile.subjects, subjectName];
+      // Initialize empty titles array for new subject
+      newTitlesGrouped[subjectName] = [];
     }
+    
+    // Update titles array to be flat array of all selected titles
+    const flatTitles = Object.values(newTitlesGrouped).flat();
     
     setTutorProfile(prev => ({
       ...prev,
-      subjects: newSubjects
+      subjects: newSubjects,
+      titles: flatTitles,
+      titlesGroupedBySubject: newTitlesGrouped
     }));
     
-    // Load titles for the new subject selection
+    // Load titles for the new subject selection (for dropdown options)
     loadTitlesForSubjects(newSubjects);
   };
 
-  const handleTitleChange = (titleId: string) => {
-    const isSelected = tutorProfile.titles.includes(titleId);
-    let newTitles;
+  const handleTitleChange = (titleName: string, subjectName: string) => {
+    const currentGroupedTitles = tutorProfile.titlesGroupedBySubject ? { ...tutorProfile.titlesGroupedBySubject } : {};
+    
+    if (!currentGroupedTitles[subjectName]) {
+      currentGroupedTitles[subjectName] = [];
+    }
+    
+    const isSelected = currentGroupedTitles[subjectName].includes(titleName);
     
     if (isSelected) {
-      // Remove title
-      newTitles = tutorProfile.titles.filter(id => id !== titleId);
+      // Remove title from subject
+      currentGroupedTitles[subjectName] = currentGroupedTitles[subjectName].filter(name => name !== titleName);
     } else {
-      // Add title
-      newTitles = [...tutorProfile.titles, titleId];
+      // Add title to subject
+      currentGroupedTitles[subjectName] = [...currentGroupedTitles[subjectName], titleName];
     }
+    
+    // Update titles array to be flat array of all selected titles
+    const flatTitles = Object.values(currentGroupedTitles).flat();
     
     setTutorProfile(prev => ({
       ...prev,
-      titles: newTitles
+      titles: flatTitles,
+      titlesGroupedBySubject: currentGroupedTitles
     }));
   };
 
@@ -591,21 +700,30 @@ const TutorDashboard: React.FC = () => {
         const newSubject = await tutorService.createSubject(customSubject.trim());
         setAvailableSubjects(prev => [...prev, newSubject]);
         
-        // Automatically select the new subject
-        const newSubjects = [...tutorProfile.subjects, newSubject.sub_id];
+        // Automatically select the new subject (use name instead of ID)
+        const newSubjects = [...tutorProfile.subjects, newSubject.name];
+        const newTitlesGrouped = tutorProfile.titlesGroupedBySubject ? { ...tutorProfile.titlesGroupedBySubject } : {};
+        newTitlesGrouped[newSubject.name] = [];
+        
         setTutorProfile(prev => ({
           ...prev,
-          subjects: newSubjects
+          subjects: newSubjects,
+          titlesGroupedBySubject: newTitlesGrouped
         }));
         
         setCustomSubject('');
         
         // Load titles for the new selection
         loadTitlesForSubjects(newSubjects);
+        
+        // Show success message
+        alert(`✅ Subject "${newSubject.name}" created successfully and added to your profile!`);
       } catch (error: any) {
         console.error('Failed to create subject:', error);
-        alert(error.message || 'Failed to create subject');
+        alert(`❌ Failed to create subject: ${error.message || 'Unknown error'}`);
       }
+    } else if (customSubject.trim() && availableSubjects.some(s => s.name.toLowerCase() === customSubject.trim().toLowerCase())) {
+      alert('⚠️ This subject already exists. Please choose a different name.');
     }
   };
 
@@ -617,19 +735,40 @@ const TutorDashboard: React.FC = () => {
         const newTitle = await tutorService.createTitle(customTitle.trim(), selectedSubjectForCustomTitle);
         setAvailableTitles(prev => [...prev, newTitle]);
         
-        // Automatically select the new title
-        const newTitles = [...tutorProfile.titles, newTitle.title_id];
-        setTutorProfile(prev => ({
-          ...prev,
-          titles: newTitles
-        }));
+        // Find the subject name for the selected subject ID
+        const subjectRecord = availableSubjects.find(s => s.sub_id === selectedSubjectForCustomTitle);
+        if (subjectRecord) {
+          // Automatically select the new title (use name instead of ID)
+          const currentGroupedTitles = tutorProfile.titlesGroupedBySubject ? { ...tutorProfile.titlesGroupedBySubject } : {};
+          if (!currentGroupedTitles[subjectRecord.name]) {
+            currentGroupedTitles[subjectRecord.name] = [];
+          }
+          currentGroupedTitles[subjectRecord.name] = [...currentGroupedTitles[subjectRecord.name], newTitle.name];
+          
+          // Update flat titles array
+          const flatTitles = Object.values(currentGroupedTitles).flat();
+          
+          setTutorProfile(prev => ({
+            ...prev,
+            titles: flatTitles,
+            titlesGroupedBySubject: currentGroupedTitles
+          }));
+          
+          // Show success message
+          alert(`✅ Title "${newTitle.name}" created successfully and added to "${subjectRecord.name}"!`);
+        }
         
         setCustomTitle('');
         setSelectedSubjectForCustomTitle('');
       } catch (error: any) {
         console.error('Failed to create title:', error);
-        alert(error.message || 'Failed to create title');
+        alert(`❌ Failed to create title: ${error.message || 'Unknown error'}`);
       }
+    } else if (customTitle.trim() && selectedSubjectForCustomTitle && 
+               availableTitles.some(t => t.name.toLowerCase() === customTitle.trim().toLowerCase() && t.sub_id === selectedSubjectForCustomTitle)) {
+      alert('⚠️ This title already exists for the selected subject. Please choose a different name.');
+    } else if (!selectedSubjectForCustomTitle) {
+      alert('⚠️ Please select a subject first.');
     }
   };
 
@@ -642,8 +781,19 @@ const TutorDashboard: React.FC = () => {
   };
 
   const getFilteredTitles = () => {
-    if (!titleFilter.trim()) return availableTitles;
-    return availableTitles.filter(title => 
+    // First filter titles to only include those from selected subjects
+    const selectedSubjectIds = tutorProfile.subjects.map(subjectName => {
+      const subject = availableSubjects.find(s => s.name === subjectName);
+      return subject?.sub_id;
+    }).filter(Boolean) as string[];
+    
+    const titlesFromSelectedSubjects = availableTitles.filter(title => 
+      selectedSubjectIds.includes(title.sub_id)
+    );
+    
+    // Then filter by search text if provided
+    if (!titleFilter.trim()) return titlesFromSelectedSubjects;
+    return titlesFromSelectedSubjects.filter(title => 
       title.name.toLowerCase().includes(titleFilter.toLowerCase())
     );
   };
@@ -679,7 +829,31 @@ const TutorDashboard: React.FC = () => {
   const handleSaveSubjectsAndTitles = async () => {
     if (currentUser?.uid) {
       try {
-        await tutorService.updateTutorSubjectsAndTitles(currentUser.uid, tutorProfile.subjects, tutorProfile.titles);
+        // Convert the current subjects and titles to grouped format
+        const subjectsWithTitles: { [subjectName: string]: string[] } = {};
+        
+        // Initialize empty arrays for each subject
+        tutorProfile.subjects.forEach(subjectName => {
+          subjectsWithTitles[subjectName] = [];
+        });
+        
+        // Use grouped titles if available, otherwise try to group titles by subjects
+        if (tutorProfile.titlesGroupedBySubject) {
+          Object.assign(subjectsWithTitles, tutorProfile.titlesGroupedBySubject);
+        } else {
+          // Fallback: for each title, find its subject using availableTitles
+          tutorProfile.titles.forEach(titleName => {
+            const titleRecord = availableTitles.find(t => t.name === titleName);
+            if (titleRecord) {
+              const subjectRecord = availableSubjects.find(s => s.sub_id === titleRecord.sub_id);
+              if (subjectRecord && subjectsWithTitles[subjectRecord.name]) {
+                subjectsWithTitles[subjectRecord.name].push(titleName);
+              }
+            }
+          });
+        }
+        
+        await tutorService.updateTutorSubjectsAndTitles(currentUser.uid, subjectsWithTitles);
         // Turn off edit mode after successful save
         toggleEditMode('subjects');
         alert('Subjects and titles updated successfully!');
@@ -821,36 +995,85 @@ const TutorDashboard: React.FC = () => {
   };
 
 
-  const addMaterial = (sessionId: number) => {
-    if (newMaterial.trim()) {
-      setSessions(prev => ({
-        ...prev,
-        upcoming: prev.upcoming.map(session => 
-          session.id === sessionId 
-            ? { ...session, materials: [...(session.materials || []), newMaterial.trim()] }
-            : session
-        )
-      }));
-      setNewMaterial('');
-      setSelectedSessionId(null);
+  const addMaterial = async (sessionId: string) => {
+    if (newMaterial.trim() && currentUser?.uid) {
+      try {
+        await sessionService.addSessionMaterial(currentUser.uid, sessionId, newMaterial.trim());
+        // Reload sessions to get updated data
+        loadSessionsData();
+        setNewMaterial('');
+        setSelectedSessionId(null);
+        alert('Material added successfully!');
+      } catch (error) {
+        console.error('Error adding material:', error);
+        alert('Failed to add material. Please try again.');
+      }
     }
   };
 
-  const requestCancellation = (sessionId: number) => {
-    alert(`Cancellation request sent for session ${sessionId}. An email will be sent to the student and admin for approval.`);
+  const removeMaterial = async (sessionId: string, materialIndex: number, materialName: string) => {
+    if (currentUser?.uid) {
+      try {
+        // Confirm before removing
+        const confirmed = window.confirm(`Are you sure you want to remove "${materialName}"?`);
+        
+        if (confirmed) {
+          await sessionService.removeSessionMaterial(currentUser.uid, sessionId, materialIndex);
+          // Reload sessions to get updated data
+          loadSessionsData();
+          alert('Material removed successfully!');
+        }
+      } catch (error) {
+        console.error('Error removing material:', error);
+        alert('Failed to remove material. Please try again.');
+      }
+    }
   };
 
-  // const requestReschedule = (sessionId: number) => {
-  //   alert(`Reschedule request sent for session ${sessionId}. Student will be notified to approve the new time.`);
-  // };
+  const requestCancellation = async (sessionId: string) => {
+    if (currentUser?.uid) {
+      try {
+        const reason = prompt('Please provide a reason for cancellation (optional):');
+        const result = await sessionService.requestCancellation(currentUser.uid, sessionId, reason || undefined);
+        if (result.success) {
+          alert(result.message);
+          // Reload sessions to get updated data
+          loadSessionsData();
+        } else {
+          alert('Failed to cancel session: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error cancelling session:', error);
+        alert('Failed to cancel session. Please try again.');
+      }
+    }
+  };
 
-  const handleZoomMeeting = (sessionId: number, studentName: string) => {
-    // You can replace this with actual Zoom meeting logic
-    const zoomLink = `https://zoom.us/j/meeting-${sessionId}`;
-    alert(`Starting Zoom meeting with ${studentName}\n\nMeeting Link: ${zoomLink}\n\nNote: This would typically open Zoom or redirect to the meeting.`);
-    // In real implementation, you might:
-    // window.open(zoomLink, '_blank');
-    // Or trigger your actual video calling service
+  const handleZoomMeeting = (sessionId: string, studentName: string, meetingUrls?: string[]) => {
+    // Get the Zoom URL from meeting_urls[0] if available
+    const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
+    
+    if (zoomLink) {
+      // Confirm before opening the meeting
+      const confirmed = window.confirm(
+        `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab.`
+      );
+      
+      if (confirmed) {
+        // Open the actual Zoom meeting in a new tab
+        window.open(zoomLink, '_blank');
+      }
+    } else {
+      // Fallback if no meeting URL is available
+      alert(
+        `❌ No Zoom meeting URL found for this session with ${studentName}.\n\n` +
+        `Possible reasons:\n` +
+        `• The meeting hasn't been set up yet\n` +
+        `• The session is scheduled for later\n` +
+        `• Technical issue with meeting creation\n\n` +
+        `Please contact the student or admin for assistance.`
+      );
+    }
   };
 
   const tabs = [
@@ -926,7 +1149,9 @@ const TutorDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Earnings</p>
-              <p className="text-3xl font-bold text-green-600">${stats.monthlyEarnings}</p>
+              <p className="text-3xl font-bold text-green-600">
+                ${EarningsService.formatCurrency(earningsData?.totalEarnings || stats.monthlyEarnings)}
+              </p>
               <p className="text-xs text-gray-500 mt-1">This month</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -1427,8 +1652,8 @@ const TutorDashboard: React.FC = () => {
                         >
                           <input
                             type="checkbox"
-                            checked={tutorProfile.subjects.includes(subject.sub_id)}
-                            onChange={() => handleSubjectChange(subject.sub_id)}
+                            checked={tutorProfile.subjects.includes(subject.name)}
+                            onChange={() => handleSubjectChange(subject.name)}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                           <span className="ml-3 text-sm text-gray-700">{subject.name}</span>
@@ -1440,23 +1665,22 @@ const TutorDashboard: React.FC = () => {
               </div>
               {tutorProfile.subjects.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {tutorProfile.subjects.map((subjectId) => {
-                    const subject = availableSubjects.find(s => s.sub_id === subjectId);
-                    return subject ? (
+                  {tutorProfile.subjects.map((subjectName) => {
+                    return (
                       <span
-                        key={subjectId}
+                        key={subjectName}
                         className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200"
                       >
-                        {subject.name}
+                        {subjectName}
                         <button
                           type="button"
-                          onClick={() => handleSubjectChange(subjectId)}
+                          onClick={() => handleSubjectChange(subjectName)}
                           className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-200"
                         >
                           <X size={12} />
                         </button>
                       </span>
-                    ) : null;
+                    );
                   })}
                 </div>
               )}
@@ -1493,7 +1717,7 @@ const TutorDashboard: React.FC = () => {
                 </button>
               </div>
               <p className="mt-2 text-xs text-gray-500">
-                Can't find your subject? Add it here and it will be available for other tutors too
+                <strong>📚 Creating Custom Subjects:</strong> Can't find your subject? Add it here and it will be saved to the database permanently and made available for other tutors too!
               </p>
             </div>
 
@@ -1534,20 +1758,26 @@ const TutorDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="p-2">
-                        {getFilteredTitles().map((title) => (
-                          <label
-                            key={title.title_id}
-                            className="flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={tutorProfile.titles.includes(title.title_id)}
-                              onChange={() => handleTitleChange(title.title_id)}
-                              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                            />
-                            <span className="ml-3 text-sm text-gray-700">{title.name}</span>
-                          </label>
-                        ))}
+                        {getFilteredTitles().map((title) => {
+                          const subjectRecord = availableSubjects.find(s => s.sub_id === title.sub_id);
+                          const subjectName = subjectRecord?.name || '';
+                          const isSelected = tutorProfile.titlesGroupedBySubject?.[subjectName]?.includes(title.name) || false;
+                          
+                          return (
+                            <label
+                              key={title.title_id}
+                              className="flex items-center p-3 hover:bg-gray-50 cursor-pointer rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleTitleChange(title.name, subjectName)}
+                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                              />
+                              <span className="ml-3 text-sm text-gray-700">{title.name}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1555,17 +1785,21 @@ const TutorDashboard: React.FC = () => {
               )}
               {tutorProfile.titles.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {tutorProfile.titles.map((titleId) => {
-                    const title = availableTitles.find(t => t.title_id === titleId);
-                    return title ? (
+                  {tutorProfile.titles.map((titleName) => {
+                    // Find the title record to get subject information
+                    const titleRecord = availableTitles.find(t => t.name === titleName);
+                    const subjectRecord = titleRecord ? availableSubjects.find(s => s.sub_id === titleRecord.sub_id) : null;
+                    const subjectName = subjectRecord?.name || '';
+                    
+                    return titleRecord ? (
                       <span
-                        key={titleId}
+                        key={titleName}
                         className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200"
                       >
-                        {title.name}
+                        {titleName}
                         <button
                           type="button"
-                          onClick={() => handleTitleChange(titleId)}
+                          onClick={() => handleTitleChange(titleName, subjectName)}
                           className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-green-600 hover:text-green-800 hover:bg-green-200"
                         >
                           <X size={12} />
@@ -1592,10 +1826,10 @@ const TutorDashboard: React.FC = () => {
                         className="block w-full py-3 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent sm:text-sm"
                       >
                         <option value="">Select subject for new title</option>
-                        {tutorProfile.subjects.map(subjectId => {
-                          const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                        {tutorProfile.subjects.map(subjectName => {
+                          const subject = availableSubjects.find(s => s.name === subjectName);
                           return subject ? (
-                            <option key={subjectId} value={subjectId}>
+                            <option key={subject.sub_id} value={subject.sub_id}>
                               {subject.name}
                             </option>
                           ) : null;
@@ -1632,7 +1866,7 @@ const TutorDashboard: React.FC = () => {
                   )}
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Can't find your area of expertise? Add it here and it will be available for other tutors too
+                  <strong>🎯 Creating Custom Titles:</strong> Can't find your area of expertise? First select a subject, then add your custom title. It will be saved to the database and made available for other tutors too!
                 </p>
               </div>
             )}
@@ -1651,46 +1885,27 @@ const TutorDashboard: React.FC = () => {
                   </div>
                 )}
                 
-                {/* Display subjects with their titles */}
-                {tutorProfile.subjects.map((subjectId) => {
-                  const subject = availableSubjects.find(s => s.sub_id === subjectId);
-                  const subjectTitles = tutorProfile.titles
-                    .map(titleId => availableTitles.find(t => t.title_id === titleId))
-                    .filter(title => title && title.sub_id === subjectId);
+                {/* Display subjects with their titles using names */}
+                {tutorProfile.subjects.map((subjectName) => {
+                  // Get titles for this subject from grouped titles
+                  const subjectTitles = tutorProfile.titlesGroupedBySubject?.[subjectName] || [];
                   
                   return (
-                    <div key={subjectId} className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200">
+                    <div key={subjectName} className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200">
                       <div className="flex items-center mb-4">
                         <BookOpen className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0" />
                         <h3 className="font-semibold text-xl text-gray-800">
-                          {subject ? subject.name : `Subject ID: ${subjectId}`}
+                          {subjectName}
                         </h3>
                       </div>
                       {subjectTitles.length > 0 ? (
+
                         <div className="flex flex-wrap gap-2">
-                          {subjectTitles.map((title) => (
-                            <span key={title!.title_id} className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">
-                              {title!.name}
+                          {subjectTitles.map((titleName) => (
+                            <span key={titleName} className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">
+                              {titleName}
                             </span>
                           ))}
-                        </div>
-                      ) : tutorProfile.titles.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {tutorProfile.titles.map((titleId) => {
-                            const title = availableTitles.find(t => t.title_id === titleId);
-                            if (!title && !loadingTitles) {
-                              return (
-                                <span key={titleId} className="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium text-gray-600 border border-gray-300">
-                                  Title ID: {titleId}
-                                </span>
-                              );
-                            }
-                            return title ? (
-                              <span key={titleId} className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-700 border border-gray-200 shadow-sm">
-                                {title.name}
-                              </span>
-                            ) : null;
-                          })}
                         </div>
                       ) : (
                         <p className="text-gray-600 italic">No specific titles selected for this subject</p>
@@ -1753,281 +1968,587 @@ const TutorDashboard: React.FC = () => {
     </div>
   );
 
-  const renderSessions = () => (
-    <div className="space-y-6">
-      {/* Upcoming Sessions */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Upcoming Sessions</h2>
-        <div className="space-y-4">
-          {sessions.upcoming.map((session) => (
-            <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-800">
-                    {session.subject} - {session.title}
-                  </h3>
-                  <p className="text-gray-600">Student: {session.studentName}</p>
-                  <p className="text-gray-600">{session.date} at {session.time}</p>
-                  <p className="text-green-600 font-medium">${session.amount}</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleZoomMeeting(session.id, session.studentName)}
-                    className="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 flex items-center space-x-1 transition-colors"
-                    title="Start Zoom Meeting"
-                  >
-                    <Video size={16} />
-                    <span>Zoom</span>
-                  </button>
-                  {/* <button
-                    onClick={() => requestReschedule(session.id)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-                  >
-                    Reschedule
-                  </button> */}
-                  <button
-                    onClick={() => requestCancellation(session.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+  const renderSessions = () => {
+    return (
+      <div className="space-y-6">
+        {/* Upcoming Sessions */}
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Upcoming Sessions</h2>
+          <div className="space-y-4">
+            {sessions.upcoming.map((sessionData) => {
+              const session = formatSession(sessionData);
               
-              {/* Materials Section */}
-              <div className="mt-4">
-                <h4 className="font-medium text-gray-800 mb-2">Session Materials</h4>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {session.materials?.map((material, index) => (
-                    <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                      {material}
-                    </span>
-                  ))}
-                </div>
-                
-                {selectedSessionId === session.id ? (
+              return (
+                <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg text-gray-800 flex items-center">
+                      {session.subject} - {session.title}
+                      {session.meeting_urls && session.meeting_urls.length > 0 && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full flex items-center">
+                          <Video size={12} className="mr-1" />
+                          Meeting Ready
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-gray-600">Student: {session.studentName}</p>
+                    <p className="text-gray-600">{session.date} at {session.time}</p>
+                    <p className="text-green-600 font-medium">${session.amount}</p>
+                    {session.meeting_urls && session.meeting_urls.length > 0 && (
+                      <p className="text-blue-600 text-sm flex items-center mt-1">
+                        <ExternalLink size={14} className="mr-1" />
+                        Zoom meeting available
+                      </p>
+                    )}
+                    </div>
                   <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newMaterial}
-                      onChange={(e) => setNewMaterial(e.target.value)}
-                      placeholder="Add material"
-                      className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
-                    />
                     <button
-                      onClick={() => addMaterial(session.id)}
-                      className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                      onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                      className="bg-blue-500 text-white px-3 py-2 rounded text-sm flex items-center space-x-1 hover:bg-blue-600 transition-colors"
+                      title="Start Zoom Meeting"
                     >
-                      Add
+                      <Video size={16} />
+                      <span>Zoom</span>
                     </button>
                     <button
-                      onClick={() => setSelectedSessionId(null)}
-                      className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                      onClick={() => requestCancellation(session.id)}
+                      className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
+                      title="Cancel session"
                     >
                       Cancel
                     </button>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setSelectedSessionId(session.id)}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    + Add Material
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Previous Sessions */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Previous Sessions</h2>
-        <div className="space-y-4">
-          {sessions.previous.map((session) => (
-            <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-800">
-                    {session.subject} - {session.title}
-                  </h3>
-                  <p className="text-gray-600">Student: {session.studentName}</p>
-                  <p className="text-gray-600">{session.date} at {session.time}</p>
-                  <p className="text-green-600 font-medium">${session.amount}</p>
-                </div>
-                <div className="text-right">
-                  {session.rating && (
-                    <div className="flex items-center justify-end mb-1">
-                      <span className="text-yellow-500">{'★'.repeat(session.rating)}</span>
-                      <span className="text-gray-400">{'★'.repeat(5 - session.rating)}</span>
+                  
+                  {/* Meeting Information Section */}
+                  {session.meeting_urls && session.meeting_urls.length > 0 && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-800 mb-2 flex items-center">
+                        <Video className="w-4 h-4 mr-2" />
+                        Meeting Information
+                      </h4>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-blue-700">
+                          Zoom meeting is ready for this session
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(session.meeting_urls![0]);
+                            alert('Meeting URL copied to clipboard!');
+                          }}
+                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors"
+                          title="Copy meeting URL"
+                        >
+                          Copy URL
+                        </button>
+                      </div>
                     </div>
                   )}
-                  <span className="text-sm text-gray-600">Completed</span>
-                </div>
-              </div>
-              {session.review && (
-                <div className="mt-3 p-3 bg-gray-50 rounded">
-                  <p className="text-gray-700 text-sm">"{session.review}"</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Cancelled Sessions */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Cancelled Sessions</h2>
-        <div className="space-y-4">
-          {sessions.cancelled.map((session) => (
-            <div key={session.id} className="border border-red-200 p-4 rounded-lg bg-red-50">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-800">
-                    {session.subject} - {session.title}
-                  </h3>
-                  <p className="text-gray-600">Student: {session.studentName}</p>
-                  <p className="text-gray-600">{session.date} at {session.time}</p>
-                  <p className="text-red-600 font-medium">
-                    ${session.amount} {session.refunded ? '(Refunded)' : '(Pending Refund)'}
-                  </p>
-                </div>
-                <span className="text-sm text-red-600 font-medium">Cancelled</span>
-              </div>
-              {session.reason && (
-                <div className="mt-3">
-                  <p className="text-gray-700 text-sm">
-                    <span className="font-medium">Reason:</span> {session.reason}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEarnings = () => (
-    <div className="space-y-6">
-      {/* Earnings Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Earnings</h3>
-          <p className="text-3xl font-bold text-green-600">${tutorProfile.totalEarnings}</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Admin Commission (10%)</h3>
-          <p className="text-3xl font-bold text-red-600">${tutorProfile.adminCommission}</p>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Your Profit</h3>
-          <p className="text-3xl font-bold text-blue-600">${tutorProfile.profit}</p>
-        </div>
-      </div>
-
-      {/* Earnings Breakdown */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Earnings Breakdown</h2>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center py-3 border-b border-gray-200">
-            <span className="text-gray-700">Sessions Completed</span>
-            <span className="font-semibold">{sessions.previous.length}</span>
-          </div>
-          <div className="flex justify-between items-center py-3 border-b border-gray-200">
-            <span className="text-gray-700">Total Revenue</span>
-            <span className="font-semibold text-green-600">${tutorProfile.totalEarnings}</span>
-          </div>
-          <div className="flex justify-between items-center py-3 border-b border-gray-200">
-            <span className="text-gray-700">Platform Commission</span>
-            <span className="font-semibold text-red-600">-${tutorProfile.adminCommission}</span>
-          </div>
-          <div className="flex justify-between items-center py-3 text-lg font-bold">
-            <span className="text-gray-800">Net Earnings</span>
-            <span className="text-blue-600">${tutorProfile.profit}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Payments */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Recent Payments</h2>
-        <div className="space-y-3">
-          {sessions.previous.slice(0, 5).map((session) => (
-            <div key={session.id} className="flex justify-between items-center py-3 border-b border-gray-200">
-              <div>
-                <p className="font-medium text-gray-800">{session.studentName}</p>
-                <p className="text-sm text-gray-600">{session.subject} - {session.date}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-green-600">${session.amount}</p>
-                <p className="text-xs text-gray-500">Net: ${session.amount * 0.9}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderReviews = () => (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Reviews & Ratings</h2>
-        
-        {/* Rating Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-blue-600 mb-2">{tutorProfile.rating}</div>
-            <div className="flex justify-center items-center mb-2">
-              <span className="text-yellow-500 text-2xl">★★★★★</span>
-            </div>
-            <p className="text-gray-600">Based on {tutorProfile.totalReviews} reviews</p>
-          </div>
-          
-          <div className="space-y-2">
-            {[5, 4, 3, 2, 1].map((stars) => {
-              const count = reviews.filter(r => r.rating === stars).length;
-              const percentage = (count / reviews.length) * 100;
-              return (
-                <div key={stars} className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600 w-8">{stars}★</span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-yellow-500 h-2 rounded-full" 
-                      style={{width: `${percentage}%`}}
-                    ></div>
+                  
+                  {/* Materials Section */}
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-800 mb-2">Session Materials</h4>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {session.materials?.map((material, index) => (
+                        <div key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center gap-2 group">
+                          <span>{material}</span>
+                          <button
+                            onClick={() => removeMaterial(session.id, index, material)}
+                            className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            title="Remove material"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {selectedSessionId === session.id ? (
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={newMaterial}
+                          onChange={(e) => setNewMaterial(e.target.value)}
+                          placeholder="Add material"
+                          className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
+                        />
+                        <button
+                          onClick={() => addMaterial(session.id)}
+                          className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                        >
+                          Add
+                        </button>
+                        <button
+                          onClick={() => setSelectedSessionId(null)}
+                          className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setSelectedSessionId(session.id)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        + Add Material
+                      </button>
+                    )}
                   </div>
-                  <span className="text-sm text-gray-600 w-8">{count}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Individual Reviews */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800">Recent Reviews</h3>
-          {reviews.map((review) => (
-            <div key={review.id} className="border border-gray-200 p-4 rounded-lg">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-semibold text-gray-800">{review.studentName}</p>
-                  <p className="text-sm text-gray-600">{review.subject}</p>
+        {/* Previous Sessions */}
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Previous Sessions</h2>
+          <div className="space-y-4">
+            {sessions.previous.map((sessionData) => {
+              const session = formatSession(sessionData);
+              return (
+                <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-800">
+                        {session.subject} - {session.title}
+                      </h3>
+                      <p className="text-gray-600">Student: {session.studentName}</p>
+                      <p className="text-gray-600">{session.date} at {session.time}</p>
+                      <p className="text-green-600 font-medium">${session.amount}</p>
+                    </div>
+                    <div className="text-right">
+                      {session.rating && (
+                        <div className="flex items-center justify-end mb-1">
+                          <span className="text-yellow-500">{'★'.repeat(session.rating)}</span>
+                          <span className="text-gray-400">{'★'.repeat(5 - session.rating)}</span>
+                        </div>
+                      )}
+                      <span className="text-sm text-gray-600">Completed</span>
+                    </div>
+                  </div>
+                  {session.review && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded">
+                      <p className="text-gray-700 text-sm">"{session.review}"</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Cancelled Sessions */}
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Cancelled Sessions</h2>
+          <div className="space-y-4">
+            {sessions.cancelled.map((sessionData) => {
+              const session = formatSession(sessionData);
+              return (
+                <div key={session.id} className="border border-red-200 p-4 rounded-lg bg-red-50">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-800">
+                        {session.subject} - {session.title}
+                      </h3>
+                      <p className="text-gray-600">Student: {session.studentName}</p>
+                      <p className="text-gray-600">{session.date} at {session.time}</p>
+                      <p className="text-red-600 font-medium">
+                        ${session.amount} {session.refunded ? '(Refunded)' : '(Pending Refund)'}
+                      </p>
+                    </div>
+                    <span className="text-sm text-red-600 font-medium">Cancelled</span>
+                  </div>
+                  {session.reason && (
+                    <div className="mt-3">
+                      <p className="text-gray-700 text-sm">
+                        <span className="font-medium">Reason:</span> {session.reason}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEarnings = () => (
+    <div className="space-y-6">
+      {earningsLoading && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+            <p className="text-sm text-blue-700">Loading earnings data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Earnings Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">Total Earnings</h3>
+              <p className="text-3xl font-bold text-green-600">
+                ${EarningsService.formatCurrency(earningsData?.totalEarnings || tutorProfile.totalEarnings)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Gross revenue</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <DollarSign className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">Admin Commission</h3>
+              <p className="text-3xl font-bold text-red-600">
+                ${EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Platform fee</p>
+            </div>
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">Net Earnings</h3>
+              <p className="text-3xl font-bold text-blue-600">
+                ${EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Your profit</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Award className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">This Month</h3>
+              <p className="text-3xl font-bold text-purple-600">
+                ${EarningsService.formatCurrency(earningsData?.thisMonthEarnings || 0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Current month</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Calendar className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Earnings Statistics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <BarChart3 className="mr-2 text-green-600" size={20} />
+            Earnings Breakdown
+          </h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <span className="text-gray-700 flex items-center">
+                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                Sessions Completed
+              </span>
+              <span className="font-semibold">{earningsData?.completedSessions || sessions.previous.length}</span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <span className="text-gray-700 flex items-center">
+                <DollarSign className="w-4 h-4 mr-2 text-green-600" />
+                Average Session Value
+              </span>
+              <span className="font-semibold text-green-600">
+                ${EarningsService.formatCurrency(earningsData?.averageSessionValue || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+              <span className="text-gray-700 flex items-center">
+                <TrendingUp className="w-4 h-4 mr-2 text-red-600" />
+                Platform Commission
+              </span>
+              <span className="font-semibold text-red-600">
+                -${EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3 text-lg font-bold border-t border-gray-300 pt-4">
+              <span className="text-gray-800 flex items-center">
+                <Award className="w-5 h-5 mr-2 text-blue-600" />
+                Net Earnings
+              </span>
+              <span className="text-blue-600">
+                ${EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <Clock className="mr-2 text-blue-600" size={20} />
+            Recent Performance
+          </h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-3">
+              <span className="text-gray-700">This Week</span>
+              <span className="font-semibold text-blue-600">
+                ${EarningsService.formatCurrency(earningsData?.thisWeekEarnings || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3">
+              <span className="text-gray-700">Today</span>
+              <span className="font-semibold text-green-600">
+                ${EarningsService.formatCurrency(earningsData?.todayEarnings || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3">
+              <span className="text-gray-700">Pending Payments</span>
+              <span className="font-semibold text-orange-600">
+                {earningsData?.pendingPayments || 0}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3">
+              <span className="text-gray-700">Paid Sessions</span>
+              <span className="font-semibold text-green-600">
+                {earningsData?.paidPayments || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Payments */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+          <MessageSquare className="mr-2 text-purple-600" size={20} />
+          Recent Payments
+        </h2>
+        {recentPayments.length > 0 ? (
+          <div className="space-y-3">
+            {recentPayments.slice(0, 8).map((payment) => (
+              <div key={payment.session_id} className="flex justify-between items-center py-3 border-b border-gray-200 hover:bg-gray-50 transition-colors rounded-lg px-3">
+                <div className="flex-1">
+                  <p className="font-medium text-gray-800">{payment.student_name}</p>
+                  <p className="text-sm text-gray-600">{payment.subject} - {new Date(payment.date).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500">Status: {payment.payment_status}</p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center">
-                    <span className="text-yellow-500">{'★'.repeat(review.rating)}</span>
-                    <span className="text-gray-400">{'★'.repeat(5 - review.rating)}</span>
-                  </div>
-                  <p className="text-sm text-gray-500">{review.date}</p>
+                  <p className="font-semibold text-green-600">${EarningsService.formatCurrency(payment.amount)}</p>
+                  <p className="text-sm text-gray-600">Commission: ${EarningsService.formatCurrency(payment.commission)}</p>
+                  <p className="text-sm font-medium text-blue-600">Net: ${EarningsService.formatCurrency(payment.net_amount)}</p>
                 </div>
               </div>
-              <p className="text-gray-700">"{review.comment}"</p>
-            </div>
-          ))}
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <DollarSign className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p className="text-lg font-medium text-gray-400">No payments yet</p>
+            <p className="text-sm text-gray-400">Payments will appear here once you complete sessions</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderReviews = () => (
+    <div className="space-y-6">
+      {reviewsLoading && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+            <p className="text-sm text-blue-700">Loading reviews data...</p>
+          </div>
         </div>
+      )}
+
+      {/* Rating Overview */}
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+          <Star className="mr-3 text-yellow-500" size={24} />
+          Reviews & Ratings Overview
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Average Rating */}
+          <div className="text-center bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
+            <div className="text-5xl font-bold text-yellow-600 mb-3">
+              {reviewStats?.averageRating?.toFixed(1) || tutorProfile.rating}
+            </div>
+            <div className="flex justify-center items-center mb-3">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={20}
+                    className={`${
+                      star <= (reviewStats?.averageRating || tutorProfile.rating)
+                        ? 'text-yellow-500 fill-current'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="text-gray-700 font-medium">
+              Based on {reviewStats?.totalReviews || tutorProfile.totalReviews} reviews
+            </p>
+          </div>
+
+          {/* Response Rate */}
+          <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+            <div className="text-5xl font-bold text-blue-600 mb-3">
+              {reviewStats?.responseRate?.toFixed(0) || 0}%
+            </div>
+            <div className="flex justify-center mb-3">
+              <MessageSquare className="text-blue-500" size={24} />
+            </div>
+            <p className="text-gray-700 font-medium">Response Rate</p>
+          </div>
+
+          {/* Monthly Reviews */}
+          <div className="text-center bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+            <div className="text-5xl font-bold text-green-600 mb-3">
+              {reviewStats?.recentReviews?.length || 0}
+            </div>
+            <div className="flex justify-center mb-3">
+              <TrendingUp className="text-green-500" size={24} />
+            </div>
+            <p className="text-gray-700 font-medium">Recent Reviews</p>
+          </div>
+        </div>
+
+        {/* Rating Distribution */}
+        {reviewStats && (
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Rating Distribution</h3>
+            <div className="space-y-3">
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = reviewStats.ratingDistribution[stars as keyof typeof reviewStats.ratingDistribution] || 0;
+                const percentage = reviewStats.totalReviews > 0 ? (count / reviewStats.totalReviews) * 100 : 0;
+                return (
+                  <div key={stars} className="flex items-center space-x-4">
+                    <div className="flex items-center w-12">
+                      <span className="text-sm font-medium text-gray-600">{stars}</span>
+                      <Star size={14} className="text-yellow-500 ml-1" />
+                    </div>
+                    <div className="flex-1 bg-gray-200 rounded-full h-3 mr-3">
+                      <div 
+                        className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full transition-all duration-300" 
+                        style={{width: `${percentage}%`}}
+                      ></div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-600 w-12 text-right">{count}</span>
+                    <span className="text-xs text-gray-500 w-12 text-right">{percentage.toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Subject Ratings */}
+      {reviewStats?.subjectRatings && Object.keys(reviewStats.subjectRatings).length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <BookOpen className="mr-2 text-blue-600" size={20} />
+            Subject-wise Ratings
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(reviewStats.subjectRatings).map(([subject, data]) => (
+              <div key={subject} className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-gray-800 mb-2">{subject}</h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Star className="text-yellow-500 mr-1" size={16} />
+                    <span className="font-bold text-lg">{data.average.toFixed(1)}</span>
+                  </div>
+                  <span className="text-sm text-gray-600">({data.count} reviews)</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Individual Reviews */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+          <MessageSquare className="mr-2 text-purple-600" size={20} />
+          Recent Reviews
+        </h3>
+        {reviewsData.length > 0 ? (
+          <div className="space-y-4">
+            {reviewsData.slice(0, 10).map((review) => (
+              <div key={review.review_id} className="border border-gray-200 p-6 rounded-lg hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      {review.student_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-lg text-gray-800">{review.student_name}</p>
+                      <p className="text-sm text-gray-600 flex items-center">
+                        <BookOpen className="w-4 h-4 mr-1" />
+                        {review.subject}
+                      </p>
+                      <p className="text-xs text-gray-500 flex items-center mt-1">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {ReviewsService.formatReviewDate(review.date)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center justify-end mb-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={16}
+                          className={`${
+                            star <= review.rating
+                              ? 'text-yellow-500 fill-current'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {review.isVerified && (
+                      <div className="flex items-center text-xs text-green-600">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Verified
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {review.review && (
+                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
+                    <p className="text-gray-700 italic">"{review.review}"</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <Star className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-400 mb-2">No Reviews Yet</h3>
+            <p className="text-sm text-gray-400">
+              Reviews from students will appear here after completed sessions
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -244,21 +244,17 @@ export const updateTutorHourlyRateController = async (req: Request, res: Respons
 export const updateTutorSubjectsAndTitlesController = async (req: Request, res: Response) => {
     try {
         const { firebaseUid } = req.params;
-        const { subjects, titles } = req.body;
+        const { subjectsWithTitles } = req.body;
         
         if (!firebaseUid) {
             return res.status(400).json({ error: "Firebase UID is required" });
         }
 
-        if (!Array.isArray(subjects)) {
-            return res.status(400).json({ error: "Subjects must be an array" });
+        if (!subjectsWithTitles || typeof subjectsWithTitles !== 'object') {
+            return res.status(400).json({ error: "subjectsWithTitles must be an object with subject names as keys and title arrays as values" });
         }
 
-        if (!Array.isArray(titles)) {
-            return res.status(400).json({ error: "Titles must be an array" });
-        }
-
-        const updatedTutor = await updateTutorSubjectsAndTitles(firebaseUid, subjects, titles);
+        const updatedTutor = await updateTutorSubjectsAndTitles(firebaseUid, subjectsWithTitles);
         
         return res.status(200).json({
             message: "Subjects and titles updated successfully",

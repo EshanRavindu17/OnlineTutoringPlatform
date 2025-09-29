@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// NOTE: Individual tutor subjects and titles now store names instead of IDs
+
 async function main() {
     // Seed users
     await prisma.user.createMany({
