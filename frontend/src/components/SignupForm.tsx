@@ -570,7 +570,11 @@ export default function SignupForm({ role = 'student' }) {
         // Additional tutor fields
         ...(role === 'Individual' || role === 'Mass' ? {
           phone_number: formData.phone_number,
-          subjects: formData.subjects,
+          // Convert subject IDs to names
+          subjects: formData.subjects.map(subjectId => {
+            const subject = availableSubjects.find(s => s.sub_id === subjectId);
+            return subject ? subject.name : subjectId;
+          }),
           description: formData.description,
           heading: formData.heading,
           // Document URLs from Cloudinary upload
@@ -579,7 +583,11 @@ export default function SignupForm({ role = 'student' }) {
         } : {}),
         // Individual tutor specific fields
         ...(role === 'Individual' ? {
-          titles: formData.titles,
+          // Convert title IDs to names
+          titles: formData.titles.map(titleId => {
+            const title = availableTitles.find(t => t.title_id === titleId);
+            return title ? title.name : titleId;
+          }),
           hourly_rate: parseFloat(formData.hourly_rate) || 0,
           location: formData.location,
           qualifications: formData.qualifications

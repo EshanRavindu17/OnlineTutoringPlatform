@@ -124,7 +124,40 @@ export const getTutorProfile = async (firebaseUid: string) => {
     throw new Error('Tutor profile not found');
   }
 
-  return tutorProfile;
+  // Get all subjects and titles for relationship mapping
+  const allSubjects = await prisma.subjects.findMany();
+  const allTitles = await prisma.titles.findMany({
+    include: {
+      Subjects: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+
+  // Group tutor's titles by their subjects
+  const titlesGroupedBySubject: { [subjectName: string]: string[] } = {};
+  
+  tutorProfile.subjects.forEach(subjectName => {
+    titlesGroupedBySubject[subjectName] = [];
+  });
+
+  tutorProfile.titles.forEach(titleName => {
+    // Find the title in the titles table to get its subject
+    const titleRecord = allTitles.find(t => t.name === titleName);
+    if (titleRecord && titleRecord.Subjects) {
+      const subjectName = titleRecord.Subjects.name;
+      if (titlesGroupedBySubject[subjectName]) {
+        titlesGroupedBySubject[subjectName].push(titleName);
+      }
+    }
+  });
+
+  return {
+    ...tutorProfile,
+    titlesGroupedBySubject // Add grouped titles for frontend
+  };
 };
 
 export const getTutorStatistics = async (tutorId: string) => {
@@ -394,15 +427,14 @@ export const updateTutorHourlyRate = async (firebaseUid: string, hourlyRate: num
 };
 
 // Update tutor subjects and titles
-export const updateTutorSubjectsAndTitles = async (firebaseUid: string, subjects: string[], titles: string[]) => {
-  // Validate inputs
-  if (!Array.isArray(subjects)) {
-    throw new Error('Subjects must be an array');
+export const updateTutorSubjectsAndTitles = async (firebaseUid: string, subjectsWithTitles: { [subjectName: string]: string[] }) => {
+  // Validate input
+  if (!subjectsWithTitles || typeof subjectsWithTitles !== 'object') {
+    throw new Error('Subjects with titles must be an object');
   }
-  
-  if (!Array.isArray(titles)) {
-    throw new Error('Titles must be an array');
-  }
+
+  const subjectNames = Object.keys(subjectsWithTitles);
+  const allTitleNames = Object.values(subjectsWithTitles).flat();
 
   // First get user from Firebase UID
   const user = await prisma.user.findUnique({
@@ -426,44 +458,62 @@ export const updateTutorSubjectsAndTitles = async (firebaseUid: string, subjects
     throw new Error('Tutor profile not found');
   }
 
-  // Validate that all subject IDs exist
-  if (subjects.length > 0) {
+  // Validate that all subject names exist in the subjects table
+  if (subjectNames.length > 0) {
     const existingSubjects = await prisma.subjects.findMany({
       where: {
-        sub_id: {
-          in: subjects
+        name: {
+          in: subjectNames
         }
       }
     });
 
-    if (existingSubjects.length !== subjects.length) {
-      throw new Error('One or more subject IDs are invalid');
+    if (existingSubjects.length !== subjectNames.length) {
+      throw new Error('One or more subject names are invalid');
     }
   }
 
-  // Validate that all title IDs exist
-  if (titles.length > 0) {
+  // Validate that all title names exist and belong to their respective subjects
+  if (allTitleNames.length > 0) {
     const existingTitles = await prisma.titles.findMany({
       where: {
-        title_id: {
-          in: titles
+        name: {
+          in: allTitleNames
+        }
+      },
+      include: {
+        Subjects: {
+          select: {
+            name: true
+          }
         }
       }
     });
 
-    if (existingTitles.length !== titles.length) {
-      throw new Error('One or more title IDs are invalid');
+    // Check if all titles exist
+    if (existingTitles.length !== allTitleNames.length) {
+      throw new Error('One or more title names are invalid');
+    }
+
+    // Validate that each title belongs to its specified subject
+    for (const [subjectName, titleNames] of Object.entries(subjectsWithTitles)) {
+      for (const titleName of titleNames) {
+        const titleRecord = existingTitles.find(t => t.name === titleName);
+        if (titleRecord && titleRecord.Subjects.name !== subjectName) {
+          throw new Error(`Title "${titleName}" does not belong to subject "${subjectName}"`);
+        }
+      }
     }
   }
 
-  // Update subjects and titles
+  // Update subjects and titles with names (flat arrays)
   const updatedTutor = await prisma.individual_Tutor.update({
     where: {
       i_tutor_id: tutorProfile.i_tutor_id
     },
     data: {
-      subjects: subjects,
-      titles: titles
+      subjects: subjectNames, // Store subject names as flat array
+      titles: allTitleNames // Store title names as flat array
     },
     include: {
       User: {

@@ -57,6 +57,7 @@ export const addStudent = async (data: any) => {
 export const getAllIndividualTutors = async (subjects:string,titles:string,min_hourly_rate:number,max_hourly_rate:number, rating:number,sort:string,page:number=1,limit:number=10) => {
     const tutors = await prisma.individual_Tutor.findMany({
         where: {
+            // Now filter by subject and title names instead of IDs
             ...(subjects &&  { subjects: { hasSome: subjects.split(',').map(subject => subject.trim()) } }),
             ...(titles && { titles: { hasSome: titles.split(',').map(title => title.trim()) } }),
             ...(min_hourly_rate && { hourly_rate: { gte: min_hourly_rate } }),

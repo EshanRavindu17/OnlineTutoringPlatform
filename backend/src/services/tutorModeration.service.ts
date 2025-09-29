@@ -63,11 +63,11 @@ export async function approveCandidateService(candidateId: string) {
     if (kind === 'individual') {
       if (c.user_id) tutor = await tx.individual_Tutor.findFirst({ where: { user_id: c.user_id } });
       if (!tutor) {
-        // Create Individual Tutor with hybrid data (direct fields + JSON fields)
+        // Create Individual Tutor with subject and title names
         const individualTutorData = {
           user_id: c.user_id,
-          subjects: c.subjects,
-          titles: c.titles,
+          subjects: c.subjects, // Now contains names instead of IDs
+          titles: c.titles, // Now contains names instead of IDs
           hourly_rate: c.hourly_rate,
           description: c.description,
           rating: 0,

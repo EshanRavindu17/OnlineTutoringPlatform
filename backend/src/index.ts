@@ -26,6 +26,9 @@ import individualTutorRoutes from './routes/individualTutorRouter';
 import documentRoutes from './routes/documentRoutes';
 
 import scheduleRoutes from './routes/scheduleRoutes';
+import sessionRoutes from './routes/sessionRoutes';
+import earningsRoutes from './routes/earningsRoutes';
+import reviewsRoutes from './routes/reviewsRoutes';
 
 import paymentRoutes from './routes/paymentRoutes';
 
@@ -112,6 +115,12 @@ app.use('/individual-tutor', individualTutorRoutes);
 
 //Schedule Routes
 app.use('/api/schedule', scheduleRoutes);
+//Session Routes
+app.use('/api/sessions', sessionRoutes);
+//Earnings Routes
+app.use('/api/earnings', earningsRoutes);
+//Reviews Routes
+app.use('/api/reviews', reviewsRoutes);
 //Payment Routes
 app.use('/payment', paymentRoutes);
 
