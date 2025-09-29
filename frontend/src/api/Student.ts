@@ -29,6 +29,29 @@ interface IndividualTutor {
     photo_url: string | null;
     email: string | null;
   } | null;
+  uniqueStudentsCount: number;
+  completedSessionsCount: number;
+
+}
+
+export interface IndividualTutorDashboard {
+  i_tutor_id: string;
+  subjects: string[];
+  titles: string[];
+  hourly_rate: number;
+  rating: number;
+  description: string;
+  qualifications: string[];
+  location:string;
+  phone_number:string;
+  heading?: string;
+  User?: {
+    name: string;
+    photo_url: string | null;
+    email: string | null;
+  } | null;
+  sessionCount: number;
+  totalPaid: number;
 }
 
 interface FreeTimeSlot {
@@ -39,6 +62,66 @@ interface FreeTimeSlot {
   start_time: string;
   end_time: string;
   last_access_time: string | null;
+}
+
+interface Transaction {
+    i_payment_id: string;
+    student_id : string;
+    session_id : string;
+    amount: number;
+    payment_date_time : Date;
+    status : string;
+    method : string;
+    payment_intent_id : string;
+    Sessions:{
+        title: string;
+        slots: string[];
+        Individual_Tutor:{
+            User:{
+                name:string;
+                photo_url:string|null;
+            }
+        }
+    }
+}
+
+interface IndividualPaymentHistoryData{
+    transactions: Transaction[];
+    totalAmount: number;
+    successfulPaymentsCount:number,
+    completedSessionCount : number
+    ScheduledSessionCount: number,
+    canceledSessionCount: number
+}
+
+interface MassPaymentTransaction {
+    m_payment_id: string;
+    student_id: string;
+    class_id: string;
+    amount: number;
+    payment_time: Date;
+    status: string;
+    method: string;
+    paidMonth: string;
+    payment_intent_id: string;
+    Class?: {
+        subject: string;
+        Mass_Tutor?: {
+            User?: {
+                name: string;
+                photo_url: string | null;
+            };
+            heading?: string;
+        };
+    };
+}
+
+interface MassPaymentHistoryData {
+    transactions: MassPaymentTransaction[];
+    totalAmount: number;
+    successfulPaymentsCount: number;
+    totalClasses: number;
+    totalMonthsPaid: number;
 }
 
 export interface Session {
@@ -363,6 +446,7 @@ const getMockEnrolledClasses = (): EnrolledClass[] => {
 
 
 export const getStudentIDByUserID = async (userId: string) => {
+    console.log('Fetching student ID for user ID:', userId);
     try {
         const response = await axios.get<{ studentId: string | null }>(
             `${baseUrl2}/getStudentIDByUserID/${userId}`
@@ -433,3 +517,428 @@ export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_t
         throw new Error(`Failed to update access time: ${error.message || 'Unknown error occurred'}`);
     }
 };
+
+// for cancelling a session
+export const cancelSession = async (session_id: string) => {
+    try {
+        const response = await axios.post<Session>(
+            `${baseUrl2}/cancelSession/${session_id}`
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to cancel session:', error);
+        throw new Error(`Failed to cancel session: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+export const getTutorsByStudentId = async (studentId: string) => {
+    console.log('Fetching tutors for student ID:', studentId);
+    try {
+        const response = await axios.get<IndividualTutorDashboard[]>(
+            `${baseUrl2}/getTutorsByStudentId/${studentId}`
+        );
+        console.log('Tutors fetched:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch tutors:', error);
+        throw new Error(`Failed to fetch tutors: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+// for getting payment summary by student id
+
+export const getPaymentSummaryByStudentId = async (studentId: string) => {
+    console.log('Fetching payment summary for student ID:', studentId);
+    try {
+        const response = await axios.get<IndividualPaymentHistoryData>(`${baseUrl2}/getPaymentHistory/${studentId}`);
+        console.log('Payment summary fetched:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch payment summary:', error);
+        throw new Error(`Failed to fetch payment summary: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+// for getting mass class payment history by student id
+export const getMassPaymentHistoryByStudentId = async (studentId: string) => {
+    console.log('Fetching mass payment history for student ID:', studentId);
+    try {
+        const response = await axios.get<MassPaymentHistoryData>(`${baseUrl2}/getMassPaymentHistory/${studentId}`);
+        console.log('Mass payment history fetched:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch mass payment history:', error);
+        console.log('Using mock data for mass payments');
+        // Return mock data for now
+        return getMockMassPaymentData();
+    }
+};
+
+// Mock data for mass class payments (temporary until backend API is ready)
+const getMockMassPaymentData = (): MassPaymentHistoryData => {
+    return {
+        transactions: [
+            {
+                m_payment_id: 'mp_1',
+                student_id: 'student_1',
+                class_id: 'class_1',
+                amount: 12000,
+                payment_time: new Date('2024-01-15'),
+                status: 'succeeded',
+                method: 'card',
+                paidMonth: 'January 2024',
+                payment_intent_id: 'pi_mass_1',
+                Class: {
+                    subject: 'Mathematics',
+                    Mass_Tutor: {
+                        User: {
+                            name: 'Dr. Sarah Johnson',
+                            photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
+                        },
+                        heading: 'Advanced Mathematics Masterclass'
+                    }
+                }
+            },
+            {
+                m_payment_id: 'mp_2',
+                student_id: 'student_1',
+                class_id: 'class_1',
+                amount: 12000,
+                payment_time: new Date('2024-02-15'),
+                status: 'succeeded',
+                method: 'card',
+                paidMonth: 'February 2024',
+                payment_intent_id: 'pi_mass_2',
+                Class: {
+                    subject: 'Mathematics',
+                    Mass_Tutor: {
+                        User: {
+                            name: 'Dr. Sarah Johnson',
+                            photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
+                        },
+                        heading: 'Advanced Mathematics Masterclass'
+                    }
+                }
+            },
+            {
+                m_payment_id: 'mp_3',
+                student_id: 'student_1',
+                class_id: 'class_2',
+                amount: 10000,
+                payment_time: new Date('2024-03-01'),
+                status: 'succeeded',
+                method: 'card',
+                paidMonth: 'March 2024',
+                payment_intent_id: 'pi_mass_3',
+                Class: {
+                    subject: 'Physics',
+                    Mass_Tutor: {
+                        User: {
+                            name: 'Prof. Michael Chen',
+                            photo_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'
+                        },
+                        heading: 'Physics Fundamentals'
+                    }
+                }
+            }
+        ],
+        totalAmount: 34000,
+        successfulPaymentsCount: 3,
+        totalClasses: 2,
+        totalMonthsPaid: 3
+    };
+};
+
+
+export const createAndReview = async (student_id: string, session_id: string, rating: number, review: string) => {
+    try {
+        const response = await axios.post(`${baseUrl2}/rate-and-review`, {
+            student_id,
+            session_id,
+            rating,
+            review
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to create and review:', error);
+        throw new Error(`Failed to create and review: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+export const getReviewsByIndividualTutorId = async (tutorId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/get-reviews/${tutorId}`
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch reviews for tutor:', error);
+        throw new Error(`Failed to fetch reviews: ${error.message || 'Unknown error occurred'}`);
+    }
+}
+
+
+export const generateReport = async (student_id: string, tutor_id: string, tutor_type: string, description: string, reason: string) => {
+    try {
+        const response = await axios.post(`${baseUrl2}/report-tutor`, {
+            student_id,
+            tutor_id,
+            tutor_type,
+            description,
+            reason
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to generate report:', error);
+        throw new Error(`Failed to generate report: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+export const getReportsByStudentId = async (studentId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/get-reports/${studentId}`
+        );
+        return response.data;
+    }
+    catch (error: any) {
+        console.error('❌ Failed to fetch reports for student:', error);
+        throw new Error(`Failed to fetch reports: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+// to get tutor name and type by tutor ID
+
+export const getTutorNameAndTypeById = async (tutorId: string) => {
+    try {
+        const response = await axios.get(
+            `${baseUrl2}/getTutorNameAndTypeById/${tutorId}`
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch tutor name and type:', error);
+        throw new Error(`Failed to fetch tutor name and type: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+
+
+
+// Mass Tutors 
+
+export interface MassTutorUser {
+  name: string;
+  photo_url: string;
+}
+
+export interface MassTutor {
+  rating: string; // you might convert this to number if needed
+  prices: string; // you might convert this to number if needed
+  User: MassTutorUser;
+}
+
+export interface ClassCount {
+  Enrolment: number;
+}
+
+export interface MassClass {
+  class_id: string;
+  created_at: string; // or Date if you parse it
+  m_tutor_id: string;
+  subject: string;
+  time: string; // or Date if you parse it
+  day: string;
+  title: string;
+  Mass_Tutor: MassTutor;
+  _count: ClassCount;
+  enrollmentCount: number;
+  tutorName: string;
+  tutorPhoto: string;
+  tutorRating: string;
+  monthlyRate: string;
+}
+
+
+// Interfaces for Mass Tutor Profile
+
+export interface MassTutor {
+  m_tutor_id: string;
+  subjects: string[];
+  prices: string;
+  description: string;
+  user_id: string;
+  rating: string;
+  heading: string;
+  status: string;
+  phone_number: string;
+  qualifications: string[];
+  location: string;
+  User: {
+    name: string;
+    photo_url: string;
+  };
+  Class: ClassInfo[];
+}
+
+export interface ClassInfo {
+  class_id: string;
+  title: string;
+  subject: string;
+  time: string; // ISO date string (e.g. "1970-01-01T08:00:00.000Z")
+  day: string;
+  description: string;
+  Rating_N_Review_Class: RatingReview[];
+  _count: {
+    Enrolment: number;
+  };
+}
+
+export interface RatingReview {
+  rating: number;
+  review: string;
+  Student: {
+    User: {
+      name: string;
+      photo_url: string;
+    };
+  };
+}
+
+export interface EnrolmentStatus{
+    status: string;
+}
+
+//For showing mass classes detail on class page 
+export interface MassClassPage{
+  subject: string;
+  time: string; // or Date if you parse it
+  day: string;
+  title: string;
+  description: string;
+  Mass_Tutor: MassTutor;
+  _count: ClassCount;
+  enrollmentStatus: EnrolmentStatus | null;
+}
+//For showing ClassSlots of that class
+
+ export interface MassClassSlots {     
+  cslot_id: string;
+  created_at: Date;
+  class_id: string;
+  materials: string[];
+  meetingURLs: string[];
+  dateTime: string;
+  duration: number;
+  announcement: string | null;
+  recording: string | null;
+  status: string;
+ }
+
+ export interface MassClassForStudentProfile{
+  class_id: string;
+  created_at: string;
+  m_tutor_id: string;
+  subject: string;
+  time: string;
+  day: string;
+  title: string;
+  description: string;
+  Mass_Tutor: MassTutor;
+  _count: ClassCount;
+  ClassSlot: MassClassSlots[];
+  Enrolment: EnrolmentStatus[] | null;
+ }
+
+
+
+// For getting all mass classes with filters
+
+export const getAllMassClasses = async (subjects:string,page: number, limit: number, sort?: string, rating?: number, minMonthRate?: number, maxMonthRate?: number, searchTerm?: string): Promise<MassClass[]> => {
+    console.log('Fetching all mass classes with params:', { page, limit, sort, rating, minMonthRate, maxMonthRate, searchTerm });
+    try {
+        const response = await axios.get<MassClass[]>(`${baseUrl2}/getAllMassClasses`, {
+            params: {
+                subjects,
+                page,
+                limit,
+                sort,
+                rating,
+                // tutorName,
+                // classTitle,
+                minMonthRate,
+                maxMonthRate,
+                searchTerm
+            }
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Failed to fetch all mass classes:', error);
+        throw new Error(`Failed to fetch all mass classes: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+
+export const getMassTutorById = async (tutorId: string): Promise<MassTutor> => {
+    console.log('Fetching mass tutor by ID:', tutorId);
+    try {
+        const response = await axios.get<MassTutor>(`${baseUrl2}/getMassTutorById/${tutorId}`);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass tutor by ID:', error);
+        throw new Error(`Failed to fetch mass tutor by ID: ${error.message || 'Unknown error occurred'}`);
+    }
+};
+
+
+//For geting class by class ID and student ID to show class details and check enrollment status
+export const getClassByClassIdAndStudentId = async (classId: string, studentId: string): Promise<MassClassPage> => {
+    console.log('Fetching class by ID:', classId);
+    try {
+        const response = await axios.get<MassClassPage>(`${baseUrl2}/getClassSlotsByClassIdAndStudentId/${classId}/${studentId}`);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch class by ID:', error);
+        throw new Error(`Failed to fetch class by ID: ${error.message || 'Unknown error occurred'}`);
+    }
+}
+
+// This for getting slots by classID and number of month (ex: 9 for September)
+export const getClassSlotsByClassId = async (classId: string, month: number): Promise<MassClassSlots[]> => {
+    console.log('Fetching class slots by class ID:', classId);
+    try {
+        const response = await axios.get<MassClassSlots[]>(`${baseUrl2}/getClassSlotsByClassID/${classId}/${month}`);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch class slots by class ID:', error);
+        throw new Error(`Failed to fetch class slots by class ID: ${error.message || 'Unknown error occurred'}`);
+    }
+}
+
+export const getMassClassesByStudentId = async (studentId: string): Promise<MassClassForStudentProfile[]> => {
+    console.log('Fetching mass classes for student ID:', studentId);
+    try {
+        const response = await axios.get<MassClassForStudentProfile[]>(`${baseUrl2}/getClassByStudentId/${studentId}`);
+        console.log('Mass classes fetched:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass classes for student:', error);
+        throw new Error(`Failed to fetch mass classes: ${error.message || 'Unknown error occurred'}`);
+    }
+}
+
+export const getMassTutorsByStudentId = async (studentId: string): Promise<MassTutor[]> => {
+    console.log('Fetching mass tutors for student ID:', studentId);
+    try {
+        const response = await axios.get<MassTutor[]>(`${baseUrl2}/getMassTutorsByStudentId/${studentId}`);
+        console.log('Mass tutors fetched:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass tutors for student:', error);
+        throw new Error(`Failed to fetch mass tutors: ${error.message || 'Unknown error occurred'}`);
+    }
+}

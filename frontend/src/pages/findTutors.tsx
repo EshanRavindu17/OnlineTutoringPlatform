@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import NavBar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { tutorService, TutorProfile, Subject, Title, TitleWithSubject } from '../api/TutorService';
+import { tutorService,TutorProfile, Subject, Title, TitleWithSubject } from '../api/TutorService';
+import { getAllMassClasses, MassClass } from '../api/Student';
 
 import { useAuth } from '../context/authContext';
 
@@ -67,6 +68,18 @@ export default function FindTutorsPage() {
   const [hourlyRateRange, setHourlyRateRange] = useState<[number, number]>([1000, 8000]);
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<'rating' | 'hourly_rate_asc' | 'hourly_rate_desc'>('rating');
+
+  //Individual specific filter 
+
+  const [individualTutorName,setIndividualTutorName] = useState<string>('');
+  
+  // Mass classes specific filters
+  const [massSortBy, setMassSortBy] = useState<'high-rated' | 'popular' | 'low-priced' | 'high-priced'>('high-rated');
+  const [massRating, setMassRating] = useState<number>(0);
+  const [monthlyPriceRange, setMonthlyPriceRange] = useState<[number, number]>([5000, 20000]);
+  const [tutorNameSearch, setTutorNameSearch] = useState('');
+  const [classTitleSearch, setClassTitleSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // UI states
   const [showFilters, setShowFilters] = useState(false);
@@ -76,6 +89,7 @@ export default function FindTutorsPage() {
   // API states
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [groupClasses, setGroupClasses] = useState<GroupClass[]>([]);
+  const [realMassClasses, setRealMassClasses] = useState<MassClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -207,44 +221,52 @@ export default function FindTutorsPage() {
   // Fetch tutors from API
   const fetchTutors = async () => {
     if (tutorType === 'Mass') {
-      // For Mass tutors/group classes, use mock data and apply frontend filtering
+      // For Mass tutors/group classes, use real API
       setLoading(true);
       setError(null);
       
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Map massSortBy to API sort parameter
+        const getSortParam = (sortType: string) => {
+          switch (sortType) {
+            case 'popular': return 'popular';
+            case 'high-rated': return 'rating_desc';
+            case 'low-priced': return 'price_asc';
+            case 'high-priced': return 'price_desc';
+            default: return 'rating_desc';
+          }
+        };
         
-        // Apply filtering based on class name, tutor name and selected subjects
-        let filteredClasses = mockGroupClasses;
+        // Convert selected subject IDs to subject names and format with commas
+        const selectedSubjectNames = selectedSubjects.length > 0 
+          ? subjects
+              .filter(subject => selectedSubjects.includes(subject.sub_id))
+              .map(subject => subject.name)
+              .join(',')
+          : '';
         
-        if (classNameSearch.trim()) {
-          filteredClasses = filteredClasses.filter(cls =>
-            cls.name.toLowerCase().includes(classNameSearch.toLowerCase()) ||
-            cls.tutor.name.toLowerCase().includes(classNameSearch.toLowerCase())
-          );
-        }
+        console.log('Selected subjects for Mass classes:', selectedSubjectNames);
         
-        // Filter by selected subjects
-        if (selectedSubjects.length > 0) {
-          const selectedSubjectNames = subjects
-            .filter(subject => selectedSubjects.includes(subject.sub_id))
-            .map(subject => subject.name);
-          
-          filteredClasses = filteredClasses.filter(cls =>
-            selectedSubjectNames.some(subjectName =>
-              cls.subject.toLowerCase().includes(subjectName.toLowerCase())
-            )
-          );
-        }
+        const massClasses = await getAllMassClasses(
+          selectedSubjectNames,
+          currentPage,
+          tutorsPerPage,
+          getSortParam(massSortBy),
+          massRating > 0 ? massRating : undefined,
+          monthlyPriceRange[0],
+          monthlyPriceRange[1],
+          // tutorNameSearch.trim() || undefined,
+          // classTitleSearch.trim() || undefined
+          searchTerm.trim() || undefined
+        );
         
-        setGroupClasses(filteredClasses);
+        setRealMassClasses(massClasses);
         setTutors([]); // Clear individual tutors when showing group classes
-        setTotalTutors(filteredClasses.length);
+        setTotalTutors(massClasses.length);
       } catch (err) {
         setError('Failed to fetch group classes. Please try again.');
         console.error('Error fetching group classes:', err);
-        setGroupClasses([]);
+        setRealMassClasses([]);
       } finally {
         setLoading(false);
       }
@@ -269,6 +291,7 @@ export default function FindTutorsPage() {
       console.log('Selected title names:', selectedTitles);
       
       const filters = {
+        name: individualTutorName.trim() || undefined,
         subjects: selectedSubjectNames,
         titles: selectedTitles.length > 0 ? selectedTitles.join(',') : undefined,
         min_hourly_rate: hourlyRateRange[0],
@@ -365,14 +388,14 @@ export default function FindTutorsPage() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage, classNameSearch]);
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch, searchTerm, individualTutorName]);
 
   // Effect to reset to page 1 when filters change (excluding currentPage itself)
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, classNameSearch]);
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch]);
 
   // Effect to fetch subjects on component mount
   useEffect(() => {
@@ -548,24 +571,29 @@ export default function FindTutorsPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
                       type="text"
-                      placeholder="Search by class name or tutor name..."
-                      value={classNameSearch}
-                      onChange={(e) => setClassNameSearch(e.target.value)}
+                      placeholder="Search by class title or tutor name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
                 ) : (
                   // Individual Tutors Search
+                  <>
+                  {/* <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label> */}
                   <div className="relative">
+        
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
                       type="text"
-                      placeholder="Search tutors, subjects, or titles..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by tutor name..."
+                      value={individualTutorName}
+                      // onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => setIndividualTutorName(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
+                  </>
                 )}
               </div>
 
@@ -721,6 +749,119 @@ export default function FindTutorsPage() {
                   </select>
                 </div>
               )}
+
+              {/* Mass Classes Filters */}
+              {tutorType === 'Mass' && (
+                <>
+                  {/* Tutor Name Search */}
+                  {/* <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Search by Tutor Name
+                    </label>
+                    <input
+                      type="text"
+                      value={tutorNameSearch}
+                      onChange={(e) => setTutorNameSearch(e.target.value)}
+                      placeholder="Enter tutor name..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div> */}
+
+                  {/* Class Title Search */}
+                  {/* <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Search by Class Title
+                    </label>
+                    <input
+                      type="text"
+                      value={classTitleSearch}
+                      onChange={(e) => setClassTitleSearch(e.target.value)}
+                      placeholder="Enter class title..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div> */}
+
+                  {/* Monthly Price Range */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Monthly Price (Rs. {monthlyPriceRange[0]} - Rs. {monthlyPriceRange[1]})
+                    </label>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Minimum Price</label>
+                        <input
+                          type="range"
+                          min={2000}
+                          max={50000}
+                          step={1000}
+                          value={monthlyPriceRange[0]}
+                          onChange={(e) => setMonthlyPriceRange([parseInt(e.target.value), monthlyPriceRange[1]])}
+                          className="w-full accent-blue-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Maximum Price</label>
+                        <input
+                          type="range"
+                          min={2000}
+                          max={50000}
+                          step={1000}
+                          value={monthlyPriceRange[1]}
+                          onChange={(e) => setMonthlyPriceRange([monthlyPriceRange[0], parseInt(e.target.value)])}
+                          className="w-full accent-blue-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Minimum Rating for Mass Classes */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Minimum Rating
+                    </label>
+                    <div className="space-y-2">
+                      {[0, 3, 4, 4.5].map(rating => (
+                        <label key={rating} className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="massRating"
+                            checked={massRating === rating}
+                            onChange={() => setMassRating(rating)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          />
+                          <div className="ml-3 flex items-center">
+                            {rating === 0 ? (
+                              <span className="text-gray-700">Any Rating</span>
+                            ) : (
+                              <>
+                                <div className="flex mr-2">
+                                  {renderStars(rating)}
+                                </div>
+                                <span className="text-gray-700">{rating}+ Stars</span>
+                              </>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sort By for Mass Classes */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
+                    <select
+                      value={massSortBy}
+                      onChange={(e) => setMassSortBy(e.target.value as any)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="high-rated">High Rated</option>
+                      <option value="popular">Popular</option>
+                      <option value="low-priced">Low Priced</option>
+                      <option value="high-priced">High Priced</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -730,7 +871,7 @@ export default function FindTutorsPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800">
                 {loading ? 'Loading...' : tutorType === 'Mass' 
-                  ? `${groupClasses.length} Group Class${groupClasses.length !== 1 ? 'es' : ''} Found`
+                  ? `${realMassClasses.length} Group Class${realMassClasses.length !== 1 ? 'es' : ''} Found`
                   : `${filteredTutors.length} ${tutorType} Tutor${filteredTutors.length !== 1 ? 's' : ''} Found`
                 }
                 {!loading && totalTutors > tutorsPerPage && (
@@ -773,7 +914,7 @@ export default function FindTutorsPage() {
               </div>
             ) : tutorType === 'Mass' ? (
               // Group Classes Grid
-              groupClasses.length === 0 ? (
+              realMassClasses.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                   <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                   <h3 className="text-xl font-semibold text-gray-600 mb-2">No group classes found</h3>
@@ -781,14 +922,14 @@ export default function FindTutorsPage() {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {groupClasses.map(groupClass => (
-                    <div key={groupClass.id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-l-4 border-purple-500">
+                  {realMassClasses.map(massClass => (
+                    <div key={massClass.class_id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-l-4 border-purple-500">
                       <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
                         {/* Tutor Profile Picture */}
                         <div className="flex-shrink-0">
                           <img
-                            src={groupClass.tutor.profilePicture}
-                            alt={groupClass.tutor.name}
+                            src={massClass.tutorPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(massClass.tutorName)}&background=random`}
+                            alt={massClass.tutorName}
                             className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-purple-100"
                           />
                         </div>
@@ -798,23 +939,21 @@ export default function FindTutorsPage() {
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
                             <div>
                               <div className="flex items-center mb-2">
-                                <h3 className="text-xl font-bold text-gray-900 mr-3">{groupClass.name}</h3>
-                                {groupClass.verified && (
-                                  <div className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
-                                    Verified
-                                  </div>
-                                )}
+                                <h3 className="text-xl font-bold text-gray-900 mr-3">{massClass.title}</h3>
+                                <div className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
+                                  Verified
+                                </div>
                               </div>
                               <div className="flex items-center space-x-1 mb-2">
-                                {renderStars(groupClass.tutor.rating)}
+                                {renderStars(Number(massClass.tutorRating))}
                                 <span className="text-sm text-gray-600 ml-2">
-                                  {groupClass.tutor.rating} • by {groupClass.tutor.name}
+                                  {massClass.tutorRating} • by {massClass.tutorName}
                                 </span>
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-2xl font-bold text-purple-600 mb-1">
-                                Rs. {groupClass.price.toLocaleString()}
+                                Rs. {Number(massClass.monthlyRate).toLocaleString()}
                               </div>
                               <div className="text-sm text-gray-500">per month</div>
                             </div>
@@ -824,39 +963,47 @@ export default function FindTutorsPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
                             <div className="flex items-center text-sm text-gray-600">
                               <BookOpen className="w-4 h-4 mr-2 text-purple-500" />
-                              <span className="font-semibold text-purple-700">{groupClass.subject}</span>
+                              <span className="font-semibold text-purple-700">{massClass.subject}</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Clock className="w-4 h-4 mr-2 text-purple-500" />
-                              <span>{new Date(groupClass.date).toLocaleDateString()}</span>
+                              <span>{massClass.day} at {new Date(massClass.time).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true, // 12-hour format with AM/PM
+                              timeZone: "UTC", // optional: adjust to your timezone
+                            })}</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Clock className="w-4 h-4 mr-2 text-purple-500" />
-                              <span>{groupClass.duration} per session</span>
+                              <span>Weekly Session</span>
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Users className="w-4 h-4 mr-2 text-purple-500" />
-                              <span>{groupClass.studentsEnrolled} Students</span>
+                              <span>{massClass.enrollmentCount} Students</span>
                             </div>
                           </div>
 
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{groupClass.description}</p>
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                            Learn {massClass.subject} with experienced tutor {massClass.tutorName}. 
+                            Join our community of {massClass.enrollmentCount} students in this comprehensive course.
+                          </p>
 
                           {/* Action Buttons */}
                           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                             <button
-                              onClick={() => navigate(`/mass-tutor-profile/${groupClass.tutor.id}`)}
+                              onClick={() => navigate(`/mass-tutor-profile/${massClass.m_tutor_id}`)}
                               className="flex-1 bg-purple-100 text-purple-700 px-6 py-3 rounded-lg hover:bg-purple-200 transition-colors font-semibold text-center flex items-center justify-center"
                             >
                               <User className="w-4 h-4 mr-2" />
                               View Tutor
                             </button>
                             <button
-                              onClick={() => navigate(`/mass-class/${groupClass.id}`)}
+                              onClick={() => navigate(`/mass-class/${massClass.class_id}`)}
                               className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-center flex items-center justify-center"
                             >
                               <Users className="w-4 h-4 mr-2" />
-                              View Class
+                              Enroll Now
                             </button>
                           </div>
                         </div>
