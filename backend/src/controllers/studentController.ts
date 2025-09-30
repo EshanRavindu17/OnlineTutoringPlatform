@@ -116,7 +116,7 @@ export const getStudentIDByUserIDController = async (req: Request, res: Response
 
 
 export const createASessionController = async (req: Request, res: Response) => {
-    const { student_id, i_tutor_id, slots, status, price, date } = req.body;
+    const { student_id, i_tutor_id, slots, status, subject, price, date } = req.body;
 
     console.log("Creating session for student_ID:", student_id);
     console.log("Creating session for i_tutor_id:", i_tutor_id);
@@ -129,6 +129,7 @@ export const createASessionController = async (req: Request, res: Response) => {
         i_tutor_id,
         c_slots,
         status,
+        subject,
         price,
         c_date
     );

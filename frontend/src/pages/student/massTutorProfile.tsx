@@ -606,12 +606,12 @@ export default function MassTutorProfile() {
                               View Class
                             </button>
                           </div>
-                          <button
+                          {/* <button
                             onClick={() => navigate(`/join-class/${tutorClass.id}`)}
                             className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold"
                           >
                             Enroll Now
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     </div>
