@@ -193,6 +193,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
           slots: formattedSlots,
           status: 'scheduled',
           price: totalAmount,
+          subject: sessionData.subject,
           date: sessionData.selectedDate
         };
 

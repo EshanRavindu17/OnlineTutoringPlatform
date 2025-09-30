@@ -865,8 +865,28 @@ const StudentProfile: React.FC = () => {
         <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 mr-2 sm:mr-3" />
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Group Classes Tutors</h2>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      
+      {massTutorsLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+          <span className="ml-2 text-gray-600">Loading group classes...</span>
+        </div>
+      ) : massTutors.length === 0 ? (
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-500 mb-2">No Group Classes Yet</h3>
+          <p className="text-gray-400 mb-6">You haven't enrolled in any group classes yet.</p>
+          <button 
+            onClick={() => navigate('/find-tutors')}
+            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Find Group Classes
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {massTutors.map((tutor) => (
+          <button onClick={() => navigate(`/mass-tutor-profile/${tutor.m_tutor_id}`)} key={tutor.m_tutor_id} className="w-full text-left">
           <div key={tutor.m_tutor_id} className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50">
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
               <img
@@ -898,7 +918,7 @@ const StudentProfile: React.FC = () => {
                 <div className="text-gray-600 text-xs sm:text-sm">Total Classes</div>
               </div>
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-green-600">${tutor.prices}</div>
+                <div className="text-base sm:text-lg font-bold text-green-600">Rs.{tutor.prices}</div>
                 <div className="text-gray-600 text-xs sm:text-sm">Monthly Fee</div>
               </div>
             </div>
@@ -918,8 +938,10 @@ const StudentProfile: React.FC = () => {
               </div>
             </div>
           </div>
+          </button>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1269,12 +1291,12 @@ const StudentProfile: React.FC = () => {
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <span className="flex items-center">
                         <CreditCard className="w-4 h-4 mr-1" />
-                        ${massClass.Mass_Tutor?.prices || 'N/A'}/month
+                        Rs.{massClass.Mass_Tutor?.prices || 'N/A'}/month
                       </span>
-                      <span className="flex items-center">
+                      {/* <span className="flex items-center">
                         <Calendar className="w-4 h-4 mr-1" />
                         Created: {new Date(massClass.created_at).toLocaleDateString()}
-                      </span>
+                      </span> */}
                     </div>
                     
                     <div className="flex items-center space-x-2">

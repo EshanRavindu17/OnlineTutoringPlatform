@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import MassClassPaymentComponent from '../../components/MassClassPaymentComponent';
 import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID } from '../../api/Student';
 import type { MassClassPage, MassClassSlots } from '../../api/Student';
 import { useAuth } from '../../context/authContext';
@@ -96,6 +97,8 @@ function MassClassPage() {
   const [isClassSaved, setIsClassSaved] = useState(false);
   const [monthLoading, setMonthLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showPayment, setShowPayment] = useState(false);
+  const [studentId, setStudentId] = useState<string | null>(null);
   
   // Get enrollment status
   const enrollmentStatus = classData?.enrollmentStatus?.status || null;
@@ -297,13 +300,15 @@ function MassClassPage() {
         setLoading(true);
         
         // Get student ID first
-        const studentId = await getStudentIDByUserID(userProfile.id);
-        if (!studentId) {
+        const fetchedStudentId = await getStudentIDByUserID(userProfile.id);
+        if (!fetchedStudentId) {
           throw new Error('Student ID not found');
         }
+        
+        setStudentId(fetchedStudentId);
 
         // Get class details and enrollment status
-        const classInfo = await getClassByClassIdAndStudentId(classId, studentId);
+        const classInfo = await getClassByClassIdAndStudentId(classId, fetchedStudentId);
         setClassData(classInfo);
 
         console.log('Class data:', classInfo);
@@ -358,6 +363,23 @@ function MassClassPage() {
   // Helper functions
   const toggleSaveClass = () => {
     setIsClassSaved(!isClassSaved);
+  };
+
+  const handleEnrollClick = () => {
+    if (enrollmentStatus !== 'valid') {
+      setShowPayment(true);
+    }
+  };
+
+  const handlePaymentSuccess = (enrollmentId: string) => {
+    console.log('Payment successful! Enrollment ID:', enrollmentId);
+    setShowPayment(false);
+    // Refresh the page to update enrollment status
+    window.location.reload();
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPayment(false);
   };
 
   const renderStars = (rating: number) => {
@@ -459,6 +481,38 @@ function MassClassPage() {
               </button>
             </div>
           </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show payment component if payment is triggered
+  if (showPayment && classData && studentId) {
+    const paymentData = {
+      classId: classId!, // Use the classId from URL parameters
+      title: classData.title,
+      subject: classData.subject,
+      tutorName: classData.Mass_Tutor.User.name,
+      tutorPhoto: classData.Mass_Tutor.User.photo_url || '',
+      tutorRating: parseFloat(classData.Mass_Tutor.rating),
+      price: parseFloat(classData.Mass_Tutor.prices),
+      duration: '90 minutes', // Default duration as it's not in the interface
+      schedule: `${classData.day} at ${new Date(classData.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}`,
+      studentsEnrolled: classData._count.Enrolment,
+      maxStudents: 50 // You can add this to your API response
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <MassClassPaymentComponent
+            classData={paymentData}
+            studentId={studentId}
+            onSuccess={handlePaymentSuccess}
+            onCancel={handlePaymentCancel}
+          />
         </div>
         <Footer />
       </div>
@@ -606,7 +660,8 @@ function MassClassPage() {
               </div>
               
               <button 
-                className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                onClick={handleEnrollClick}
+                className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
                 disabled={enrollmentStatus === 'valid'}
               >
                 {enrollmentStatus === 'valid' ? 'Already Enrolled' : 'Enroll Now'}

@@ -13,7 +13,8 @@ import {
   User,
   X,
   Check,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Eye
 } from 'lucide-react';
 import NavBar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -1002,8 +1003,8 @@ export default function FindTutorsPage() {
                               onClick={() => navigate(`/mass-class/${massClass.class_id}`)}
                               className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-center flex items-center justify-center"
                             >
-                              <Users className="w-4 h-4 mr-2" />
-                              Enroll Now
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Class
                             </button>
                           </div>
                         </div>
