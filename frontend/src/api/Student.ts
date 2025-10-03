@@ -942,3 +942,88 @@ export const getMassTutorsByStudentId = async (studentId: string): Promise<MassT
         throw new Error(`Failed to fetch mass tutors: ${error.message || 'Unknown error occurred'}`);
     }
 }
+
+
+interface User {
+  name: string;
+  photo_url: string;
+}
+
+interface Student {
+  User: User;
+}
+
+export interface Review {
+  r_id: string;
+  created_at: string; // ISO date string
+  student_id: string;
+  class_id: string;
+  rating: number;
+  review: string;
+  Student: Student;
+}
+
+interface MassTutorReview {
+  User: User;
+}
+
+interface Class {
+  title: string;
+  Mass_Tutor: MassTutorReview;
+}
+
+export interface Payment {
+  m_payment_id: string;
+  payment_time: string; // ISO date string
+  student_id: string;
+  amount: number;
+  class_id: string;
+  paidMonth: string;
+  status: string;
+  method: string | null;
+  payment_intent_id: string | null;
+  Class: Class;
+}
+
+export const getReviewByClassID=async(class_id:string):Promise<Review[]>=>{
+    try{
+        const response = await axios.get<Review[]>(`${baseUrl2}/getClassReviewsByClassId/${class_id}`)
+        console.log('Mass tutors fetched:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass Reviews By class ID:', error);
+        throw new Error(`Failed to fetch mass Reviews: ${error.message || 'Unknown error occurred'}`);
+    }
+
+}
+
+export const getMassPayment=async(student_id:string):Promise<Payment[]>=>{
+    try{
+        const response = await axios.get<Payment[]>(`${baseUrl2}/getMassPaymentByStudentId/${student_id}`)
+        console.log('Mass payments fetched:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to fetch mass payments for student:', error);
+        throw new Error(`Failed to fetch mass payments: ${error.message || 'Unknown error occurred'}`);
+    }
+
+}
+
+export const rateAndReviewClass=async(student_id:string,class_id:string,review:string,rating:number)=>{
+    try{
+        const response = await axios.post(`${baseUrl2}/rateAreviewMassClass`, {
+            student_id,
+            class_id,
+            review,
+            rating
+        });
+        console.log('Class rated and reviewed:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error(' Failed to rate and review class:', error);
+        throw new Error(`Failed to rate and review class: ${error.message || 'Unknown error occurred'}`);
+    }
+}

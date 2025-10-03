@@ -20,7 +20,11 @@ import { addStudentController,
          getClassSlotsByClassIdAndStudentIdController,
          getClassSlotsByClassIdController,
          getClassesByStudentIdController,
-         getMassTutorsByStudentIdController} 
+         getMassTutorsByStudentIdController,
+         sendEmailController,
+         getMassPaymentsByStudentIdController,
+         getClassReviewsByClassIdController,
+         rateMassClassesController} 
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
@@ -88,6 +92,12 @@ router.get('/getClassSlotsByClassIdAndStudentId/:classId/:studentId', getClassSl
 router.get('/getClassSlotsByClassID/:classId/:month', getClassSlotsByClassIdController);
 router.get('/getClassByStudentId/:student_id', getClassesByStudentIdController);
 router.get('/getMassTutorsByStudentId/:studentId', getMassTutorsByStudentIdController);
+router.get('/getMassPaymentByStudentId/:studentId',getMassPaymentsByStudentIdController);
+router.get('/getClassReviewsByClassId/:class_id',getClassReviewsByClassIdController)
+router.post('/rateAreviewMassClass',rateMassClassesController)
+
+
+router.post('/send-test-email', sendEmailController);
 
 
 export default router;

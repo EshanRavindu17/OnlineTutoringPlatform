@@ -6,6 +6,7 @@ import { parseArgs } from "util";
 import { Status } from "@prisma/client";
 import { createPaymentRecord } from "../services/paymentService";
 import { UUID } from "crypto";
+import { conformSessionBookingEmail, sendPaymentConfirmationEmail } from "../services/email.service";
 
 const router = express.Router();
 
@@ -282,6 +283,57 @@ console.log('Confirm payment request received:', req.body);
       message: 'Payment confirmed and session booked successfully',
       slotsUpdated: timeSlots.length
     });
+
+    const student_email = (await prisma.student.findUnique({ // find student email
+      where: { student_id },
+      select: { User: { select: { email: true } } }
+    })).User.email;
+
+    const tutor_email = (await prisma.individual_Tutor.findUnique({ // find tutor email
+      where: { i_tutor_id },
+      select: { User: { select: { email: true } } }
+    })).User.email;
+
+    // Send confirmation email to student 
+    
+
+    const session_date_str = sessionDate.toDateString();
+    const session_time_str = slotsAsDate[0].toISOString().split('T')[1].split('.')[0];
+    const conformEmailStudent = await conformSessionBookingEmail(
+        student_email,
+        'student',
+        student_name,
+        i_tutor_name,
+        session_date_str,
+        session_time_str,
+    )
+
+    console.log('Confirmation email sent to student:', conformEmailStudent);
+
+    const conformEmailTutor = await conformSessionBookingEmail(
+        tutor_email,
+        'tutor',
+        student_name,
+        i_tutor_name,
+        session_date_str,
+        session_time_str,
+    )
+    console.log('Confirmation email sent to tutor:', conformEmailTutor);
+
+    const paymentConformEmail = await sendPaymentConfirmationEmail(
+      student_email,
+      student_name,
+      price,
+      'Credit Card',
+      paymentIntent.id,
+      {
+        tutorName: i_tutor_name,
+        date: session_date_str,
+        time: session_time_str
+      }
+    );
+
+    console.log('Payment confirmation email sent to student:', paymentConformEmail);
 
   } catch (error) {
     console.error('Error confirming payment:', error);

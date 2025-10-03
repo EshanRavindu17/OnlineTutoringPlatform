@@ -168,6 +168,7 @@ model Student {
   customer_id             String?                   @db.VarChar
   Enrolment               Enrolment[]
   Individual_Payments     Individual_Payments[]
+  Mass_Payments           Mass_Payments[]
   Rating_N_Review_Class   Rating_N_Review_Class[]
   Rating_N_Review_Session Rating_N_Review_Session[]
   Reports                 Reports[]
@@ -220,6 +221,7 @@ model Class {
   Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
   ClassSlot             ClassSlot[]
   Enrolment             Enrolment[]
+  Mass_Payments         Mass_Payments[]
   Rating_N_Review_Class Rating_N_Review_Class[]
 }
 
@@ -261,6 +263,8 @@ model Mass_Payments {
   status            Status?
   method            String?
   payment_intent_id String?
+  Class             Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student           Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

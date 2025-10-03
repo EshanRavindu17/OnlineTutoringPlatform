@@ -6,6 +6,8 @@ import { refundPayment } from "./paymentService";
 import { time } from "console";
 import { title } from "process";
 import Stripe from "stripe";
+import { sendCancellationEmailController } from "../controllers/studentController";
+import { sendSessionCancellationEmail } from "./email.service";
 
 
 interface Individual{
@@ -417,6 +419,54 @@ export const cancelSession = async (session_id: string) => {
 
     console.log("Updated payment record:", updatedPayment);
 
+    const student = await prisma.student.findUnique({
+        where: { student_id: session.student_id },
+        select: { User: { select: { name: true, email: true } } }
+    });
+    console.log("Student details:", student);
+
+    const tutor = await prisma.individual_Tutor.findUnique({
+        where: { i_tutor_id: session.i_tutor_id },
+        select: { User: { select: { name: true, email: true } } }
+    });
+    console.log("Tutor details:", tutor);
+
+    const session_date = session.date.toDateString();
+    const session_time = session.date.toTimeString();
+    
+    const reason = "Session canceled by student before 1 hours";
+
+    // for student
+    const cancelSession_student = await sendSessionCancellationEmail(
+        student?.User?.email,
+        'student',
+        student?.User?.name || "",
+        tutor?.User?.name || "",
+        session_date,
+        session_time,
+        reason,
+        amount
+
+    );
+
+    console.log("Cancellation email sent to student:", cancelSession_student);
+
+    const cancelSession_tutor = await sendSessionCancellationEmail(
+        tutor?.User?.email,
+        'tutor',
+        student?.User?.name || "",
+        tutor?.User?.name || "",
+        session_date,
+        session_time,
+        reason,
+        amount
+
+    );
+
+    console.log("Cancellation email sent to tutor:", cancelSession_tutor);
+
+    
+
     return updatedSession;
 };
 
@@ -667,6 +717,9 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
             type: "unknown"
         };
 };
+
+
+  
 
 
 
@@ -1192,7 +1245,7 @@ export const getClassSlotsByClassID = async (class_id: string, month: number) =>
                 lt: new Date(new Date().getFullYear(), month, 1),
             },
         },
-        orderBy: { dateTime: 'desc' },
+        orderBy: { dateTime: 'asc' },
     });
 
     return slots;
@@ -1344,4 +1397,137 @@ export const createEnrolment = async (
     return enrolment;
   }
 };
+
+
+// for reating Mass Tutors Classes
+
+export const rateMassTurorClass= async(student_id:string,class_id:string,review:string,rating:number)=>{
+   
+    // const rate=prisma.rating_N_Review_Class.create({
+    //     data:{
+    //         student_id,
+    //         class_id,
+    //         review,
+    //         rating
+    //     }
+    // })
+
+    // After creating the rating, recalculate the tutor's average rating
+        // Check if rating already exists for this student and class
+        const existingRating = await prisma.rating_N_Review_Class.findFirst({
+            where: {
+                student_id,
+                class_id
+            }
+        });
+
+        let orate;
+        if (existingRating) {
+            // Update existing rating
+            orate = await prisma.rating_N_Review_Class.update({
+                where: { r_id: existingRating.r_id },
+                data: {
+                    review,
+                    rating
+                }
+            });
+        } else {
+            // Create new rating
+            orate = await prisma.rating_N_Review_Class.create({
+                data: {
+                    student_id,
+                    class_id,
+                    review,
+                    rating
+                }
+            });
+        }
+
+        const classInfo = await prisma.class.findUnique({
+            where: { class_id },
+            select: { m_tutor_id: true }
+        });
+
+        if (classInfo) {
+            // Get all ratings for all classes taught by this tutor
+            const allRatings = await prisma.rating_N_Review_Class.findMany({
+                where: {
+                    Class: {
+                        m_tutor_id: classInfo.m_tutor_id
+                    }
+                },
+                select: { rating: true }
+            });
+
+            // Calculate average rating
+            if (allRatings.length > 0) {
+                const totalRating = allRatings.reduce((sum, r) => sum + r.rating, 0);
+                const averageRating = totalRating / allRatings.length;
+
+                // Update the tutor's rating
+                await prisma.mass_Tutor.update({
+                    where: { m_tutor_id: classInfo.m_tutor_id },
+                    data: { rating: averageRating }
+                });
+            }
+        }
+
+        return orate;
+
+
+
+}
+
+
+// for getting reviewa for classID
+
+export const getReviewsByClassId=async(class_id:string)=>{
+    const reviews=await prisma.rating_N_Review_Class.findMany({
+        where:{class_id},
+        include:{
+            Student:{
+                  select:{
+                     User:{
+                        select:{
+                            name:true,
+                            photo_url:true,
+                        }
+                     }
+                  }
+            }
+        }
+    });
+
+    return reviews;
+}
+
+
+export const getMassPaymentsByStudentId=async(student_id:string,page:number,limit:number)=>{
+   const payments=await prisma.mass_Payments.findMany({
+       where:{student_id},
+       include:{
+         Class :{
+           select:{
+             title: true,
+             Mass_Tutor:{
+                select:{
+                    User:{
+                        select:{
+                            name:true,
+                            photo_url:true,
+                        }
+                    }
+                }
+         }
+           }
+         },
+       },
+       orderBy:{payment_time:'desc'},
+       skip:(page-1)*limit,
+       take:limit
+   })
+
+   return payments;
+}
+
 
