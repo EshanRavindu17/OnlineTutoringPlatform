@@ -11,7 +11,8 @@ import {
   requestSessionCancellation,
   getSessionById,
   getTutorSessionsInDateRange,
-  getTutorTodaySessions
+  getTutorTodaySessions,
+  getSessionMaterials
 } from "../services/sessionService";
 import { SessionStatus } from "@prisma/client";
 import { getTutorIdByFirebaseUid } from "../services/scheduleService";
@@ -124,8 +125,6 @@ export const getTutorUpcomingSessionsController = async (req: Request, res: Resp
         message: "Firebase UID is required"
       });
     }
-
-    // Get tutor ID from firebase UID
     const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
     
     const sessions = await getTutorUpcomingSessions(tutorId);
@@ -133,10 +132,13 @@ export const getTutorUpcomingSessionsController = async (req: Request, res: Resp
     return res.status(200).json({
       success: true,
       message: "Upcoming sessions retrieved successfully",
-      data: sessions
+      data: sessions,
+      meta: {
+        count: sessions.length,
+        tutorId: tutorId
+      }
     });
   } catch (error) {
-    console.error("Error fetching upcoming sessions:", error);
     
     if (error instanceof Error) {
       if (error.message.includes('not found') || 
@@ -650,3 +652,421 @@ export const getSessionDetailsController = async (req: Request, res: Response) =
     });
   }
 };
+
+// Enhanced Material Management Controllers
+
+// Add enhanced material to session
+export const addEnhancedSessionMaterialController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    const { name, type, url, content, description, isPublic, size, mimeType } = req.body;
+
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    // Validate required fields
+    if (!name || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Material name and type are required'
+      });
+    }
+
+    // Validate material type
+    const validTypes = ['document', 'video', 'link', 'image', 'text', 'presentation'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid material type'
+      });
+    }
+
+    // Validate required fields based on type
+    if (type === 'link' && !url) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL is required for link materials'
+      });
+    }
+
+    if (type === 'text' && !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content is required for text materials'
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Prepare material data
+    const materialData = {
+      name: name.trim(),
+      type,
+      url: url?.trim(),
+      content: content?.trim(),
+      description: description?.trim(),
+      isPublic: Boolean(isPublic),
+      size: size ? Number(size) : undefined,
+      mimeType: mimeType?.trim()
+    };
+
+    // Add the material using enhanced service
+    const updatedSession = await addSessionMaterial(sessionId, materialData);
+
+    res.status(200).json({
+      success: true,
+      message: 'Enhanced material added successfully',
+      data: updatedSession
+    });
+
+  } catch (error) {
+    console.error('Error in addEnhancedSessionMaterialController:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('not an individual tutor') || 
+          error.message.includes('unauthorized')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error'
+    });
+  }
+};
+
+// Remove enhanced material from session  
+export const removeEnhancedSessionMaterialController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId, materialIndex } = req.params;
+
+    if (!firebaseUid || !sessionId || materialIndex === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID, session ID, and material index are required"
+      });
+    }
+
+    // Validate material index
+    const index = parseInt(materialIndex);
+    if (isNaN(index) || index < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid material index'
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Remove the material using enhanced service
+    const updatedSession = await removeSessionMaterial(sessionId, index);
+
+    res.status(200).json({
+      success: true,
+      message: 'Enhanced material removed successfully',
+      data: updatedSession
+    });
+
+  } catch (error) {
+    console.error('Error in removeEnhancedSessionMaterialController:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('not an individual tutor') || 
+          error.message.includes('unauthorized') ||
+          error.message.includes('Invalid material index')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error'
+    });
+  }
+};
+
+// Get enhanced session materials
+export const getEnhancedSessionMaterialsController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Get materials using the enhanced service function
+    const materials = await getSessionMaterials(sessionId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Enhanced materials retrieved successfully',
+      data: materials
+    });
+
+  } catch (error) {
+    console.error('Error in getEnhancedSessionMaterialsController:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('not an individual tutor') || 
+          error.message.includes('unauthorized')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error'
+    });
+  }
+};
+
+// File Upload Controller for Materials
+export const uploadMaterialFileController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded"
+      });
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (req.file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: "File size exceeds 10MB limit"
+      });
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv',
+      'video/mp4', 'video/avi', 'video/mov', 'video/wmv'
+    ];
+
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: "File type not supported"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Generate unique filename
+    const fileExtension = req.file.originalname.split('.').pop();
+    const uniqueFilename = `${sessionId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    
+    // For now, create a mock URL - in production, upload to cloud storage (AWS S3, Cloudinary, etc.)
+    const mockFileUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${uniqueFilename}`;
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // In production, you would:
+    // 1. Upload to cloud storage (AWS S3, Google Cloud, Cloudinary, etc.)
+    // 2. Get the real URL from the cloud service
+    // 3. Store file metadata in database
+    
+    // Example for AWS S3:
+    // const uploadResult = await s3.upload({
+    //   Bucket: 'your-bucket-name',
+    //   Key: `session-materials/${uniqueFilename}`,
+    //   Body: req.file.buffer,
+    //   ContentType: req.file.mimetype,
+    //   ACL: 'private'
+    // }).promise();
+    // const fileUrl = uploadResult.Location;
+
+    res.status(200).json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        url: mockFileUrl,
+        fileId: fileId,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
+        uploadDate: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in uploadMaterialFileController:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'File upload failed'
+    });
+  }
+};
+
+// Batch Upload Materials Controller
+export const batchUploadMaterialsController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    const { materials } = req.body;
+
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    if (!materials || !Array.isArray(materials) || materials.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Materials array is required and cannot be empty"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Process each material in the batch
+    const results = [];
+    const errors = [];
+
+    for (let i = 0; i < materials.length; i++) {
+      try {
+        const material = materials[i];
+        
+        // Validate required fields
+        if (!material.name || !material.type) {
+          errors.push({
+            index: i,
+            error: 'Material name and type are required',
+            material: material
+          });
+          continue;
+        }
+
+        // Add the material using the existing service
+        const updatedSession = await addSessionMaterial(sessionId, material);
+        results.push({
+          index: i,
+          success: true,
+          material: material
+        });
+      } catch (error) {
+        errors.push({
+          index: i,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          material: materials[i]
+        });
+      }
+    }
+
+    // Get the final session state
+    const finalSession = await getSessionById(tutorId, sessionId);
+
+    res.status(200).json({
+      success: errors.length === 0,
+      message: `Batch upload completed: ${results.length} successful, ${errors.length} failed`,
+      data: {
+        session: finalSession,
+        results: results,
+        errors: errors,
+        summary: {
+          total: materials.length,
+          successful: results.length,
+          failed: errors.length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in batchUploadMaterialsController:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Batch upload failed'
+    });
+  }
+};
+

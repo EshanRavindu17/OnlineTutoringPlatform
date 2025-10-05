@@ -97,7 +97,6 @@ export const createSessionCancellationEmail = (data: {
     details: [
       { label: isStudent ? 'Tutor' : 'Student', value: isStudent ? tutorName : studentName },
       { label: 'Date', value: sessionDate },
-      { label: 'Time', value: sessionTime },
       ...(reason ? [{ label: 'Reason', value: reason }] : []),
       ...(refundAmount ? [{ label: 'Refund Amount', value: `Rs. ${refundAmount}` }] : [])
     ],

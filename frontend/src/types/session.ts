@@ -1,6 +1,20 @@
 // Session status enumeration
 export type SessionStatus = 'scheduled' | 'ongoing' | 'completed' | 'canceled';
 
+// Material interface for enhanced material management
+export interface Material {
+  id: string;
+  name: string;
+  type: 'document' | 'video' | 'link' | 'image' | 'text' | 'presentation';
+  url?: string;
+  content?: string; // For text materials
+  uploadDate: string;
+  size?: number; // File size in bytes
+  mimeType?: string;
+  description?: string;
+  isPublic: boolean; // Whether students can access before session
+}
+
 // Base session interface
 export interface Session {
   id: number;
@@ -10,7 +24,7 @@ export interface Session {
   date: string;
   time: string;
   amount: number;
-  materials?: string[];
+  materials?: (string | Material)[]; // Support both formats for backward compatibility
   rating?: number;
   review?: string;
   reason?: string;
@@ -23,7 +37,7 @@ export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: string[];
+  materials: (string | Material)[]; // Support both formats for backward compatibility
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -31,6 +45,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
+  subject: string | null;  // Added subject column from Sessions table
   start_time: Date | null;
   end_time: Date | null;
   Student?: {

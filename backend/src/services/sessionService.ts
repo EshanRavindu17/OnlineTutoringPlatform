@@ -1,12 +1,28 @@
 import prisma from "../prismaClient";
 import { SessionStatus } from "@prisma/client";
+import { sendSessionCancellationEmail } from './email.service';
+import { v4 as uuidv4 } from 'uuid';
+
+// Enhanced Material interface for backend
+export interface MaterialData {
+  id: string;
+  name: string;
+  type: 'document' | 'video' | 'link' | 'image' | 'text' | 'presentation';
+  url?: string;
+  content?: string;
+  description?: string;
+  uploadDate: string;
+  size?: number;
+  mimeType?: string;
+  isPublic: boolean;
+}
 
 // Interface for session response with detailed information
 export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: string[];
+  materials: (string | MaterialData)[]; // Support both formats for backward compatibility
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -14,6 +30,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
+  subject: string | null;  // Added subject column from Sessions table
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -32,8 +49,30 @@ export interface SessionWithDetails {
 
 // Helper function to convert Prisma sessions to SessionWithDetails
 const convertPrismaSessionToSessionWithDetails = (session: any): SessionWithDetails => {
+  // Parse enhanced materials from materials array (stored as JSON strings with prefix)
+  let parsedMaterials: (string | MaterialData)[] = [];
+  
+  if (session.materials && Array.isArray(session.materials)) {
+    parsedMaterials = session.materials.map((material: string) => {
+      // Check if it's an enhanced material (stored as JSON string with prefix)
+      if (material.startsWith('__ENHANCED_MATERIAL__')) {
+        try {
+          const jsonString = material.replace('__ENHANCED_MATERIAL__', '');
+          return JSON.parse(jsonString) as MaterialData;
+        } catch (error) {
+          console.error('Error parsing enhanced material:', error);
+          // Fallback to treating it as simple string
+          return material.replace('__ENHANCED_MATERIAL__', '');
+        }
+      }
+      // Simple string material
+      return material;
+    });
+  }
+
   return {
     ...session,
+    materials: parsedMaterials,
     Rating_N_Review_Session: session.Rating_N_Review_Session?.map((review: any) => ({
       ...review,
       rating: review.rating ? Number(review.rating) : null
@@ -318,10 +357,13 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
   }
 };
 
-// Add materials to a session
-export const addSessionMaterial = async (sessionId: string, material: string): Promise<SessionWithDetails> => {
+// Enhanced add materials to a session (stores enhanced data as JSON in materials array)
+export const addSessionMaterial = async (
+  sessionId: string, 
+  materialData: string | Omit<MaterialData, 'id' | 'uploadDate'>
+): Promise<SessionWithDetails> => {
   try {
-    // First, get the current materials
+    // First, get the current session
     const session = await prisma.sessions.findUnique({
       where: { session_id: sessionId },
       select: { materials: true }
@@ -331,13 +373,30 @@ export const addSessionMaterial = async (sessionId: string, material: string): P
       throw new Error('Session not found');
     }
 
-    // Add the new material to the existing materials array
-    const updatedMaterials = [...session.materials, material];
+    let updatedMaterials: string[];
+
+    if (typeof materialData === 'string') {
+      // Simple string material - backward compatibility
+      updatedMaterials = [...session.materials, materialData];
+    } else {
+      // Enhanced MaterialData object - store as JSON string in materials array
+      const newMaterial: MaterialData = {
+        id: uuidv4(),
+        uploadDate: new Date().toISOString(),
+        ...materialData
+      };
+
+      // Store the enhanced material as JSON string
+      const materialJsonString = `__ENHANCED_MATERIAL__${JSON.stringify(newMaterial)}`;
+      updatedMaterials = [...session.materials, materialJsonString];
+    }
 
     // Update the session with the new materials
     const updatedSession = await prisma.sessions.update({
       where: { session_id: sessionId },
-      data: { materials: updatedMaterials },
+      data: { 
+        materials: updatedMaterials
+      },
       include: {
         Student: {
           include: {
@@ -363,11 +422,11 @@ export const addSessionMaterial = async (sessionId: string, material: string): P
     return convertPrismaSessionToSessionWithDetails(updatedSession);
   } catch (error) {
     console.error('Error adding session material:', error);
-    throw new Error('Failed to add session material');
+    throw new Error(`Failed to add session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
-// Remove materials from a session
+// Remove materials from a session (enhanced version)
 export const removeSessionMaterial = async (sessionId: string, materialIndex: number): Promise<SessionWithDetails> => {
   try {
     // First, get the current materials
@@ -382,6 +441,22 @@ export const removeSessionMaterial = async (sessionId: string, materialIndex: nu
 
     if (materialIndex < 0 || materialIndex >= session.materials.length) {
       throw new Error('Invalid material index');
+    }
+
+    // Log the material being removed for debugging
+    const materialToRemove = session.materials[materialIndex];
+    let materialName = 'Unknown';
+    
+    if (materialToRemove.startsWith('__ENHANCED_MATERIAL__')) {
+      try {
+        const jsonString = materialToRemove.replace('__ENHANCED_MATERIAL__', '');
+        const parsedMaterial = JSON.parse(jsonString) as MaterialData;
+        materialName = parsedMaterial.name;
+      } catch (error) {
+        materialName = 'Enhanced Material';
+      }
+    } else {
+      materialName = materialToRemove;
     }
 
     // Remove the material at the specified index
@@ -416,7 +491,7 @@ export const removeSessionMaterial = async (sessionId: string, materialIndex: nu
     return convertPrismaSessionToSessionWithDetails(updatedSession);
   } catch (error) {
     console.error('Error removing session material:', error);
-    throw new Error('Failed to remove session material');
+    throw new Error(`Failed to remove session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -548,48 +623,122 @@ export const requestSessionCancellation = async (
       throw new Error('Only scheduled sessions can be cancelled');
     }
 
-    // Update session status to cancelled
-    await prisma.sessions.update({
-      where: { session_id: sessionId },
-      data: { status: 'canceled' }
+    // Use transaction for data consistency
+    await prisma.$transaction(async (tx) => {
+      // Update session status to cancelled
+      await tx.sessions.update({
+        where: { session_id: sessionId },
+        data: { status: 'canceled' }
+      });
+
+      // Update payment status to refund
+      try {
+        const paymentUpdateResult = await tx.individual_Payments.updateMany({
+          where: { session_id: sessionId },
+          data: { status: 'refund' }
+        });
+      } catch (paymentError) {
+        // Continue with transaction
+      }
+
+      // Restore free time slots - mark slots back as 'free'
+      try {
+        if (session.slots && session.slots.length > 0 && session.date) {
+          // Find the time slots that match this session
+          const timeSlots = await tx.free_Time_Slots.findMany({
+            where: {
+              i_tutor_id: tutorId,
+              date: session.date,
+              start_time: {
+                in: session.slots
+              },
+              status: 'booked'
+            }
+          });
+
+          // Update each slot back to 'free' status
+          const updatePromises = timeSlots.map(slot => 
+            tx.free_Time_Slots.update({
+              where: { slot_id: slot.slot_id },
+              data: { status: 'free' }
+            })
+          );
+
+          await Promise.all(updatePromises);
+        }
+      } catch (slotError) {
+        // Continue with transaction - this is not critical for the cancellation
+      }
     });
 
-    // Create notification for the student
-    if (session.Student?.User) {
-      await prisma.notifications.create({
-        data: {
-          user_id: session.Student.User.email, // This might need to be adjusted based on your notification system
-          message: `Your tutoring session scheduled for ${session.date?.toISOString().split('T')[0]} has been cancelled by the tutor. ${reason ? `Reason: ${reason}` : ''}`,
-          type: 'student',
-          date_time_sent: new Date(),
-          status: 'success'
-        }
-      });
-    }
-
-    // Update corresponding time slots back to free
-    if (session.date && session.slots.length > 0) {
-      await prisma.free_Time_Slots.updateMany({
-        where: {
-          i_tutor_id: tutorId,
-          date: session.date,
-          start_time: {
-            in: session.slots
+    // Send email notifications after successful database update
+    try {
+      // Get tutor information
+      const tutorInfo = await prisma.individual_Tutor.findUnique({
+        where: { i_tutor_id: tutorId },
+        include: {
+          User: {
+            select: {
+              name: true,
+              email: true
+            }
           }
-        },
-        data: {
-          status: 'free'
         }
       });
+
+      // Get payment information for refund amount
+      const paymentInfo = await prisma.individual_Payments.findFirst({
+        where: { session_id: sessionId },
+        select: { amount: true }
+      });
+
+      // Format session details for email - Fix the time extraction
+      const sessionDate = session.date?.toISOString().split('T')[0] || 'Unknown Date';
+      
+      // Time is no longer displayed in email, but keep for function signature compatibility
+      const sessionTime = '';
+      
+      const refundAmount = paymentInfo?.amount || session.price;
+
+      // Send email to student
+      if (session.Student?.User) {
+        await sendSessionCancellationEmail(
+          session.Student.User.email,
+          'student',
+          session.Student.User.name,
+          tutorInfo?.User?.name || 'Your Tutor',
+          sessionDate,
+          sessionTime,
+          reason || 'No reason provided',
+          refundAmount ? Number(refundAmount) : undefined
+        );
+      }
+
+      // Send email to tutor
+      if (tutorInfo?.User) {
+        await sendSessionCancellationEmail(
+          tutorInfo.User.email,
+          'tutor',
+          session.Student?.User?.name || 'Student',
+          tutorInfo.User.name,
+          sessionDate,
+          sessionTime,
+          reason || 'No reason provided',
+          refundAmount ? Number(refundAmount) : undefined
+        );
+      }
+
+    } catch (emailError) {
+      // Don't throw error here as the main cancellation was successful
     }
 
     return {
       success: true,
-      message: 'Session cancellation request has been processed successfully'
+      message: 'Session cancellation processed successfully. Payment refund initiated and notification emails sent to both tutor and student.'
     };
   } catch (error) {
-    console.error('Error requesting session cancellation:', error);
-    throw new Error('Failed to process cancellation request');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to cancel session: ${errorMessage}`);
   }
 };
 
@@ -726,5 +875,65 @@ export const getTutorTodaySessions = async (tutorId: string): Promise<SessionWit
   } catch (error) {
     console.error('Error fetching today\'s sessions:', error);
     throw new Error('Failed to fetch today\'s sessions');
+  }
+};
+
+// Get session materials (enhanced version to extract just the materials)
+export const getSessionMaterials = async (sessionId: string): Promise<(string | MaterialData)[]> => {
+  try {
+    const session = await prisma.sessions.findUnique({
+      where: { session_id: sessionId },
+      select: { materials: true }
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    // Parse materials using the same logic as convertPrismaSessionToSessionWithDetails
+    let parsedMaterials: (string | MaterialData)[] = [];
+    
+    if (session.materials && Array.isArray(session.materials)) {
+      parsedMaterials = session.materials.map((material: string) => {
+        if (material.startsWith('__ENHANCED_MATERIAL__')) {
+          try {
+            const jsonString = material.replace('__ENHANCED_MATERIAL__', '');
+            return JSON.parse(jsonString) as MaterialData;
+          } catch (error) {
+            console.error('Error parsing enhanced material:', error);
+            return material.replace('__ENHANCED_MATERIAL__', '');
+          }
+        }
+        return material;
+      });
+    }
+
+    return parsedMaterials;
+  } catch (error) {
+    console.error('Error getting session materials:', error);
+    throw new Error('Failed to get session materials');
+  }
+};
+
+// Helper function to get tutor ID from Firebase UID (if this doesn't exist elsewhere)
+export const getTutorIdByFirebaseUid = async (firebaseUid: string): Promise<string> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { firebase_uid: firebaseUid },
+      include: {
+        Individual_Tutor: {
+          select: { i_tutor_id: true }
+        }
+      }
+    });
+
+    if (!user || !user.Individual_Tutor || user.Individual_Tutor.length === 0) {
+      throw new Error('Tutor not found');
+    }
+
+    return user.Individual_Tutor[0].i_tutor_id;
+  } catch (error) {
+    console.error('Error getting tutor ID:', error);
+    throw new Error('Failed to get tutor information');
   }
 };

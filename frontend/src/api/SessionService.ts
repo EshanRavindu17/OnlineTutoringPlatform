@@ -1,10 +1,10 @@
-import { SessionStatus } from "../types/session";
+import { SessionStatus, Material } from "../types/session";
 
 export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: string[];
+  materials: (string | Material)[]; // Support both formats for backward compatibility
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -12,6 +12,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
+  subject: string | null;  // Added subject column from Sessions table
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -239,6 +240,175 @@ class SessionService {
       return data.data;
     } catch (error) {
       console.error('Error removing session material:', error);
+      throw error;
+    }
+  }
+
+  // Enhanced Material Management Methods
+
+  // Add enhanced material to session
+  async addEnhancedSessionMaterial(
+    firebaseUid: string, 
+    sessionId: string, 
+    materialData: Omit<Material, 'id' | 'uploadDate'>
+  ): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(materialData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add enhanced material: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error adding enhanced session material:', error);
+      throw error;
+    }
+  }
+
+  // Remove enhanced material from session
+  async removeEnhancedSessionMaterial(
+    firebaseUid: string, 
+    sessionId: string, 
+    materialIndex: number
+  ): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material/${materialIndex}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to remove enhanced material: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error removing enhanced session material:', error);
+      throw error;
+    }
+  }
+
+  // Get enhanced session materials
+  async getEnhancedSessionMaterials(
+    firebaseUid: string, 
+    sessionId: string
+  ): Promise<Material[]> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-materials`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get enhanced materials: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error getting enhanced session materials:', error);
+      throw error;
+    }
+  }
+
+  // Upload file for materials (with real file upload to server/cloud)
+  async uploadMaterialFile(
+    firebaseUid: string,
+    sessionId: string,
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{ url: string; fileId: string; mimeType: string; size: number }> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sessionId', sessionId);
+      
+      // Create XMLHttpRequest for progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Track upload progress
+        if (onProgress) {
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const progress = Math.round((e.loaded / e.total) * 100);
+              onProgress(progress);
+            }
+          });
+        }
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status === 200) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              if (result.success) {
+                resolve({
+                  url: result.data.url,
+                  fileId: result.data.fileId,
+                  mimeType: file.type,
+                  size: file.size
+                });
+              } else {
+                reject(new Error(result.message || 'Upload failed'));
+              }
+            } catch (error) {
+              reject(new Error('Invalid response from server'));
+            }
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+        
+        xhr.open('POST', `${this.baseURL}/${firebaseUid}/session/${sessionId}/upload-file`);
+        xhr.send(formData);
+      });
+    } catch (error) {
+      console.error('Error uploading material file:', error);
+      throw error;
+    }
+  }
+
+  // Batch upload multiple materials
+  async batchUploadMaterials(
+    firebaseUid: string,
+    sessionId: string,
+    materials: Array<Omit<Material, 'id' | 'uploadDate'>>,
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<SessionWithDetails> {
+    try {
+      const results = [];
+      
+      for (let i = 0; i < materials.length; i++) {
+        const material = materials[i];
+        const result = await this.addEnhancedSessionMaterial(firebaseUid, sessionId, material);
+        results.push(result);
+        
+        if (onProgress) {
+          onProgress(i + 1, materials.length);
+        }
+      }
+      
+      // Return the last result which should have all materials
+      return results[results.length - 1];
+    } catch (error) {
+      console.error('Error in batch upload:', error);
       throw error;
     }
   }
