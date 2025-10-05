@@ -124,6 +124,11 @@ export const adminApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Get comprehensive analytics data
+  async getAnalytics() {
+    return request('/analytics');
+  },
 };
 
 // Tutor application moderation endpoints

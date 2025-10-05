@@ -6,6 +6,7 @@ import {
   adminLogout,
   adminMe,
   adminMetrics,
+  adminAnalytics,
 } from '../controllers/adminAuth.controller';
 import {
   getAdminProfile,
@@ -35,8 +36,9 @@ r.get('/profile', requireAdminJWT, getAdminProfile);
 r.put('/profile', requireAdminJWT, updateAdminProfile);
 r.put('/profile/password', requireAdminJWT, changeAdminPassword);
 
-// Dashboard
+// Dashboard & Analytics
 r.get('/dashboard/metrics', requireAdminJWT, adminMetrics);
+r.get('/analytics', requireAdminJWT, adminAnalytics);
 
 // Policies (CRUD) — secured
 r.get('/policies', requireAdminJWT, listPolicies);
