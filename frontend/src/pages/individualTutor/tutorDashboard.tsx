@@ -32,11 +32,13 @@ import { useAuth } from '../../context/authContext';
 import { Subject, Title, tutorService } from '../../api/TutorService';
 import { ScheduleService } from '../../api/ScheduleService';
 import { sessionService } from '../../api/SessionService';
-import { SessionWithDetails, SessionStatistics } from '../../types/session';
+import { SessionWithDetails, SessionStatistics, Material } from '../../types/session';
 import { NotificationCenter } from './NotificationCenter';
 import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
 import { EarningsService, EarningsDashboard, EarningsStatistics, RecentPayment } from '../../api/EarningsService';
 import { ReviewsService, ReviewData, ReviewStatistics, ReviewAnalytics } from '../../api/ReviewsService';
+import EnhancedMaterialModal from '../../components/EnhancedMaterialModal';
+import SessionActions from './SessionActions';
 
 interface LocalTutorProfile {
   name: string;
@@ -69,19 +71,20 @@ interface SubjectWithTitles {
 }
 
 interface Session {
-  id: number;
+  id: string; // Changed from number to string to match backend UUID
   studentName: string;
   subject: string;
   title: string;
   date: string;
   time: string;
   amount: number;
-  materials?: string[];
+  materials?: (string | Material)[]; // Support both formats for backward compatibility
   rating?: number;
   review?: string;
   reason?: string;
   refunded?: boolean;
   meeting_urls?: string[];
+  status?: string; // Added status field
 }
 
 interface Review {
@@ -103,6 +106,268 @@ interface Notification {
   sessionId?: number;
   studentName?: string;
 }
+
+// Enhanced Material Add Modal Component
+interface MaterialAddModalProps {
+  sessionId: string;
+  onClose: () => void;
+  onAdd: (material: Omit<Material, 'id' | 'uploadDate'>) => void;
+}
+
+const MaterialAddModal: React.FC<MaterialAddModalProps> = ({ sessionId, onClose, onAdd }) => {
+  const [form, setForm] = useState({
+    name: '',
+    type: 'document' as Material['type'],
+    url: '',
+    content: '',
+    description: '',
+    isPublic: false,
+    file: null as File | null
+  });
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      // For now, we'll create a mock URL - in production, this would upload to server/cloud storage
+      const mockUrl = URL.createObjectURL(file);
+      
+      setForm(prev => ({
+        ...prev,
+        name: prev.name || file.name,
+        url: mockUrl,
+        type: getFileType(file.type),
+        file: file
+      }));
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Failed to process file. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const getFileType = (mimeType: string): Material['type'] => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.includes('pdf') || mimeType.includes('document')) return 'document';
+    if (mimeType.includes('presentation')) return 'presentation';
+    return 'document';
+  };
+
+  const handleSubmit = () => {
+    if (!form.name.trim()) {
+      alert('Please enter a material name');
+      return;
+    }
+
+    if (form.type === 'link' && !form.url.trim()) {
+      alert('Please enter a valid URL');
+      return;
+    }
+
+    if (form.type === 'text' && !form.content.trim()) {
+      alert('Please enter text content');
+      return;
+    }
+
+    onAdd({
+      name: form.name,
+      type: form.type,
+      url: form.url,
+      content: form.content,
+      description: form.description,
+      isPublic: false, // Always set to false since the toggle is removed
+      size: form.file?.size,
+      mimeType: form.file?.type
+    });
+
+    setForm({
+      name: '',
+      type: 'document',
+      url: '',
+      content: '',
+      description: '',
+      isPublic: false, // Always set to false
+      file: null
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+            <Plus className="mr-2 text-blue-600" size={20} />
+            Add Session Material
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-6 space-y-6">
+          {/* Material Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Material Type</label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { type: 'document', icon: '📄', label: 'Document' },
+                { type: 'video', icon: '🎥', label: 'Video' },
+                { type: 'link', icon: '🔗', label: 'URL Link' },
+                { type: 'image', icon: '🖼️', label: 'Image' },
+                { type: 'text', icon: '📝', label: 'Text Note' },
+                { type: 'presentation', icon: '📊', label: 'Presentation' }
+              ].map(({ type, icon, label }) => (
+                <button
+                  key={type}
+                  onClick={() => setForm(prev => ({ ...prev, type: type as Material['type'] }))}
+                  className={`p-4 rounded-lg border-2 text-center transition-all ${
+                    form.type === type
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <div className="text-sm font-medium">{label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Material Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Material Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter a descriptive name for this material"
+            />
+          </div>
+
+          {/* Conditional Fields Based on Type */}
+          {form.type === 'link' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                URL <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="url"
+                value={form.url}
+                onChange={(e) => setForm(prev => ({ ...prev, url: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="https://example.com/resource"
+              />
+            </div>
+          )}
+
+          {form.type === 'text' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Text Content <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={form.content}
+                onChange={(e) => setForm(prev => ({ ...prev, content: e.target.value }))}
+                rows={6}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your text content, notes, or instructions..."
+              />
+            </div>
+          )}
+
+          {(['document', 'video', 'image', 'presentation'].includes(form.type)) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload File
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                {uploading ? (
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                    <p className="text-sm text-gray-600">Processing...</p>
+                  </div>
+                ) : form.file ? (
+                  <div className="flex flex-col items-center">
+                    <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                    <p className="text-sm font-medium text-gray-800">{form.file.name}</p>
+                    <p className="text-xs text-gray-500">{(form.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600 mb-2">Drag and drop or click to upload</p>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className="cursor-pointer bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-100"
+                    >
+                      Choose File
+                    </label>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Maximum file size: 50MB. Supported formats: PDF, DOC, PPT, MP4, JPG, PNG
+              </p>
+            </div>
+          )}
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description (Optional)
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Add any additional notes or context about this material..."
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          <div className="text-sm text-gray-600">
+            Materials will be available to students during the session
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={uploading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {uploading ? 'Processing...' : 'Add Material'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const TutorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -297,65 +562,132 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
+  // Helper function to get session start time for sorting
+  const getSessionStartTime = (session: SessionWithDetails): number => {
+    // Try to get time from slots first
+    if (session.slots && session.slots.length > 0) {
+      const sessionDate = new Date(session.date!);
+      const firstSlot = new Date(session.slots[0]);
+      
+      // Combine session date with slot time
+      const combinedDateTime = new Date(sessionDate);
+      combinedDateTime.setHours(firstSlot.getHours(), firstSlot.getMinutes(), 0, 0);
+      
+      return combinedDateTime.getTime();
+    }
+    
+    // Fallback to start_time
+    if (session.start_time) {
+      return new Date(session.start_time).getTime();
+    }
+    
+    // Fallback to date only
+    if (session.date) {
+      return new Date(session.date).getTime();
+    }
+    
+    return 0;
+  };
+
+  // Helper function to get time until session
+  const getTimeUntilSession = (session: SessionWithDetails): string => {
+    const now = new Date();
+    const sessionStart = getSessionStartTime(session);
+    const timeDiff = sessionStart - now.getTime();
+    
+    if (timeDiff <= 0) return 'Now';
+    
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) return `in ${days} day${days > 1 ? 's' : ''}`;
+    if (hours > 0) return `in ${hours}h ${minutes}m`;
+    if (minutes > 0) return `in ${minutes} minutes`;
+    return 'Now';
+  };
+
+  // Helper function to get urgency color for time indicator
+  const getUrgencyColor = (session: SessionWithDetails): string => {
+    const timeUntil = getTimeUntilSession(session);
+    
+    if (timeUntil === 'Now' || timeUntil.includes('minutes')) {
+      return 'bg-red-100 text-red-700 border-red-200';
+    } else if (timeUntil.includes('h ') || timeUntil.includes('1 day')) {
+      return 'bg-orange-100 text-orange-700 border-orange-200';
+    } else {
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    }
+  };
+
   // Load sessions data
   const loadSessionsData = async () => {
     if (currentUser?.uid) {
       try {
-        const allSessions = await sessionService.getAllSessions(currentUser.uid);
+        console.log('Loading sessions data for user:', currentUser.uid);
+        
+        // Use dedicated endpoints for better performance and accuracy
+        const [allSessions, upcomingSessions, ongoingSessions, statistics] = await Promise.all([
+          sessionService.getAllSessions(currentUser.uid),
+          sessionService.getUpcomingSessions(currentUser.uid),
+          sessionService.getSessionsByStatus(currentUser.uid, 'ongoing'),
+          sessionService.getSessionStatistics(currentUser.uid)
+        ]);
 
-        const statistics = await sessionService.getSessionStatistics(currentUser.uid);
+        console.log('Received sessions:', {
+          total: allSessions.length,
+          upcoming: upcomingSessions.length,
+          ongoing: ongoingSessions.length
+        });
+
         setSessionStats(statistics);
         
-        // Categorize sessions with time-based logic
-        const now = new Date();
-        const upcoming = [];
-        const ongoing = [];
+        // Sort upcoming sessions by start time (nearest first) - backend should already sort, but ensure it
+        const sortedUpcoming = upcomingSessions.sort((a, b) => getSessionStartTime(a) - getSessionStartTime(b));
         
-        for (const session of allSessions) {
-          if (session.status === 'scheduled' && session.date && session.slots) {
-            const sessionDate = new Date(session.date);
-            
-            // Check if session is today
-            const isToday = sessionDate.toDateString() === now.toDateString();
-            
-            if (isToday && session.slots.length > 0) {
-              // Parse session time slots to determine if ongoing
-              const startSlot = new Date(session.slots[0]);
-              const endSlot = new Date(session.slots[session.slots.length - 1]);
-              endSlot.setHours(endSlot.getHours() + 1); // Add 1 hour to last slot
-              
-              const currentTime = now.getTime();
-              const sessionStart = startSlot.getTime();
-              const sessionEnd = endSlot.getTime();
-              
-              if (currentTime >= sessionStart && currentTime <= sessionEnd) {
-                ongoing.push(session);
-              } else if (sessionStart > currentTime) {
-                upcoming.push(session);
-              }
-            } else if (sessionDate > now) {
-              upcoming.push(session);
-            }
-          }
-        }
+        // Sort ongoing sessions by start time (earliest first)
+        const sortedOngoing = ongoingSessions.sort((a, b) => getSessionStartTime(a) - getSessionStartTime(b));
         
-        const previous = allSessions.filter(session => 
+        // Filter completed and cancelled sessions from all sessions
+        const completedSessions = allSessions.filter(session => 
           session.status === 'completed'
         );
         
-        const cancelled = allSessions.filter(session => 
+        // Sort previous sessions by date (most recent first)
+        completedSessions.sort((a, b) => getSessionStartTime(b) - getSessionStartTime(a));
+        
+        const cancelledSessions = allSessions.filter(session => 
           session.status === 'canceled'
         );
         
+        // Sort cancelled sessions by date (most recent first)  
+        cancelledSessions.sort((a, b) => getSessionStartTime(b) - getSessionStartTime(a));
+        
         setSessions({
-          upcoming,
-          ongoing,
-          previous,
-          cancelled,
+          upcoming: sortedUpcoming,
+          ongoing: sortedOngoing,
+          previous: completedSessions,
+          cancelled: cancelledSessions,
           all: allSessions
         });
+
+        console.log('Sessions updated in state:', {
+          upcoming: sortedUpcoming.length,
+          ongoing: sortedOngoing.length,
+          previous: completedSessions.length,
+          cancelled: cancelledSessions.length
+        });
+
       } catch (error) {
         console.error('Error loading sessions data:', error);
+        // Set empty arrays on error to prevent undefined state
+        setSessions({
+          upcoming: [],
+          ongoing: [],
+          previous: [],
+          cancelled: [],
+          all: []
+        });
       }
     }
   };
@@ -583,6 +915,23 @@ const TutorDashboard: React.FC = () => {
   const [newMaterial, setNewMaterial] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
+  // Enhanced Material Management State
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [selectedSessionForMaterial, setSelectedSessionForMaterial] = useState<string | null>(null);
+  const [materialForm, setMaterialForm] = useState({
+    name: '',
+    type: 'document' as Material['type'],
+    url: '',
+    content: '',
+    description: '',
+    isPublic: false,
+    file: null as File | null
+  });
+
+  // Session Actions Modal State
+  const [showSessionActions, setShowSessionActions] = useState(false);
+  const [selectedSessionForActions, setSelectedSessionForActions] = useState<Session | null>(null);
+
   // Auto-switching logic for ongoing sessions
   useEffect(() => {
     if (sessions.ongoing.length > 0 && activeSessionTab === 'upcoming') {
@@ -636,8 +985,8 @@ const TutorDashboard: React.FC = () => {
     return {
       id: session.session_id,
       studentName: session.Student?.User?.name || 'Unknown Student',
-      subject: session.title || 'No Subject',
-      title: session.title || 'No Title',
+      subject: session.subject || 'No Subject',  // Use the actual subject column
+      title: session.title || 'No Title',       // Keep title separate
       date: session.date ? new Date(session.date).toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric', 
@@ -650,12 +999,12 @@ const TutorDashboard: React.FC = () => {
         : 'Time not set',
       amount: session.price || 0,
       materials: session.materials || [],
-      rating: session.Rating_N_Review_Session?.[0]?.rating || null,
-      review: session.Rating_N_Review_Session?.[0]?.review || null,
-      status: session.status,
+      rating: session.Rating_N_Review_Session?.[0]?.rating ? Number(session.Rating_N_Review_Session[0].rating) : undefined,
+      review: session.Rating_N_Review_Session?.[0]?.review || undefined,
+      status: session.status || undefined,
       meeting_urls: session.meeting_urls || [],
       refunded: false, // TODO: Add refund status to backend
-      reason: null // TODO: Add cancellation reason to backend
+      reason: undefined // TODO: Add cancellation reason to backend
     };
   };
 
@@ -1095,6 +1444,33 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
+  // Enhanced material management functions
+  const addEnhancedMaterial = async (materialData: Omit<Material, 'id' | 'uploadDate'>) => {
+    if (!selectedSessionForMaterial || !currentUser?.uid) return;
+    
+    try {
+      await sessionService.addEnhancedSessionMaterial(
+        currentUser.uid, 
+        selectedSessionForMaterial, 
+        materialData
+      );
+      
+      // Reload sessions to get updated data
+      loadSessionsData();
+      setShowMaterialModal(false);
+      setSelectedSessionForMaterial(null);
+      alert('Enhanced material added successfully!');
+    } catch (error) {
+      console.error('Error adding enhanced material:', error);
+      alert('Failed to add enhanced material. Please try again.');
+    }
+  };
+
+  const openMaterialModal = (sessionId: string) => {
+    setSelectedSessionForMaterial(sessionId);
+    setShowMaterialModal(true);
+  };
+
   const removeMaterial = async (sessionId: string, materialIndex: number, materialName: string) => {
     if (currentUser?.uid) {
       try {
@@ -1131,6 +1507,43 @@ const TutorDashboard: React.FC = () => {
         alert('Failed to cancel session. Please try again.');
       }
     }
+  };
+
+  // Session Actions handlers
+  const openSessionActions = (sessionData: SessionWithDetails) => {
+    const session = formatSession(sessionData);
+    setSelectedSessionForActions(session);
+    setShowSessionActions(true);
+  };
+
+  const closeSessionActions = () => {
+    setShowSessionActions(false);
+    setSelectedSessionForActions(null);
+  };
+
+  const handleSessionCancel = async (sessionId: string, reason: string) => {
+    if (currentUser?.uid) {
+      try {
+        const result = await sessionService.requestCancellation(currentUser.uid, sessionId, reason);
+        if (result.success) {
+          alert(result.message);
+          // Reload sessions to get updated data
+          loadSessionsData();
+          closeSessionActions();
+        } else {
+          alert('Failed to cancel session: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Error cancelling session:', error);
+        alert('Failed to cancel session. Please try again.');
+      }
+    }
+  };
+
+  const handleSessionReschedule = async (sessionId: string, newDate: string, newTime: string, reason: string) => {
+    // TODO: Implement reschedule functionality when backend endpoint is available
+    alert(`Reschedule functionality will be implemented soon.\n\nSession: ${sessionId}\nNew Date: ${newDate}\nNew Time: ${newTime}\nReason: ${reason}`);
+    closeSessionActions();
   };
 
   const finishSession = async (sessionId: string) => {
@@ -1269,7 +1682,7 @@ const TutorDashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Students</p>
+              <p className="text-sm font-medium text-gray-600">Book Slots</p>
               <p className="text-3xl font-bold text-blue-600">{stats.bookedSlots}</p>
               <p className="text-xs text-gray-500 mt-1">Currently enrolled</p>
             </div>
@@ -2336,17 +2749,33 @@ const TutorDashboard: React.FC = () => {
                           
                           {session.materials && session.materials.length > 0 ? (
                             <div className="space-y-2 mb-4">
-                              {session.materials.map((material, index) => (
-                                <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
-                                  <span className="text-sm font-medium text-gray-700">{material}</span>
-                                  <button
-                                    onClick={() => removeMaterial(session.id, index, material)}
-                                    className="text-red-500 hover:text-red-700 transition-colors p-1"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              ))}
+                              {session.materials.map((material, index) => {
+                                // Handle both string and Material object formats
+                                const materialName = typeof material === 'string' ? material : material.name;
+                                const materialType = typeof material === 'string' ? 'text' : material.type;
+                                
+                                return (
+                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+                                    <div className="flex items-center space-x-3">
+                                      <div className="flex-shrink-0">
+                                        {materialType === 'document' && <FileText className="w-4 h-4 text-blue-600" />}
+                                        {materialType === 'video' && <Video className="w-4 h-4 text-red-600" />}
+                                        {materialType === 'link' && <ExternalLink className="w-4 h-4 text-green-600" />}
+                                        {materialType === 'image' && <Camera className="w-4 h-4 text-purple-600" />}
+                                        {materialType === 'text' && <MessageSquare className="w-4 h-4 text-gray-600" />}
+                                        {materialType === 'presentation' && <VideoIcon className="w-4 h-4 text-orange-600" />}
+                                      </div>
+                                      <span className="text-sm font-medium text-gray-700">{materialName}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => removeMaterial(session.id, index, materialName)}
+                                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : (
                             <p className="text-sm text-gray-500 italic mb-4">No materials added yet</p>
@@ -2364,9 +2793,16 @@ const TutorDashboard: React.FC = () => {
                               />
                               <button
                                 onClick={() => addMaterial(session.id)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                                className="px-3 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors"
                               >
                                 Add
+                              </button>
+                              <button
+                                onClick={() => openMaterialModal(session.id)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                              >
+                                <Upload size={16} />
+                                <span>Enhanced</span>
                               </button>
                               <button
                                 onClick={() => setSelectedSessionId(null)}
@@ -2376,13 +2812,22 @@ const TutorDashboard: React.FC = () => {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setSelectedSessionId(session.id)}
-                              className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Add Material
-                            </button>
+                            <div className="flex space-x-3">
+                              <button
+                                onClick={() => setSelectedSessionId(session.id)}
+                                className="flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                              >
+                                <Plus className="w-4 h-4 mr-1" />
+                                Simple
+                              </button>
+                              <button
+                                onClick={() => openMaterialModal(session.id)}
+                                className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                              >
+                                <Upload className="w-4 h-4 mr-1" />
+                                Advanced
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -2406,11 +2851,17 @@ const TutorDashboard: React.FC = () => {
                           )}
                           
                           <button
-                            onClick={() => requestCancellation(session.id)}
+                            onClick={() => {
+                              // Find the original session data to pass to SessionActions
+                              const originalSession = getFilteredSessions().find(s => s.session_id === session.id);
+                              if (originalSession) {
+                                openSessionActions(originalSession);
+                              }
+                            }}
                             className="flex items-center px-6 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
                           >
                             <X className="mr-2" size={18} />
-                            Request Cancellation
+                            Session Actions
                           </button>
                         </div>
                       )}
@@ -3144,6 +3595,36 @@ const TutorDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Enhanced Material Modal */}
+      {showMaterialModal && selectedSessionForMaterial && (
+        <EnhancedMaterialModal
+          sessionId={selectedSessionForMaterial}
+          onClose={() => {
+            setShowMaterialModal(false);
+            setSelectedSessionForMaterial(null);
+          }}
+          onAdd={addEnhancedMaterial}
+        />
+      )}
+
+      {/* Session Actions Modal */}
+      {showSessionActions && selectedSessionForActions && (
+        <SessionActions
+          session={{
+            sessionId: selectedSessionForActions.id,
+            studentName: selectedSessionForActions.studentName,
+            subject: selectedSessionForActions.subject,
+            title: selectedSessionForActions.title,
+            date: selectedSessionForActions.date,
+            time: selectedSessionForActions.time,
+            amount: selectedSessionForActions.amount,
+            status: selectedSessionForActions.status
+          }}
+          onCancel={handleSessionCancel}
+          onClose={closeSessionActions}
+        />
       )}
     </div>
   );

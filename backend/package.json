@@ -35,7 +35,6 @@
     "multer-storage-cloudinary": "^4.0.0",
     "prisma": "^6.13.0",
     "stripe": "^18.5.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   },
   "devDependencies": {

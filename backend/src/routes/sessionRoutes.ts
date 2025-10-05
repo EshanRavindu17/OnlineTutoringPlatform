@@ -11,8 +11,14 @@ import {
   updateSessionStatusController,
   addSessionMeetingUrlController,
   requestSessionCancellationController,
-  getSessionDetailsController
+  getSessionDetailsController,
+  addEnhancedSessionMaterialController,
+  removeEnhancedSessionMaterialController,
+  getEnhancedSessionMaterialsController,
+  uploadMaterialFileController,
+  batchUploadMaterialsController
 } from '../controllers/sessionController';
+import { sessionMaterialsUpload, batchMaterialsUpload } from '../config/multer';
 
 const router = express.Router();
 
@@ -31,5 +37,14 @@ router.delete('/:firebaseUid/session/:sessionId/material', removeSessionMaterial
 router.put('/:firebaseUid/session/:sessionId/status', updateSessionStatusController);
 router.post('/:firebaseUid/session/:sessionId/meeting-url', addSessionMeetingUrlController);
 router.post('/:firebaseUid/session/:sessionId/cancel', requestSessionCancellationController);
+
+// Enhanced material management routes
+router.post('/:firebaseUid/session/:sessionId/enhanced-material', addEnhancedSessionMaterialController);
+router.delete('/:firebaseUid/session/:sessionId/enhanced-material/:materialIndex', removeEnhancedSessionMaterialController);
+router.get('/:firebaseUid/session/:sessionId/enhanced-materials', getEnhancedSessionMaterialsController);
+
+// File upload routes for session materials
+router.post('/:firebaseUid/session/:sessionId/upload-file', sessionMaterialsUpload.single('file'), uploadMaterialFileController);
+router.post('/:firebaseUid/session/:sessionId/batch-upload', batchMaterialsUpload.array('files', 10), batchUploadMaterialsController);
 
 export default router;
