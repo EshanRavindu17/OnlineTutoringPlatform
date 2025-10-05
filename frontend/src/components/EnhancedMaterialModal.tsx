@@ -29,6 +29,20 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
   onClose, 
   onAdd 
 }) => {
+  // Add scrollbar hiding CSS
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   const [form, setForm] = useState({
     name: '',
     type: 'document' as Material['type'],
@@ -220,34 +234,46 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white  max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-200/50 scrollbar-hide" style={{
+        scrollbarWidth: 'none', /* Firefox */
+        msOverflowStyle: 'none'  /* IE and Edge */
+      }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/70 bg-gradient-to-r from-slate-50/50 to-white/50">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Add Session Materials</h2>
-            <p className="text-gray-600">Upload files, add links, or create text materials for your session</p>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              Add Session Materials
+            </h2>
+            <p className="text-slate-600 mt-1">Upload files, add links, or create text materials for your session</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <X size={24} className="text-gray-600" />
+          <button 
+            onClick={onClose} 
+            className="p-2.5 hover:bg-slate-100/80 rounded-xl transition-all duration-200 hover:scale-105 group"
+          >
+            <X size={22} className="text-slate-500 group-hover:text-slate-700" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-8">
           {/* Mode Toggle */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center bg-slate-100/60 rounded-xl p-1.5 w-fit">
             <button
               onClick={() => setBatchMode(false)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                !batchMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+              className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                !batchMode 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' 
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               Single Material
             </button>
             <button
               onClick={() => setBatchMode(true)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                batchMode ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+              className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                batchMode 
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50' 
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               Batch Upload
@@ -259,19 +285,26 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
             <div className="space-y-6">
               {/* Drag & Drop Area */}
               <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300 ${
                   dragActive 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 scale-[1.02]' 
+                    : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50/50'
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <UploadIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Drop Multiple Files Here</h3>
-                <p className="text-gray-500 mb-4">Or click to select multiple files</p>
+                <div className="relative">
+                  <UploadIcon className={`mx-auto h-16 w-16 mb-6 transition-all duration-300 ${
+                    dragActive ? 'text-blue-500 scale-110' : 'text-slate-400'
+                  }`} />
+                  {dragActive && (
+                    <div className="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-20" />
+                  )}
+                </div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-3">Drop Multiple Files Here</h3>
+                <p className="text-slate-600 mb-6">Or click to select multiple files</p>
                 <input
                   type="file"
                   multiple
@@ -285,41 +318,52 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
                 />
                 <label
                   htmlFor="batch-file-input"
-                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+                  className="inline-flex items-center px-8 py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 cursor-pointer transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
+                  <Plus className="mr-2" size={18} />
                   Select Files
                 </label>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-slate-500 mt-4 leading-relaxed">
                   Supports: PDF, DOC, PPT, Images, Videos (Max 10MB each)
                 </p>
               </div>
 
               {/* Selected Files List */}
               {batchFiles.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-800">Selected Files ({batchFiles.length})</h4>
-                  {batchFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          {getFileType(file.type) === 'document' && <FileText className="w-5 h-5 text-blue-600" />}
-                          {getFileType(file.type) === 'video' && <Video className="w-5 h-5 text-red-600" />}
-                          {getFileType(file.type) === 'image' && <Camera className="w-5 h-5 text-purple-600" />}
-                          {getFileType(file.type) === 'presentation' && <VideoIcon className="w-5 h-5 text-orange-600" />}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-slate-800 text-lg">Selected Files</h4>
+                    <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
+                      {batchFiles.length} files
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-60 overflow-y-auto scrollbar-hide" style={{
+                    scrollbarWidth: 'none', /* Firefox */
+                    msOverflowStyle: 'none'  /* IE and Edge */
+                  }}>
+                    {batchFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-shrink-0 p-2 rounded-lg bg-slate-100">
+                            {getFileType(file.type) === 'document' && <FileText className="w-6 h-6 text-blue-600" />}
+                            {getFileType(file.type) === 'video' && <Video className="w-6 h-6 text-red-600" />}
+                            {getFileType(file.type) === 'image' && <Camera className="w-6 h-6 text-purple-600" />}
+                            {getFileType(file.type) === 'presentation' && <VideoIcon className="w-6 h-6 text-orange-600" />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900 truncate max-w-xs">{file.name}</p>
+                            <p className="text-sm text-slate-500 mt-0.5">{formatFileSize(file.size)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-800">{file.name}</p>
-                          <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
-                        </div>
+                        <button
+                          onClick={() => removeBatchFile(index)}
+                          className="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-all duration-200"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => removeBatchFile(index)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -327,44 +371,49 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
             /* Single Material Mode */
             <div className="space-y-6">
               {/* Material Name */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
                   Material Name *
                 </label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-slate-50/50 hover:bg-white"
                   placeholder="e.g., Chapter 5 Notes, Practice Problems"
                 />
               </div>
 
               {/* Material Type */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <div className="space-y-4">
+                <label className="block text-sm font-semibold text-slate-800">
                   Material Type
                 </label>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
                   {[
-                    { type: 'document', icon: FileText, label: 'Document', color: 'blue' },
-                    { type: 'video', icon: Video, label: 'Video', color: 'red' },
-                    { type: 'link', icon: ExternalLink, label: 'Link', color: 'green' },
-                    { type: 'image', icon: Camera, label: 'Image', color: 'purple' },
-                    { type: 'text', icon: MessageSquare, label: 'Text', color: 'gray' },
-                    { type: 'presentation', icon: VideoIcon, label: 'Slides', color: 'orange' }
-                  ].map(({ type, icon: Icon, label, color }) => (
+                    { type: 'document', icon: FileText, label: 'Document', colors: { bg: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-500', hover: 'hover:border-blue-400' } },
+                    { type: 'video', icon: Video, label: 'Video', colors: { bg: 'bg-red-500', text: 'text-red-700', border: 'border-red-500', hover: 'hover:border-red-400' } },
+                    { type: 'link', icon: ExternalLink, label: 'Link', colors: { bg: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-500', hover: 'hover:border-emerald-400' } },
+                    { type: 'image', icon: Camera, label: 'Image', colors: { bg: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-500', hover: 'hover:border-purple-400' } },
+                    { type: 'text', icon: MessageSquare, label: 'Text', colors: { bg: 'bg-slate-500', text: 'text-slate-700', border: 'border-slate-500', hover: 'hover:border-slate-400' } },
+                    { type: 'presentation', icon: VideoIcon, label: 'Slides', colors: { bg: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-500', hover: 'hover:border-orange-400' } }
+                  ].map(({ type, icon: Icon, label, colors }) => (
                     <button
                       key={type}
                       onClick={() => setForm(prev => ({ ...prev, type: type as Material['type'] }))}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                      className={`p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-105 ${
                         form.type === type
-                          ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? `${colors.border} bg-gradient-to-br from-white to-slate-50 ${colors.text} shadow-md scale-105`
+                          : `border-slate-200 ${colors.hover} hover:bg-slate-50 text-slate-600`
                       }`}
                     >
-                      <Icon className={`mx-auto mb-1 ${form.type === type ? `text-${color}-600` : 'text-gray-400'}`} size={20} />
-                      <span className="text-xs font-medium">{label}</span>
+                      <Icon 
+                        className={`mx-auto mb-2 transition-colors duration-200 ${
+                          form.type === type ? colors.text : 'text-slate-400'
+                        }`} 
+                        size={24} 
+                      />
+                      <span className="text-xs font-medium block">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -372,23 +421,30 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
 
               {/* File Upload or URL/Content based on type */}
               {(form.type === 'document' || form.type === 'image' || form.type === 'video' || form.type === 'presentation') && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-slate-800">
                     Upload File
                   </label>
                   <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
                       dragActive 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 scale-[1.02]' 
+                        : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50/50'
                     }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
                   >
-                    <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">
+                    <div className="relative">
+                      <Upload className={`mx-auto h-12 w-12 mb-4 transition-all duration-300 ${
+                        dragActive ? 'text-blue-500 scale-110' : 'text-slate-400'
+                      }`} />
+                      {dragActive && (
+                        <div className="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-20" />
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600 mb-4 font-medium">
                       Drag & drop file here, or click to select
                     </p>
                     <input
@@ -409,15 +465,16 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
                     />
                     <label
                       htmlFor="file-input"
-                      className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors text-sm"
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 cursor-pointer transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
+                      <Upload className="mr-2" size={16} />
                       Choose File
                     </label>
                     {form.file && (
-                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center justify-center space-x-2">
-                          <CheckCircle className="text-green-600" size={16} />
-                          <span className="text-sm text-green-800">{form.file.name}</span>
+                      <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center justify-center space-x-3">
+                          <CheckCircle className="text-emerald-600" size={20} />
+                          <span className="text-sm font-medium text-emerald-800">{form.file.name}</span>
                         </div>
                       </div>
                     )}
@@ -426,45 +483,48 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
               )}
 
               {form.type === 'link' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-slate-800">
                     URL *
                   </label>
-                  <input
-                    type="url"
-                    value={form.url}
-                    onChange={(e) => setForm(prev => ({ ...prev, url: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://example.com/resource"
-                  />
+                  <div className="relative">
+                    <ExternalLink className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                    <input
+                      type="url"
+                      value={form.url}
+                      onChange={(e) => setForm(prev => ({ ...prev, url: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-slate-50/50 hover:bg-white"
+                      placeholder="https://example.com/resource"
+                    />
+                  </div>
                 </div>
               )}
 
               {form.type === 'text' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-slate-800">
                     Text Content *
                   </label>
                   <textarea
                     value={form.content}
                     onChange={(e) => setForm(prev => ({ ...prev, content: e.target.value }))}
                     rows={6}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                    className="w-full border border-slate-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 resize-vertical bg-slate-50/50 hover:bg-white"
                     placeholder="Enter your text content here..."
                   />
                 </div>
               )}
 
               {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-800">
                   Description (Optional)
                 </label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 resize-vertical bg-slate-50/50 hover:bg-white"
                   placeholder="Add a brief description of this material..."
                 />
               </div>
@@ -473,16 +533,21 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
 
           {/* Upload Progress */}
           {uploading && (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-700">
-                  {batchMode ? 'Processing batch upload...' : 'Uploading file...'}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 p-6 rounded-xl shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                  <span className="text-sm font-medium text-blue-800">
+                    {batchMode ? 'Processing batch upload...' : 'Uploading file...'}
+                  </span>
+                </div>
+                <span className="text-sm font-semibold text-blue-700 px-2 py-1 bg-blue-100 rounded-lg">
+                  {Math.round(uploadProgress)}%
                 </span>
-                <span className="text-sm text-blue-600">{Math.round(uploadProgress)}%</span>
               </div>
-              <div className="w-full bg-blue-200 rounded-full h-2">
+              <div className="w-full bg-blue-200/60 rounded-full h-3 overflow-hidden">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -491,31 +556,36 @@ const EnhancedMaterialModal: React.FC<EnhancedMaterialModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-          <div className="text-sm text-gray-600">
+        <div className="flex items-center justify-between p-6 border-t border-slate-200/70 bg-gradient-to-r from-slate-50/80 to-white/80">
+          <div className="text-sm text-slate-600 font-medium">
             {batchMode 
               ? `${batchFiles.length} files selected for upload`
               : 'Materials will be available during the session'
             }
           </div>
-          <div className="flex space-x-3">
+          <div className="flex space-x-4">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              className="px-6 py-2.5 text-slate-600 hover:text-slate-800 font-medium rounded-xl hover:bg-slate-100/80 transition-all duration-200"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={uploading || (batchMode ? batchFiles.length === 0 : false)}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-8 py-2.5 rounded-xl font-medium transition-all duration-200 transform ${
                 uploading || (batchMode ? batchFiles.length === 0 : false)
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl hover:scale-105'
               }`}
             >
               {uploading 
-                ? (batchMode ? 'Processing...' : 'Uploading...')
+                ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>{batchMode ? 'Processing...' : 'Uploading...'}</span>
+                  </div>
+                )
                 : (batchMode ? `Upload ${batchFiles.length} Files` : 'Add Material')
               }
             </button>
