@@ -182,8 +182,8 @@ export const createOrUpdateUser = async (userData: UserData) => {
             // Tutor-specific fields with proper validation
             description: description || null,
             heading: heading || null,
-            subjects: subjects || [],
-            titles: role === 'Individual' ? (titles || []) : [],
+            subjects: subjects || [], // Now contains names instead of IDs
+            titles: role === 'Individual' ? (titles || []) : [], // Now contains names instead of IDs
             hourly_rate: role === 'Individual' && hourly_rate 
               ? Math.round(parseFloat(hourly_rate.toString()) * 100) / 100 // Round to 2 decimal places
               : null,
@@ -210,8 +210,8 @@ export const createOrUpdateUser = async (userData: UserData) => {
             // Tutor-specific fields with proper validation
             description: description || null,
             heading: heading || null,
-            subjects: subjects || [],
-            titles: role === 'Individual' ? (titles || []) : [],
+            subjects: subjects || [], // Now contains names instead of IDs
+            titles: role === 'Individual' ? (titles || []) : [], // Now contains names instead of IDs
             hourly_rate: role === 'Individual' && hourly_rate 
               ? Math.round(parseFloat(hourly_rate.toString()) * 100) / 100 // Round to 2 decimal places
               : null,

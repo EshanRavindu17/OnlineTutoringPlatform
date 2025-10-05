@@ -87,3 +87,504 @@ export const createTitle = async (name: string, sub_id: string) => {
   });
   return title;
 };
+
+// Dashboard service functions
+
+export const getTutorProfile = async (firebaseUid: string) => {
+  // First get user from Firebase UID
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Get tutor profile
+  const tutorProfile = await prisma.individual_Tutor.findFirst({
+    where: {
+      user_id: user.id
+    },
+    include: {
+      User: {
+        select: {
+          name: true,
+          email: true,
+          photo_url: true,
+          dob: true,
+          created_at: true
+        }
+      }
+    }
+  });
+
+  if (!tutorProfile) {
+    throw new Error('Tutor profile not found');
+  }
+
+  // Get all subjects and titles for relationship mapping
+  const allSubjects = await prisma.subjects.findMany();
+  const allTitles = await prisma.titles.findMany({
+    include: {
+      Subjects: {
+        select: {
+          name: true
+        }
+      }
+    }
+  });
+
+  // Group tutor's titles by their subjects
+  const titlesGroupedBySubject: { [subjectName: string]: string[] } = {};
+  
+  tutorProfile.subjects.forEach(subjectName => {
+    titlesGroupedBySubject[subjectName] = [];
+  });
+
+  tutorProfile.titles.forEach(titleName => {
+    // Find the title in the titles table to get its subject
+    const titleRecord = allTitles.find(t => t.name === titleName);
+    if (titleRecord && titleRecord.Subjects) {
+      const subjectName = titleRecord.Subjects.name;
+      if (titlesGroupedBySubject[subjectName]) {
+        titlesGroupedBySubject[subjectName].push(titleName);
+      }
+    }
+  });
+
+  return {
+    ...tutorProfile,
+    titlesGroupedBySubject // Add grouped titles for frontend
+  };
+};
+
+export const getTutorStatistics = async (tutorId: string) => {
+  // Get total sessions count
+  const totalSessionsCount = await prisma.sessions.count({
+    where: {
+      i_tutor_id: tutorId
+    }
+  });
+
+  const totalEarningsSum = await prisma.sessions.aggregate({
+    where: {
+      i_tutor_id: tutorId,
+      status: 'completed'
+    },
+    _sum: {
+      price: true
+    }
+  });
+
+  // Get session counts by status
+  const sessionCounts = await prisma.sessions.groupBy({
+    by: ['status'],
+    where: {
+      i_tutor_id: tutorId
+    },
+    _count: {
+      session_id: true
+    }
+  });
+
+  // Get monthly earnings (current month)
+  const currentDate = new Date();
+  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+  const monthlyEarnings = await prisma.sessions.aggregate({
+    where: {
+      i_tutor_id: tutorId,
+      status: 'completed',
+      created_at: {
+        gte: startOfMonth
+      }
+    },
+    _sum: {
+      price: true
+    }
+  });
+
+  // Get weekly earnings (last 7 days)
+  const startOfWeek = new Date();
+  startOfWeek.setDate(startOfWeek.getDate() - 7);
+
+  const weeklyEarnings = await prisma.sessions.aggregate({
+    where: {
+      i_tutor_id: tutorId,
+      status: 'completed',
+      created_at: {
+        gte: startOfWeek
+      }
+    },
+    _sum: {
+      price: true
+    }
+  });
+
+  // Get reviews count and average rating
+  const reviewsStats = await prisma.rating_N_Review_Session.aggregate({
+    where: {
+      Sessions: {
+        i_tutor_id: tutorId
+      }
+    },
+    _count: {
+      r_id: true
+    },
+    _avg: {
+      rating: true
+    }
+  });
+
+  const completedSessions = sessionCounts.find(s => s.status === 'completed')?._count.session_id || 0;
+  const scheduledSessions = sessionCounts.find(s => s.status === 'scheduled')?._count.session_id || 0;
+  const canceledSessions = sessionCounts.find(s => s.status === 'canceled')?._count.session_id || 0;
+
+  return {
+    totalSessions: totalSessionsCount,
+    completedSessions,
+    upcomingSessions: scheduledSessions,
+    cancelledSessions: canceledSessions,
+    totalEarnings: totalEarningsSum._sum.price || 0,
+    monthlyEarnings: monthlyEarnings._sum.price || 0,
+    weeklyEarnings: weeklyEarnings._sum.price || 0,
+    averageRating: Number(reviewsStats._avg.rating) || 0,
+    totalReviews: reviewsStats._count.r_id || 0
+  };
+};
+
+// Update user profile photo
+export const updateUserPhoto = async (firebaseUid: string, photoUrl: string) => {
+  // First verify user exists
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Update the photo URL
+  const updatedUser = await prisma.user.update({
+    where: {
+      firebase_uid: firebaseUid
+    },
+    data: {
+      photo_url: photoUrl
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      photo_url: true,
+      firebase_uid: true
+    }
+  });
+
+  return updatedUser;
+};
+
+// Update user profile photo with file upload
+export const uploadAndUpdateUserPhoto = async (firebaseUid: string, file: any) => {
+  // First verify user exists
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // The file should already be uploaded to Cloudinary by multer middleware
+  // file.path contains the Cloudinary URL
+  const photoUrl = file.path;
+
+  // Update the photo URL in database
+  const updatedUser = await prisma.user.update({
+    where: {
+      firebase_uid: firebaseUid
+    },
+    data: {
+      photo_url: photoUrl
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      photo_url: true,
+      firebase_uid: true
+    }
+  });
+
+  return updatedUser;
+};
+
+// Update tutor qualifications
+export const updateTutorQualifications = async (firebaseUid: string, qualifications: string[]) => {
+  // First get user from Firebase UID
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Get and update tutor profile
+  const tutorProfile = await prisma.individual_Tutor.findFirst({
+    where: {
+      user_id: user.id
+    }
+  });
+
+  if (!tutorProfile) {
+    throw new Error('Tutor profile not found');
+  }
+
+  // Update qualifications
+  const updatedTutor = await prisma.individual_Tutor.update({
+    where: {
+      i_tutor_id: tutorProfile.i_tutor_id
+    },
+    data: {
+      qualifications: qualifications
+    },
+    include: {
+      User: {
+        select: {
+          name: true,
+          email: true,
+          photo_url: true,
+          dob: true,
+          created_at: true
+        }
+      }
+    }
+  });
+
+  return updatedTutor;
+};
+
+// Update tutor hourly rate
+export const updateTutorHourlyRate = async (firebaseUid: string, hourlyRate: number) => {
+  // Validate hourly rate
+  if (hourlyRate < 0 || hourlyRate > 300) {
+    throw new Error('Hourly rate must be between $0 and $300');
+  }
+
+  // First get user from Firebase UID
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Get and update tutor profile
+  const tutorProfile = await prisma.individual_Tutor.findFirst({
+    where: {
+      user_id: user.id
+    }
+  });
+
+  if (!tutorProfile) {
+    throw new Error('Tutor profile not found');
+  }
+
+  // Update hourly rate
+  const updatedTutor = await prisma.individual_Tutor.update({
+    where: {
+      i_tutor_id: tutorProfile.i_tutor_id
+    },
+    data: {
+      hourly_rate: hourlyRate
+    },
+    include: {
+      User: {
+        select: {
+          name: true,
+          email: true,
+          photo_url: true,
+          dob: true,
+          created_at: true
+        }
+      }
+    }
+  });
+
+  return updatedTutor;
+};
+
+// Update tutor subjects and titles
+export const updateTutorSubjectsAndTitles = async (firebaseUid: string, subjectsWithTitles: { [subjectName: string]: string[] }) => {
+  // Validate input
+  if (!subjectsWithTitles || typeof subjectsWithTitles !== 'object') {
+    throw new Error('Subjects with titles must be an object');
+  }
+
+  const subjectNames = Object.keys(subjectsWithTitles);
+  const allTitleNames = Object.values(subjectsWithTitles).flat();
+
+  // First get user from Firebase UID
+  const user = await prisma.user.findUnique({
+    where: {
+      firebase_uid: firebaseUid
+    }
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Get and update tutor profile
+  const tutorProfile = await prisma.individual_Tutor.findFirst({
+    where: {
+      user_id: user.id
+    }
+  });
+
+  if (!tutorProfile) {
+    throw new Error('Tutor profile not found');
+  }
+
+  // Validate that all subject names exist in the subjects table
+  if (subjectNames.length > 0) {
+    const existingSubjects = await prisma.subjects.findMany({
+      where: {
+        name: {
+          in: subjectNames
+        }
+      }
+    });
+
+    if (existingSubjects.length !== subjectNames.length) {
+      throw new Error('One or more subject names are invalid');
+    }
+  }
+
+  // Validate that all title names exist and belong to their respective subjects
+  if (allTitleNames.length > 0) {
+    const existingTitles = await prisma.titles.findMany({
+      where: {
+        name: {
+          in: allTitleNames
+        }
+      },
+      include: {
+        Subjects: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    // Check if all titles exist
+    if (existingTitles.length !== allTitleNames.length) {
+      throw new Error('One or more title names are invalid');
+    }
+
+    // Validate that each title belongs to its specified subject
+    for (const [subjectName, titleNames] of Object.entries(subjectsWithTitles)) {
+      for (const titleName of titleNames) {
+        const titleRecord = existingTitles.find(t => t.name === titleName);
+        if (titleRecord && titleRecord.Subjects.name !== subjectName) {
+          throw new Error(`Title "${titleName}" does not belong to subject "${subjectName}"`);
+        }
+      }
+    }
+  }
+
+  // Update subjects and titles with names (flat arrays)
+  const updatedTutor = await prisma.individual_Tutor.update({
+    where: {
+      i_tutor_id: tutorProfile.i_tutor_id
+    },
+    data: {
+      subjects: subjectNames, // Store subject names as flat array
+      titles: allTitleNames // Store title names as flat array
+    },
+    include: {
+      User: {
+        select: {
+          name: true,
+          email: true,
+          photo_url: true,
+          dob: true,
+          created_at: true
+        }
+      }
+    }
+  });
+
+  return updatedTutor;
+};
+
+// Update tutor personal information
+export const updateTutorPersonalInfo = async (firebaseUid: string, personalData: {
+  name: string;
+  description: string;
+  phone_number: string;
+  heading?: string | null;
+}) => {
+  // Find the tutor profile
+  const tutorProfile = await prisma.individual_Tutor.findFirst({
+    where: {
+      User: {
+        firebase_uid: firebaseUid
+      }
+    }
+  });
+
+  if (!tutorProfile) {
+    throw new Error('Tutor profile not found');
+  }
+
+  // Update both user and tutor tables
+  const [updatedUser, updatedTutor] = await prisma.$transaction([
+    // Update user name
+    prisma.user.update({
+      where: {
+        firebase_uid: firebaseUid
+      },
+      data: {
+        name: personalData.name
+      }
+    }),
+    // Update tutor profile
+    prisma.individual_Tutor.update({
+      where: {
+        i_tutor_id: tutorProfile.i_tutor_id
+      },
+      data: {
+        description: personalData.description,
+        phone_number: personalData.phone_number,
+        heading: personalData.heading
+      },
+      include: {
+        User: {
+          select: {
+            name: true,
+            email: true,
+            photo_url: true,
+            dob: true,
+            created_at: true
+          }
+        }
+      }
+    })
+  ]);
+
+  return updatedTutor;
+};

@@ -101,7 +101,41 @@ class PaymentService {
       throw new Error('Failed to process refund');
     }
   }
+
+  // For Mass Payment
+
+  async createPaymentIntentForMass(data: { studentId: string; classId: string; amount: number; }): Promise<PaymentIntent> {
+    try {
+      console.log('Creating payment intent for mass class with data:', data);
+      const response = await axios.post(`${API_URL}/payment/create-payment-intent-mass`, data);
+      console.log('Payment intent response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating payment intent for mass students:', error.response?.data || error);
+      throw new Error(error.response?.data?.error || 'Failed to create payment intent for mass students');
+    }
+  }
+
+  async confirmPaymentForMass(paymentIntentId: string, studentId: string, classId: string, amount: number): Promise<any> {
+    try {
+      console.log('Confirming payment for mass class:', { paymentIntentId, studentId, classId, amount });
+      const response = await axios.post(`${API_URL}/payment/confirm-payment-mass`, {
+        paymentIntentId,
+        studentId,
+        classId,
+        amount
+      });
+      console.log('Payment confirmation response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.log('Error payload:', error.response?.data || error);
+      console.error('Error confirming payment for mass students:', error.response?.data || error);
+      throw new Error(error.response?.data?.error || 'Failed to confirm payment for mass students');
+    }
+  }
 }
+
+
 
 export const paymentService = new PaymentService();
 export default paymentService;

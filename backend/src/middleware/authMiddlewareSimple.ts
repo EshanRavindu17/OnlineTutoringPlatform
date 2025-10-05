@@ -18,6 +18,7 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+    console.log('Token:', idToken);
     
     try {
       // Check if token has proper JWT structure (3 parts separated by dots)

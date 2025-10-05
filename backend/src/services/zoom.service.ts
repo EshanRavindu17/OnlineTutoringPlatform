@@ -42,6 +42,8 @@ export async function createZoomMeeting(topic: string, startTime: string, durati
 
         // return response.data;
 
+        console.log(response.data);
+
         const host_url = response.data.start_url;
         const join_url = response.data.join_url;
 
@@ -50,5 +52,45 @@ export async function createZoomMeeting(topic: string, startTime: string, durati
     } catch (error) {
         console.error("Error getting Zoom access token:", error);
         throw new Error("Failed to get Zoom access token");
+    }
+}
+
+
+export async function getZak(oldUrl:string):Promise<string> {
+
+    const clientId = process.env.YOUR_CLIENT_ID;
+    const clientSecret = process.env.YOUR_CLIENT_SECRET;
+    const accountId = process.env.YOUR_ACCOUNT_ID;
+
+    if (!clientId || !clientSecret || !accountId) {
+        throw new Error('Zoom credentials are not set in environment variables');
+    }
+    try{
+        const accessToken = await getZoomAccessToken(clientId, clientSecret, accountId);
+        console.log("Token",accessToken);
+        const response = await axios.get("https://api.zoom.us/v2/users/C1fnPEXATmybOzhBTGzphQ/token?type=zak",{
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+            },
+          }
+        );
+
+        console.log(response.data);
+
+        const token = response.data.token;
+
+        const url_first_part = oldUrl.split("zak=")[0];
+        console.log("url_first_part",url_first_part);
+        const newUrl = url_first_part + "zak=" + token;
+        console.log("newUrl",newUrl);
+        return newUrl;
+        //
+
+        // return response.data.token;
+    }
+    catch(error){
+      console.error("Can't get zak", error);
+      throw new Error("Failed to get zoom zak")
     }
 }

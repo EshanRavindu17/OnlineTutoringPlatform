@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { getMassTutorById, MassTutor, ClassInfo, RatingReview } from '../../api/Student';
 
 interface Review {
   id: string;
@@ -54,148 +55,196 @@ interface TutorProfile {
   name: string;
   profilePicture: string;
   subjects: string[];
-  specializations: string[];
   rating: number;
   totalReviews: number;
-  experience: string;
-  education: string[];
   location: string;
-  languages: string[];
   bio: string;
   totalStudents: number;
   activeClasses: number;
-  joinedDate: string;
   verified: boolean;
-  achievements: string[];
-  contactInfo: {
-    email?: string;
-    phone?: string;
-  };
+  heading: string;
+  status: string;
+  phone_number: string;
+  qualifications: string[];
+  monthlyRate: string;
+  Class?: ClassInfo[];
 }
 
 export default function MassTutorProfile() {
   const { tutorId } = useParams();
   const navigate = useNavigate();
 
-  // Mock data - this would come from API
-  const tutorProfile: TutorProfile = {
-    id: "tutor-1",
-    name: "Dr. Sarah Johnson",
-    profilePicture: "https://images.unsplash.com/photo-1494790108755-2616c18b3d9d?w=300&h=300&fit=crop&crop=center",
-    subjects: ["Mathematics", "Physics", "Engineering"],
-    specializations: ["Calculus", "Linear Algebra", "Differential Equations", "Quantum Physics"],
-    rating: 4.8,
-    totalReviews: 124,
-    experience: "8+ years",
-    education: [
-      "Ph.D. in Applied Mathematics - MIT",
-      "M.Sc. in Physics - Stanford University",
-      "B.Sc. in Engineering - University of California"
-    ],
-    location: "Colombo, Sri Lanka",
-    languages: ["English", "Sinhala", "Tamil"],
-    bio: "I'm a passionate educator with over 8 years of experience teaching mathematics and physics to students of all levels. My goal is to make complex concepts simple and engaging. I believe every student can excel with the right guidance and support.",
-    totalStudents: 450,
-    activeClasses: 5,
-    joinedDate: "January 2020",
-    verified: true,
-    achievements: [
-      "Top Rated Instructor 2023",
-      "Excellence in Teaching Award",
-      "Published 15+ Research Papers",
-      "MIT Alumni Achievement Award"
-    ],
-    contactInfo: {
-      email: "sarah.johnson@example.com",
-      phone: "+94 77 123 4567"
-    }
-  };
+  // State for tutor data
+  const [tutorProfile, setTutorProfile] = useState<TutorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const tutorClasses: TutorClass[] = [
-    {
-      id: "class-1",
-      name: "Advanced Mathematics Masterclass",
-      subject: "Mathematics",
-      duration: "2 hours",
-      schedule: "Mon, Wed, Fri - 6:00 PM",
-      price: 12000,
-      studentsEnrolled: 28,
-      description: "Comprehensive calculus and algebra preparation for advanced students",
-      startDate: "2025-09-15",
-      isActive: true
-    },
-    {
-      id: "class-2",
-      name: "Physics Fundamentals",
-      subject: "Physics",
-      duration: "1.5 hours",
-      schedule: "Tue, Thu - 7:00 PM",
-      price: 10000,
-      studentsEnrolled: 22,
-      description: "Interactive physics workshop covering mechanics and thermodynamics",
-      startDate: "2025-09-18",
-      isActive: true
-    },
-    {
-      id: "class-3",
-      name: "Engineering Mathematics",
-      subject: "Engineering",
-      duration: "2.5 hours",
-      schedule: "Saturday - 9:00 AM",
-      price: 15000,
-      studentsEnrolled: 15,
-      description: "Advanced mathematical concepts for engineering students",
-      startDate: "2025-09-20",
-      isActive: true
-    }
-  ];
+  // Fetch tutor data from API
+  useEffect(() => {
+    const fetchTutorData = async () => {
+      if (!tutorId) {
+        setError('Tutor ID is required');
+        setLoading(false);
+        return;
+      }
 
-  const reviews: Review[] = [
-    {
-      id: "rev-1",
-      studentName: "Alex Chen",
-      studentAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=center",
-      rating: 5,
-      comment: "Dr. Sarah is an exceptional teacher! Her explanations are crystal clear and she makes complex mathematical concepts easy to understand. The classes are well-structured and engaging.",
-      date: "2025-08-15",
-      className: "Advanced Mathematics Masterclass",
-      helpful: 12,
-      notHelpful: 1
-    },
-    {
-      id: "rev-2",
-      studentName: "Priya Sharma",
-      studentAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop&crop=center",
-      rating: 5,
-      comment: "Amazing physics classes! Dr. Johnson uses real-world examples that make the subject fascinating. Her teaching methodology is top-notch.",
-      date: "2025-08-10",
-      className: "Physics Fundamentals",
-      helpful: 8,
-      notHelpful: 0
-    },
-    {
-      id: "rev-3",
-      studentName: "Michael Brown",
-      studentAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=center",
-      rating: 4,
-      comment: "Great instructor with deep knowledge. Sometimes the pace is a bit fast, but overall excellent learning experience. Highly recommended!",
-      date: "2025-08-05",
-      className: "Engineering Mathematics",
-      helpful: 6,
-      notHelpful: 2
-    },
-    {
-      id: "rev-4",
-      studentName: "Emma Wilson",
-      studentAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=50&h=50&fit=crop&crop=center",
-      rating: 5,
-      comment: "Dr. Sarah's classes transformed my understanding of mathematics. Her patience and dedication to student success is remarkable. Best tutor I've had!",
-      date: "2025-07-28",
-      className: "Advanced Mathematics Masterclass",
-      helpful: 15,
-      notHelpful: 0
+      try {
+        setLoading(true);
+        const data = await getMassTutorById(tutorId);
+        
+        // Calculate total reviews from all classes
+        const totalReviews = data.Class?.reduce((total, classInfo) => {
+          return total + (classInfo.Rating_N_Review_Class?.length || 0);
+        }, 0) || 0;
+
+        // Calculate total students from all class enrollments
+        const totalStudents = data.Class?.reduce((total, classInfo) => {
+          return total + (classInfo._count?.Enrolment || 0);
+        }, 0) || 0;
+
+        // Transform API response to match our TutorProfile interface
+        const transformedData: TutorProfile = {
+          id: data.m_tutor_id,
+          name: data.User.name,
+          profilePicture: data.User.photo_url || 'https://images.unsplash.com/photo-1494790108755-2616c18b3d9d?w=300&h=300&fit=crop&crop=center',
+          subjects: data.subjects,
+          rating: parseFloat(data.rating),
+          totalReviews: totalReviews,
+          location: data.location,
+          bio: data.description,
+          totalStudents: totalStudents,
+          activeClasses: data.Class?.length || 0,
+          verified: data.status === 'active',
+          heading: data.heading,
+          status: data.status,
+          phone_number: data.phone_number,
+          qualifications: data.qualifications,
+          monthlyRate: data.prices,
+          Class: data.Class
+        };
+
+        console.log('Raw API Response:', data);
+        console.log('Transformed tutor data:', transformedData);
+        console.log('Classes with reviews:');
+        data.Class?.forEach((cls, index) => {
+          console.log(`Class ${index + 1}: ${cls.title}`);
+          console.log(`- Reviews count: ${cls.Rating_N_Review_Class?.length || 0}`);
+          console.log(`- Enrollments: ${cls._count?.Enrolment || 0}`);
+          cls.Rating_N_Review_Class?.forEach((review, reviewIndex) => {
+            console.log(`  Review ${reviewIndex + 1}:`, {
+              rating: review.rating,
+              comment: review.review,
+              student: review.Student?.User?.name
+            });
+          });
+        });
+
+        setTutorProfile(transformedData);
+      } catch (err) {
+        console.error('Error fetching tutor data:', err);
+        setError('Failed to load tutor profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTutorData();
+  }, [tutorId]);
+
+  // Transform class data from API response
+  const tutorClasses: TutorClass[] = tutorProfile?.Class?.map(classInfo => {
+    const time = new Date(classInfo.time);
+    const formattedTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    return {
+      // id: `class-${classInfo.subject}-${classInfo.day}`,
+      id: classInfo.class_id,
+      name: classInfo.title,
+      subject: classInfo.subject,
+      duration: "2 hours", // Default duration, as it's not in the API response
+      schedule: `${classInfo.day} - ${formattedTime}`,
+      price: parseFloat(tutorProfile.monthlyRate),
+      studentsEnrolled: classInfo._count.Enrolment,
+      // description: tutorProfile.bio || `${classInfo.subject} class taught by ${tutorProfile.name}`,
+      description: classInfo.description,
+      startDate: new Date().toISOString().split('T')[0], // Current date as start date
+      isActive: tutorProfile.status === 'active'
+    };
+  }) || [];
+
+
+  // Map reviews from all classes to the Review interface
+  const reviews: Review[] = React.useMemo(() => {
+    if (!tutorProfile?.Class) {
+      console.log('No classes found for tutor, returning empty reviews array.');
+      return [];
     }
-  ];
+
+    return tutorProfile.Class.flatMap((classInfo, classIndex) => {
+      if (!classInfo.Rating_N_Review_Class || !Array.isArray(classInfo.Rating_N_Review_Class)) {
+        console.log(`Class ${classInfo.title} has no reviews or invalid review data`);
+        return [];
+      }
+      
+      return classInfo.Rating_N_Review_Class.map((review, reviewIndex) => {
+        if (!review || typeof review.rating !== 'number' || typeof review.review !== 'string') {
+          console.warn(`Invalid review data at class ${classIndex}, review ${reviewIndex}:`, review);
+          return null;
+        }
+        
+        return {
+          id: `rev-${classIndex}-${reviewIndex}`, // unique id per review
+          studentName: review.Student?.User?.name || 'Anonymous',
+          studentAvatar: review.Student?.User?.photo_url || 
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=50&h=50&fit=crop&crop=center',
+          rating: review.rating,
+          comment: review.review,
+          date: new Date().toISOString().split('T')[0], // Current date as fallback
+          className: classInfo.title,
+          helpful: 0, // Default values since API doesn't provide these
+          notHelpful: 0, // Default values since API doesn't provide these
+        };
+      }).filter((review): review is Review => review !== null); // Type-safe filter
+    });
+  }, [tutorProfile?.Class]);
+
+  console.log('Transformed reviews:', reviews);
+  console.log('Tutor profile class data:', tutorProfile?.Class);
+  console.log('Total reviews found:', reviews.length);
+  
+  // Debug each class and its reviews
+  tutorProfile?.Class?.forEach((classInfo, index) => {
+    console.log(`Class ${index}:`, classInfo.title);
+    console.log(`Reviews in class ${index}:`, classInfo.Rating_N_Review_Class?.length || 0);
+    console.log(`Class reviews data:`, classInfo.Rating_N_Review_Class);
+  });
+  //     className: "Physics Fundamentals",
+  //     helpful: 8,
+  //     notHelpful: 0
+  //   },
+  //   {
+  //     id: "rev-3",
+  //     studentName: "Michael Brown",
+  //     studentAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=50&h=50&fit=crop&crop=center",
+  //     rating: 4,
+  //     comment: "Great instructor with deep knowledge. Sometimes the pace is a bit fast, but overall excellent learning experience. Highly recommended!",
+  //     date: "2025-08-05",
+  //     className: "Engineering Mathematics",
+  //     helpful: 6,
+  //     notHelpful: 2
+  //   },
+  //   {
+  //     id: "rev-4",
+  //     studentName: "Emma Wilson",
+  //     studentAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=50&h=50&fit=crop&crop=center",
+  //     rating: 5,
+  //     comment: "Dr. Sarah's classes transformed my understanding of mathematics. Her patience and dedication to student success is remarkable. Best tutor I've had!",
+  //     date: "2025-07-28",
+  //     className: "Advanced Mathematics Masterclass",
+  //     helpful: 15,
+  //     notHelpful: 0
+  //   }
+  // ];
 
   const [selectedTab, setSelectedTab] = useState<'overview' | 'classes' | 'reviews'>('overview');
   const [savedClasses, setSavedClasses] = useState<string[]>([]);
@@ -224,7 +273,7 @@ export default function MassTutorProfile() {
       setShowRatingModal(false);
       // Here you would typically send the rating to the backend
       console.log('Rating submitted:', {
-        tutorId: tutorProfile.id,
+        tutorId: tutorProfile?.id,
         rating: selectedRating
       });
       // Reset form
@@ -261,6 +310,76 @@ export default function MassTutorProfile() {
     });
     return distribution;
   };
+
+
+  
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading tutor profile...</p>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="text-red-500 text-xl mb-4">⚠️</div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Profile</h2>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Null check
+  if (!tutorProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Tutor Not Found</h2>
+              <p className="text-gray-600 mb-4">The requested tutor profile could not be found.</p>
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -385,73 +504,39 @@ export default function MassTutorProfile() {
                   <p className="text-gray-600 leading-relaxed">{tutorProfile.bio}</p>
                 </div>
 
-                {/* Education & Experience */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Qualifications */}
+                {tutorProfile.qualifications && tutorProfile.qualifications.length > 0 && (
                   <div>
                     <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                       <Award className="w-6 h-6 mr-2 text-purple-500" />
-                      Education
+                      Qualifications
                     </h3>
                     <div className="space-y-3">
-                      {tutorProfile.education.map((edu, index) => (
+                      {tutorProfile.qualifications.map((qualification, index) => (
                         <div key={index} className="flex items-start space-x-3">
                           <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <p className="text-gray-600">{edu}</p>
+                          <p className="text-gray-600">{qualification}</p>
                         </div>
                       ))}
                     </div>
                   </div>
+                )}
 
+                {/* Contact Information */}
+                {tutorProfile.phone_number && (
                   <div>
                     <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                      <Clock className="w-6 h-6 mr-2 text-purple-500" />
-                      Experience & Achievements
+                      <Phone className="w-6 h-6 mr-2 text-purple-500" />
+                      Contact Information
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-center space-x-3">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></div>
-                        <p className="text-gray-600">{tutorProfile.experience} of teaching experience</p>
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">{tutorProfile.phone_number}</span>
                       </div>
-                      {tutorProfile.achievements.map((achievement, index) => (
-                        <div key={index} className="flex items-start space-x-3">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <p className="text-gray-600">{achievement}</p>
-                        </div>
-                      ))}
                     </div>
                   </div>
-                </div>
-
-                {/* Specializations & Languages */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Specializations</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {tutorProfile.specializations.map(spec => (
-                        <span
-                          key={spec}
-                          className="bg-gray-100 text-gray-700 text-sm px-3 py-2 rounded-lg"
-                        >
-                          {spec}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Languages</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {tutorProfile.languages.map(lang => (
-                        <span
-                          key={lang}
-                          className="bg-gray-100 text-gray-700 text-sm px-3 py-2 rounded-lg"
-                        >
-                          {lang}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -521,12 +606,12 @@ export default function MassTutorProfile() {
                               View Class
                             </button>
                           </div>
-                          <button
+                          {/* <button
                             onClick={() => navigate(`/join-class/${tutorClass.id}`)}
                             className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold"
                           >
                             Enroll Now
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     </div>
@@ -541,9 +626,9 @@ export default function MassTutorProfile() {
                 <div className="bg-gray-50 rounded-xl p-6 mb-8">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-8">
                     <div className="text-center mb-6 lg:mb-0">
-                      <div className="text-4xl font-bold text-gray-900 mb-2">{calculateAverageRating()}</div>
+                      <div className="text-4xl font-bold text-gray-900 mb-2">{tutorProfile.rating}</div>
                       <div className="flex items-center justify-center space-x-1 mb-2">
-                        {renderStars(Math.round(Number(calculateAverageRating())))}
+                        {renderStars(tutorProfile.rating)}
                       </div>
                       <div className="text-gray-600">{reviews.length} reviews</div>
                     </div>
@@ -575,9 +660,11 @@ export default function MassTutorProfile() {
                 </div>
 
                 {/* Reviews List */}
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Student Reviews</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                  Student Reviews {tutorProfile.totalReviews > 0 && `(${tutorProfile.totalReviews})`}
+                </h2>
                 <div className="space-y-6">
-                  {reviews.map(review => (
+                  {reviews.length > 0 ? reviews.map(review => (
                     <div key={review.id} className="border border-gray-200 rounded-xl p-6">
                       <div className="flex items-start space-x-4">
                         <img
@@ -615,7 +702,15 @@ export default function MassTutorProfile() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <MessageCircle className="w-16 h-16 mx-auto mb-3" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">No Reviews Yet</h3>
+                      <p className="text-gray-500">Be the first to leave a review for this tutor!</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -678,7 +773,7 @@ export default function MassTutorProfile() {
                       {tutorProfile.subjects[0]}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">{tutorProfile.experience} • {tutorProfile.totalStudents} students</p>
+                  <p className="text-xs text-gray-500">{tutorProfile.heading} • {tutorProfile.totalStudents} students</p>
                 </div>
               </div>
 

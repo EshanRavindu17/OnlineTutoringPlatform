@@ -5,6 +5,7 @@ import { addStudentController,
          createPaymentRecordController, 
          findTimeSlotsController, 
          getAllIndividualTutorsController ,
+         getAllMassClassesController,
          getAllSessionsByStudentIdController,
          getIndividualTutorByIdController,
          getPaymentHistoryController,
@@ -14,7 +15,16 @@ import { addStudentController,
          getTutorsByStudentIdController,
          testZoomController,
          updateAccessTimeinFreeSlotsController,
-         updateSlotStatusController} 
+         updateSlotStatusController,
+         getMassTutorProfileByIdController,
+         getClassSlotsByClassIdAndStudentIdController,
+         getClassSlotsByClassIdController,
+         getClassesByStudentIdController,
+         getMassTutorsByStudentIdController,
+         sendEmailController,
+         getMassPaymentsByStudentIdController,
+         getClassReviewsByClassIdController,
+         rateMassClassesController} 
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
@@ -72,4 +82,22 @@ router.get('/get-reviews/:tutorId', getReviewsByIndividualTutorIdController);
 router.post('/report-tutor', generateReportController);
 router.get('/get-reports/:studentId', getReportsByStudentIdController);
 
-export default router;  
+
+
+// Mass Class routes will be in massClassRoutes.ts
+
+router.get('/getAllMassClasses', getAllMassClassesController);
+router.get('/getMassTutorById/:tutorId', getMassTutorProfileByIdController);
+router.get('/getClassSlotsByClassIdAndStudentId/:classId/:studentId', getClassSlotsByClassIdAndStudentIdController);
+router.get('/getClassSlotsByClassID/:classId/:month', getClassSlotsByClassIdController);
+router.get('/getClassByStudentId/:student_id', getClassesByStudentIdController);
+router.get('/getMassTutorsByStudentId/:studentId', getMassTutorsByStudentIdController);
+router.get('/getMassPaymentByStudentId/:studentId',getMassPaymentsByStudentIdController);
+router.get('/getClassReviewsByClassId/:class_id',getClassReviewsByClassIdController)
+router.post('/rateAreviewMassClass',rateMassClassesController)
+
+
+router.post('/send-test-email', sendEmailController);
+
+
+export default router;

@@ -24,7 +24,7 @@ import {
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '../../context/authContext';
-import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, getEnrolledClassesByStudentId, getTutorsByStudentId, Session, EnrolledClass, cancelSession, IndividualTutorDashboard, createAndReview, getReportsByStudentId } from '../../api/Student';
+import { updateStudentProfile, getAllSessionsByStudentId, getStudentIDByUserID, getTutorsByStudentId, Session, cancelSession, IndividualTutorDashboard, createAndReview, getReportsByStudentId, getMassClassesByStudentId, getMassTutorsByStudentId, MassClassForStudentProfile, MassTutor } from '../../api/Student';
 import { useToast } from '../../components/Toast';
 import { Navigate, useNavigate } from 'react-router-dom';
 
@@ -240,8 +240,7 @@ const StudentProfile: React.FC = () => {
   const [allSessions, setAllSessions] = useState<SessionData[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   
-  // Enrolled classes state
-  const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
+  // Old enrolled classes state (keeping classesLoading for backward compatibility)
   const [classesLoading, setClassesLoading] = useState(true);
 
   // Student ID state
@@ -535,43 +534,11 @@ const StudentProfile: React.FC = () => {
   const [individualTutors, setIndividualTutors] = useState<IndividualTutorDisplay[]>([]);
   const [tutorsLoading, setTutorsLoading] = useState(true);
 
-  // Mass Tutors Data - Group classes he has paid for
-  const [massTutors] = useState([
-    {
-      id: 1,
-      name: "Cambridge Learning Center",
-      instructor: "Dr. Robert Smith",
-      subject: "SAT Preparation",
-      classSize: 25,
-      currentStudents: 18,
-      rating: 4.6,
-      monthlyFee: 200,
-      totalClassesPaid: 12,
-      classesAttended: 8,
-      profilePicture: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=150&h=150&fit=crop&crop=center",
-      nextClass: "Monday 6:00 PM",
-      status: "Active",
-      amountPaid: 200,
-      validUntil: "2025-09-15"
-    },
-    {
-      id: 2,
-      name: "Elite Science Academy",
-      instructor: "Dr. Lisa Johnson", 
-      subject: "Advanced Biology",
-      classSize: 20,
-      currentStudents: 16,
-      rating: 4.8,
-      monthlyFee: 250,
-      totalClassesPaid: 8,
-      classesAttended: 6,
-      profilePicture: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=150&h=150&fit=crop&crop=center",
-      nextClass: "Wednesday 5:00 PM", 
-      status: "Active",
-      amountPaid: 250,
-      validUntil: "2025-10-01"
-    }
-  ]);
+  // Mass Classes and Tutors state - using API data
+  const [massClasses, setMassClasses] = useState<MassClassForStudentProfile[]>([]);
+  const [massTutors, setMassTutors] = useState<MassTutor[]>([]);
+  const [massClassesLoading, setMassClassesLoading] = useState(true);
+  const [massTutorsLoading, setMassTutorsLoading] = useState(true);
 
   // Sessions Data - now using API data
 
@@ -589,6 +556,8 @@ const StudentProfile: React.FC = () => {
         setSessionsLoading(false);
         setClassesLoading(false);
         setTutorsLoading(false);
+        setMassClassesLoading(false);
+        setMassTutorsLoading(false);
         setReportsLoading(false);
         return;
       }
@@ -597,6 +566,8 @@ const StudentProfile: React.FC = () => {
         setSessionsLoading(true);
         setClassesLoading(true);
         setTutorsLoading(true);
+        setMassClassesLoading(true);
+        setMassTutorsLoading(true);
         setReportsLoading(true);
         console.log('Fetching student_id for user:', userProfile.id);
         
@@ -606,13 +577,16 @@ const StudentProfile: React.FC = () => {
         if (!fetchedStudentId) {
           console.log('No student_id found for user:', userProfile.id);
           setAllSessions([]);
-          setEnrolledClasses([]);
           setIndividualTutors([]);
+          setMassClasses([]);
+          setMassTutors([]);
           setSubmittedReports([]);
           setStudentId(null);
           setSessionsLoading(false);
           setClassesLoading(false);
           setTutorsLoading(false);
+          setMassClassesLoading(false);
+          setMassTutorsLoading(false);
           setReportsLoading(false);
           return;
         }
@@ -622,17 +596,19 @@ const StudentProfile: React.FC = () => {
 
         console.log('Fetching data for student_id:', fetchedStudentId);
         
-        // Fetch sessions, enrolled classes, individual tutors, and reports in parallel
-        const [sessions, classes, tutors, reports] = await Promise.all([
+        // Fetch sessions, individual tutors, mass classes, mass tutors, and reports in parallel
+        const [sessions, tutors, massClassesData, massTutorsData, reports] = await Promise.all([
           getAllSessionsByStudentId(fetchedStudentId),
-          getEnrolledClassesByStudentId(fetchedStudentId),
           getTutorsByStudentId(fetchedStudentId),
+          getMassClassesByStudentId(fetchedStudentId),
+          getMassTutorsByStudentId(fetchedStudentId),
           getReportsByStudentId(fetchedStudentId)
         ]);
         
         setAllSessions(sessions || []);
-        setEnrolledClasses(classes || []);
         setSubmittedReports(reports || []);
+        setMassClasses(massClassesData || []);
+        setMassTutors(massTutorsData || []);
         
         // Convert and set individual tutors data
         if (tutors && tutors.length > 0) {
@@ -658,13 +634,16 @@ const StudentProfile: React.FC = () => {
         console.error('Failed to fetch student data:', error);
         showToast('Failed to load student data', 'error');
         setAllSessions([]);
-        setEnrolledClasses([]);
         setIndividualTutors([]);
+        setMassClasses([]);
+        setMassTutors([]);
         setSubmittedReports([]);
       } finally {
         setSessionsLoading(false);
         setClassesLoading(false);
         setTutorsLoading(false);
+        setMassClassesLoading(false);
+        setMassTutorsLoading(false);
         setReportsLoading(false);
       }
     };
@@ -877,30 +856,52 @@ const StudentProfile: React.FC = () => {
     </div>
   );
 
+
+
   // Mass Tutors Section
   const MassTutorsSection = () => (
     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-8">
       <div className="flex items-center mb-4 sm:mb-6">
         <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 mr-2 sm:mr-3" />
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Group Classes</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Group Classes Tutors</h2>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      
+      {massTutorsLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+          <span className="ml-2 text-gray-600">Loading group classes...</span>
+        </div>
+      ) : massTutors.length === 0 ? (
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-500 mb-2">No Group Classes Yet</h3>
+          <p className="text-gray-400 mb-6">You haven't enrolled in any group classes yet.</p>
+          <button 
+            onClick={() => navigate('/find-tutors')}
+            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Find Group Classes
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {massTutors.map((tutor) => (
-          <div key={tutor.id} className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50">
+          <button onClick={() => navigate(`/mass-tutor-profile/${tutor.m_tutor_id}`)} key={tutor.m_tutor_id} className="w-full text-left">
+          <div key={tutor.m_tutor_id} className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-50 to-pink-50">
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
               <img
-                src={tutor.profilePicture}
-                alt={tutor.instructor}
+                src={tutor.User.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(tutor.User.name)}&background=random`}
+                alt={tutor.User.name}
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-4 border-white shadow-lg flex-shrink-0"
               />
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800">{tutor.name}</h3>
-                <p className="text-purple-600 font-medium text-sm sm:text-base">{tutor.subject}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Instructor: {tutor.instructor}</p>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800">{tutor.User.name}</h3>
+                <p className="text-purple-600 font-medium text-sm sm:text-base">{tutor.subjects.join(', ')}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Instructor: {tutor.User.name}</p>
               </div>
               <div className="text-center sm:text-right">
                 <div className="flex items-center justify-center sm:justify-end space-x-1 mb-1">
-                  {renderStars(Math.floor(tutor.rating))}
+                  {renderStars(Math.floor(Number(tutor.rating)) || 0)}
                   <span className="text-xs sm:text-sm text-gray-600">({tutor.rating})</span>
                 </div>
                 <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${
@@ -913,32 +914,34 @@ const StudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-purple-600">{tutor.classesAttended}/{tutor.totalClassesPaid}</div>
-                <div className="text-gray-600 text-xs sm:text-sm">Classes Attended</div>
+                <div className="text-base sm:text-lg font-bold text-purple-600">{tutor.Class?.length || 0}</div>
+                <div className="text-gray-600 text-xs sm:text-sm">Total Classes</div>
               </div>
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-green-600">${tutor.amountPaid}</div>
+                <div className="text-base sm:text-lg font-bold text-green-600">Rs.{tutor.prices}</div>
                 <div className="text-gray-600 text-xs sm:text-sm">Monthly Fee</div>
               </div>
             </div>
 
             <div className="space-y-2 text-xs sm:text-sm">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
-                <span className="text-gray-600">Class Size:</span>
-                <span className="font-semibold text-gray-800">{tutor.currentStudents}/{tutor.classSize} students</span>
+                <span className="text-gray-600">Rating:</span>
+                <span className="font-semibold text-gray-800">{tutor.rating}/5</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
-                <span className="text-gray-600">Next Class:</span>
-                <span className="font-semibold text-purple-600">{tutor.nextClass}</span>
+                <span className="text-gray-600">Location:</span>
+                <span className="font-semibold text-purple-600">{tutor.location}</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-1 sm:space-y-0">
-                <span className="text-gray-600">Valid Until:</span>
-                <span className="font-semibold text-gray-800">{new Date(tutor.validUntil).toLocaleDateString()}</span>
+                <span className="text-gray-600">Phone:</span>
+                <span className="font-semibold text-gray-800">{tutor.phone_number}</span>
               </div>
             </div>
           </div>
+          </button>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1163,28 +1166,34 @@ const StudentProfile: React.FC = () => {
     </div>
   );
 
-  // Enrolled Classes Section Component
+  // Enrolled Classes Section Component - Using real massClasses data
   const EnrolledClassesSection = () => {
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case 'active': return 'bg-green-100 text-green-800';
-        case 'upcoming': return 'bg-blue-100 text-blue-800';
-        case 'completed': return 'bg-gray-100 text-gray-800';
-        case 'cancelled': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
-      }
+    // Helper function to get enrollment status
+    const getEnrollmentStatus = (enrollment: any) => {
+      if (!enrollment || enrollment.length === 0) return 'Not Enrolled';
+      const status = enrollment[0]?.status;
+      return status === 'valid' ? 'Enrolled' : status === 'invalid' ? 'Expired' : 'Unknown';
     };
 
-    const getLevelColor = (level: string) => {
-      switch (level) {
-        case 'Beginner': return 'bg-green-100 text-green-700';
-        case 'Intermediate': return 'bg-yellow-100 text-yellow-700';
-        case 'Advanced': return 'bg-red-100 text-red-700';
-        default: return 'bg-gray-100 text-gray-700';
-      }
+    // Helper function to get enrollment status color
+    const getEnrollmentStatusColor = (enrollment: any) => {
+      if (!enrollment || enrollment.length === 0) return 'bg-gray-100 text-gray-800';
+      const status = enrollment[0]?.status;
+      return status === 'valid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
     };
 
-    if (classesLoading) {
+    // Helper function to get next class slot
+    const getNextClassSlot = (classSlots: any[]) => {
+      if (!classSlots || classSlots.length === 0) return null;
+      const now = new Date();
+      const upcomingSlots = classSlots.filter(slot => {
+        const slotDate = new Date(slot.dateTime);
+        return slotDate > now && slot.status === 'upcoming';
+      }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+      return upcomingSlots[0] || null;
+    };
+
+    if (massClassesLoading) {
       return (
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-gray-800 flex items-center">
@@ -1205,7 +1214,7 @@ const StudentProfile: React.FC = () => {
           <Users className="w-5 h-5 mr-2 text-purple-600" />
           Enrolled Classes
         </h3>
-        {enrolledClasses.length === 0 ? (
+        {massClasses.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl">
             <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-gray-500 text-lg">No enrolled classes found</p>
@@ -1213,98 +1222,100 @@ const StudentProfile: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {enrolledClasses.map((enrolledClass) => (
-              <div key={enrolledClass.class_id} className="border-l-4 border-purple-500 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-purple-50 to-purple-25">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-4 h-4 rounded-full bg-purple-500"></div>
-                    <h4 className="text-base sm:text-lg font-bold text-gray-800">{enrolledClass.class_name}</h4>
-                    <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                      Mass Class
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(enrolledClass.status)}`}>
-                      {enrolledClass.status}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getLevelColor(enrolledClass.level)}`}>
-                      {enrolledClass.level}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm mb-4">
-                  <div className="bg-white rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <User className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-600">Tutor</span>
+            {massClasses.map((massClass) => {
+              const nextSlot = getNextClassSlot(massClass.ClassSlot);
+              const enrollmentStatus = getEnrollmentStatus(massClass.Enrolment);
+              
+              return (
+                <div key={massClass.class_id} className="border-l-4 border-purple-500 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-purple-50 to-purple-25">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-4 h-4 rounded-full bg-purple-500"></div>
+                      <h4 className="text-base sm:text-lg font-bold text-gray-800">{massClass.title}</h4>
+                      <span className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                        Mass Class
+                      </span>
                     </div>
-                    <p className="font-semibold text-gray-800">{enrolledClass.tutor.name}</p>
-                    <div className="flex items-center mt-1">
-                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                      <span className="ml-1 text-xs text-gray-600">{enrolledClass.tutor.rating}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getEnrollmentStatusColor(massClass.Enrolment)}`}>
+                        {enrollmentStatus}
+                      </span>
                     </div>
-                  </div>
-                  <div className="bg-white rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <BookOpen className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-600">Subject</span>
-                    </div>
-                    <p className="font-semibold text-gray-800">{enrolledClass.subject}</p>
-                    <p className="text-gray-600 text-xs">{enrolledClass.duration}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-600">Schedule</span>
-                    </div>
-                    <p className="font-semibold text-gray-800 text-xs">{enrolledClass.schedule}</p>
-                    {enrolledClass.next_session && (
-                      <p className="text-blue-600 text-xs mt-1">
-                        Next: {new Date(enrolledClass.next_session).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="bg-white rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-600">Enrollment</span>
-                    </div>
-                    <p className="font-semibold text-gray-800">{enrolledClass.students_enrolled}</p>
-                    <p className="text-xs text-gray-600">students enrolled</p>
-                  </div>
-                </div>
-
-                <p className="text-gray-600 text-sm mb-4">{enrolledClass.description}</p>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <span className="flex items-center">
-                      <CreditCard className="w-4 h-4 mr-1" />
-                      LKR {enrolledClass.price.toLocaleString()}
-                    </span>
-                    <span className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Enrolled: {new Date(enrolledClass.enrollment_date).toLocaleDateString()}
-                    </span>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    {enrolledClass.status === 'active' && enrolledClass.meeting_link && (
-                      <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
-                        <Video className="w-4 h-4 mr-2" />
-                        Join Class
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm mb-4">
+                    <div className="bg-white rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Tutor</span>
+                      </div>
+                      <p className="font-semibold text-gray-800">{massClass.Mass_Tutor?.User?.name || 'Unknown Tutor'}</p>
+                      <div className="flex items-center mt-1">
+                        <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                        <span className="ml-1 text-xs text-gray-600">{massClass.Mass_Tutor?.rating || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <BookOpen className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Subject</span>
+                      </div>
+                      <p className="font-semibold text-gray-800">{massClass.subject}</p>
+                      <p className="text-gray-600 text-xs">Duration: {massClass.ClassSlot?.[0]?.duration || 'N/A'} min</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Schedule</span>
+                      </div>
+                      <p className="font-semibold text-gray-800 text-xs">{massClass.day} at {massClass.time}</p>
+                      {nextSlot && (
+                        <p className="text-blue-600 text-xs mt-1">
+                          Next: {new Date(nextSlot.dateTime).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <Users className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-600">Sessions</span>
+                      </div>
+                      <p className="font-semibold text-gray-800">{massClass.ClassSlot?.length || 0}</p>
+                      <p className="text-xs text-gray-600">total sessions</p>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 text-sm mb-4">{massClass.description}</p>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Rs.{massClass.Mass_Tutor?.prices || 'N/A'}/month
+                      </span>
+                      {/* <span className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        Created: {new Date(massClass.created_at).toLocaleDateString()}
+                      </span> */}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {/* {enrollmentStatus === 'Enrolled' && nextSlot && nextSlot.meetingURLs && nextSlot.meetingURLs.length > 0 && (
+                        <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                          <Video className="w-4 h-4 mr-2" />
+                          Join Class
+                        </button>
+                      )} */}
+                      <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                        onClick={() => navigate(`/mass-class/${massClass.class_id}`)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Class
                       </button>
-                    )}
-                    <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                      onClick={() => navigate(`/mass-class/${enrolledClass.class_id}`)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -1346,7 +1357,7 @@ const StudentProfile: React.FC = () => {
                 <div className="text-blue-900 text-xs sm:text-sm font-bold">Sessions Completed</div>
             </div>
             <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">${individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0)}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">${individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + Number(tutor.prices), 0)}</div>
               <div className="text-blue-900 text-xs sm:text-sm font-bold">Total Invested</div>
             </div>
           </div>

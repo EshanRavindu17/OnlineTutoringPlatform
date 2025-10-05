@@ -61,54 +61,64 @@ const ScheduleMeeting: React.FC = () => {
         
         // Filter out past time slots
         const now = new Date();
-        const currentDate = now.getFullYear() + '-' + 
-          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-          String(now.getDate()).padStart(2, '0');
-        const currentHour = now.getHours();
         
         const futureSlots = timeSlots.filter(slot => {
-          // Handle date conversion
-          let slotDate: string;
-          if (slot.date instanceof Date) {
-            slotDate = slot.date.getFullYear() + '-' + 
-              String(slot.date.getMonth() + 1).padStart(2, '0') + '-' + 
-              String(slot.date.getDate()).padStart(2, '0');
-          } else if (typeof slot.date === 'string') {
-            slotDate = slot.date.split('T')[0];
-          } else {
-            slotDate = String(slot.date);
-          }
-          
-          // If slot is in future date, include it
-          if (slotDate > currentDate) {
-            return true;
-          }
-          
-          // If slot is today, check if time hasn't passed
-          if (slotDate === currentDate) {
-            // Handle start_time conversion
-            let startTimeStr: string;
-            if (slot.start_time instanceof Date) {
-              const timeStr = slot.start_time.toISOString();
-              startTimeStr = timeStr.substr(11, 5);
-            } else if (typeof slot.start_time === 'string') {
-              if (slot.start_time.includes('T')) {
-                startTimeStr = slot.start_time.split('T')[1].slice(0, 5);
-              } else if (slot.start_time.includes('1970-01-01T')) {
-                startTimeStr = slot.start_time.split('T')[1].slice(0, 5);
-              } else {
-                startTimeStr = slot.start_time.slice(0, 5);
+          try {
+            // Create a proper Date object for the slot's date and time
+            let slotDateTime: Date;
+            
+            // Handle different date/time formats
+            if (slot.date instanceof Date && slot.start_time instanceof Date) {
+              // If both are Date objects, combine them
+              const dateStr = slot.date.toISOString().split('T')[0];
+              const timeStr = slot.start_time.toISOString().split('T')[1];
+              slotDateTime = new Date(`${dateStr}T${timeStr}`);
+            } else if (typeof slot.date === 'string' && typeof slot.start_time === 'string') {
+              // Handle string formats
+              let dateStr = slot.date.split('T')[0];
+              let timeStr = slot.start_time;
+              
+              // Clean up time string
+              if (timeStr.includes('T')) {
+                timeStr = timeStr.split('T')[1];
               }
+              if (timeStr.includes('1970-01-01T')) {
+                timeStr = timeStr.split('T')[1];
+              }
+              timeStr = timeStr.slice(0, 8); // Get HH:MM:SS
+              
+              slotDateTime = new Date(`${dateStr}T${timeStr}`);
             } else {
-              startTimeStr = String(slot.start_time).slice(0, 5);
+              // Fallback: try to create date from available data
+              const dateStr = typeof slot.date === 'string' ? slot.date.split('T')[0] : 
+                            slot.date instanceof Date ? slot.date.toISOString().split('T')[0] : 
+                            String(slot.date);
+              
+              let timeStr = typeof slot.start_time === 'string' ? slot.start_time : 
+                          slot.start_time instanceof Date ? slot.start_time.toISOString().split('T')[1] : 
+                          String(slot.start_time);
+              
+              if (timeStr.includes('T')) timeStr = timeStr.split('T')[1];
+              if (timeStr.includes('1970-01-01T')) timeStr = timeStr.split('T')[1];
+              timeStr = timeStr.slice(0, 8);
+              
+              slotDateTime = new Date(`${dateStr}T${timeStr}`);
             }
             
-            const slotHour = parseInt(startTimeStr.split(':')[0]);
-            return slotHour > currentHour;
+            // Check if the slot date/time is valid and in the future
+            if (isNaN(slotDateTime.getTime())) {
+              console.warn('Invalid slot date/time:', slot);
+              return false;
+            }
+            
+            // Add 5-minute buffer - only show slots that start more than 5 minutes from now
+            const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+            return slotDateTime.getTime() > (now.getTime() + bufferTime);
+            
+          } catch (error) {
+            console.error('Error parsing slot date/time:', slot, error);
+            return false;
           }
-          
-          // Past dates are excluded
-          return false;
         });
         
         const totalSlots = futureSlots.length;

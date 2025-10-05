@@ -163,6 +163,7 @@ model Sessions {
   start_time              DateTime?                 @db.Timestamp(6)
   end_time                DateTime?                 @db.Timestamp(6)
   subject                 String?                   @db.VarChar
+  subject                 String?                   @db.VarChar
   Individual_Payments     Individual_Payments[]
   Rating_N_Review_Session Rating_N_Review_Session[]
   Individual_Tutor        Individual_Tutor?         @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, onUpdate: NoAction)
@@ -174,8 +175,10 @@ model Student {
   user_id                 String                    @db.Uuid
   points                  Int?                      @default(0)
   customer_id             String?                   @db.VarChar
+  customer_id             String?                   @db.VarChar
   Enrolment               Enrolment[]
   Individual_Payments     Individual_Payments[]
+  Mass_Payments           Mass_Payments[]
   Mass_Payments           Mass_Payments[]
   Rating_N_Review_Class   Rating_N_Review_Class[]
   Rating_N_Review_Session Rating_N_Review_Session[]
@@ -226,9 +229,17 @@ model Class {
   description           String?
   product_id            String?                 @db.VarChar
   price_id              String?                 @db.VarChar
+  subject               String?                 @db.VarChar
+  time                  DateTime?               @db.Time(6)
+  day                   String?                 @db.VarChar
+  title                 String?
+  description           String?
+  product_id            String?                 @db.VarChar
+  price_id              String?                 @db.VarChar
   Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
   ClassSlot             ClassSlot[]
   Enrolment             Enrolment[]
+  Mass_Payments         Mass_Payments[]
   Mass_Payments         Mass_Payments[]
   Rating_N_Review_Class Rating_N_Review_Class[]
 }
@@ -238,18 +249,33 @@ model ClassSlot {
   cslot_id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   created_at   DateTime         @default(now()) @db.Timestamptz(6)
   class_id     String?          @db.Uuid
+  cslot_id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+  class_id     String?          @db.Uuid
   materials    String[]
   meetingURLs  String[]
+  dateTime     DateTime?        @db.Timestamp(6)
+  duration     Float?           @db.Real
   dateTime     DateTime?        @db.Timestamp(6)
   duration     Float?           @db.Real
   announcement String?
   recording    String?
   status       ClassSlotStatus? @default(upcoming)
   Class        Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  status       ClassSlotStatus? @default(upcoming)
+  Class        Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Enrolment {
+  enrol_id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  class_id        String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id      String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status          EnrolmentStatus? @default(valid)
+  subscription_id String?          @db.VarChar
+  Class           Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student         Student?         @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
   enrol_id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   created_at      DateTime         @default(now()) @db.Timestamptz(6)
   class_id        String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -273,6 +299,8 @@ model Mass_Payments {
   payment_intent_id String?
   Class             Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
   Student           Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+  Class             Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student           Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -281,6 +309,7 @@ model Rating_N_Review_Class {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   student_id String?  @db.Uuid
   class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rating     Float?   @db.Real
   rating     Float?   @db.Real
   review     String?
   Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)

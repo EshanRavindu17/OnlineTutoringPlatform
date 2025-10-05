@@ -5,11 +5,12 @@ import {
     createASession,
     findTimeSlots,
     getAllIndividualTutors
-    ,getAllSessionByStudentId,getIndividualTutorById
-    ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
+    ,getAllSessionByStudentId,getClassSlotsByClassID,getIndividualTutorById
+    ,getMassPaymentsByStudentId,getPaymentSummaryByStudentId,getReviewsByClassId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
     getTutorNameAndTypeById,
     getTutorsByStudentId,
+    rateMassTurorClass,
     updateAccessTimeinFreeSlots,
     updateSlotStatus
 } from "../services/studentService";
@@ -27,6 +28,7 @@ export const addStudentController = async (req: Request, res: Response) => {
 
 export const getAllIndividualTutorsController = async (req: Request, res: Response) => {
     const {
+        name,
         subjects,
         titles,
         min_hourly_rate,
@@ -39,6 +41,7 @@ export const getAllIndividualTutorsController = async (req: Request, res: Respon
     } = req.query;
 
     const tutors = await getAllIndividualTutors(
+        name as string,
         subjects as string,
         titles as string,
         Number(min_hourly_rate),
@@ -114,7 +117,7 @@ export const getStudentIDByUserIDController = async (req: Request, res: Response
 
 
 export const createASessionController = async (req: Request, res: Response) => {
-    const { student_id, i_tutor_id, slots, status, price, date } = req.body;
+    const { student_id, i_tutor_id, slots, status, subject, price, date } = req.body;
 
     console.log("Creating session for student_ID:", student_id);
     console.log("Creating session for i_tutor_id:", i_tutor_id);
@@ -127,6 +130,7 @@ export const createASessionController = async (req: Request, res: Response) => {
         i_tutor_id,
         c_slots,
         status,
+        subject,
         price,
         c_date
     );
@@ -281,3 +285,330 @@ export const getTutorNameAndTypeByIdController = async (req: Request, res: Respo
         return res.status(500).json({ error: "Failed to get tutor name and type" });
     }
 };
+
+
+
+
+// Mass Class Controller in studentController file
+
+import { getAllMassClasses,
+         getMassTutorById,
+         getClassByClassIdAndStudentId,
+         getClassByStudentId,
+         getMassTutorsByStudentId
+       } from "../services/studentService";
+import { 
+    conformSessionBookingEmail, 
+    sendEmail,
+    sendSessionCancellationEmail,
+    sendSessionReminderEmail,
+    sendPaymentConfirmationEmail,
+    sendWelcomeEmail 
+} from "../services/email.service";
+
+
+export const getAllMassClassesController = async (req: Request, res: Response) => {
+    const {
+        subjects,
+        min_monthly_rate,
+        max_monthly_rate,
+        rating,
+        sort,
+        searchTerm,
+        // classTitle,
+        // tutorName,
+        page,
+        limit
+    } = req.query;
+
+    // console.log("Query Parameters:", req.query);
+
+    const subjectsArray = (subjects as string)?.split(",").map(sub => sub.trim());
+
+
+    try {
+        const massClasses = await getAllMassClasses(
+            subjectsArray,
+            Number(min_monthly_rate),
+            Number(max_monthly_rate),
+            rating as unknown as number,
+            // tutorName as string,
+            // classTitle as string,
+            searchTerm as string,
+            sort as string,
+            Number(page),
+            Number(limit)
+        );
+        return res.json(massClasses);
+    } catch (error) {
+        console.error("Error getting mass classes:", error);
+        return res.status(500).json({ error: "Failed to get mass classes" });
+    }
+};
+
+
+export const getMassTutorProfileByIdController = async (req: Request, res: Response) => {
+    const { tutorId } = req.params;
+    if(!tutorId) {
+        return res.status(400).json({ error: "tutorId is required" });
+    }
+    console.log("Getting mass tutor profile for tutor_ID:", tutorId);
+    try {
+        const tutorProfile = await getMassTutorById(tutorId);
+        if(!tutorProfile) {
+            return res.status(404).json({ error: "Tutor not found" });
+        }
+        return res.json(tutorProfile);
+    } catch (error) {
+        console.error("Error getting mass tutor profile:", error);
+        return res.status(500).json({ error: "Failed to get mass tutor profile" });
+    }
+};
+
+
+
+export const  getClassSlotsByClassIdAndStudentIdController = async (req: Request, res: Response) => {
+    const { classId, studentId } = req.params;
+
+    console.log("Getting class slots for class_ID:", classId, "and student_ID:", studentId);
+
+    if(!classId || !studentId) {
+        return res.status(400).json({ error: "classId and studentId are required" });
+    }
+    try {
+        const classSlots = await getClassByClassIdAndStudentId(classId, studentId);
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+}
+
+export const getClassSlotsByClassIdController = async (req: Request, res: Response) => {
+    const { classId ,month} = req.params;
+
+    console.log("Getting class slots for class_ID:", classId, "and month:", month);
+    if(!classId || !month) {
+        return res.status(400).json({ error: "classId and month are required" });
+    }
+    try {
+        const classSlots = await getClassSlotsByClassID(classId, Number(month));
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+};
+
+export const getClassesByStudentIdController = async (req: Request, res: Response) => {
+    const { student_id } = req.params;
+
+    console.log("Getting classes for student_ID:", student_id);
+    try {
+        const classSlots = await getClassByStudentId(student_id);
+        return res.json(classSlots);
+    } catch (error) {
+        console.error("Error getting class slots:", error);
+        return res.status(500).json({ error: "Failed to get class slots" });
+    }
+};
+
+export const getMassTutorsByStudentIdController = async (req: Request, res: Response) => {
+    const { student_id } = req.params;
+    console.log("Getting mass tutors for student_ID:", student_id);
+    try {
+        const massTutors = await getMassTutorsByStudentId(student_id);
+        return res.json(massTutors);
+    } catch (error) {
+        console.error("Error getting mass tutors:", error);
+        return res.status(500).json({ error: "Failed to get mass tutors" });
+    }
+};
+
+// Email Controllers--------------------------------------------------------------------------
+export const sendEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime,
+        sessionSubject,
+        sessionDuration,
+        meetingLink
+    } = req.body;
+    
+    try {
+        await conformSessionBookingEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime,
+            sessionSubject,   // optional
+            sessionDuration,  // optional
+            meetingLink       // optional
+        );
+        return res.status(200).json({ message: "Email sent successfully" });
+    } catch (error) {
+        console.error("Error sending email:", error);
+        return res.status(500).json({ error: "Failed to send email" });
+    }
+};
+
+// New enhanced email controllers using the template system
+export const sendCancellationEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime, 
+        reason, 
+        refundAmount 
+    } = req.body;
+    
+    try {
+        await sendSessionCancellationEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime, 
+            reason, 
+            refundAmount
+        );
+        return res.status(200).json({ message: "Cancellation email sent successfully" });
+    } catch (error) {
+        console.error("Error sending cancellation email:", error);
+        return res.status(500).json({ error: "Failed to send cancellation email" });
+    }
+};
+
+export const sendReminderEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime, 
+        reminderTime, 
+        meetingLink 
+    } = req.body;
+    
+    try {
+        await sendSessionReminderEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime, 
+            reminderTime, 
+            meetingLink
+        );
+        return res.status(200).json({ message: "Reminder email sent successfully" });
+    } catch (error) {
+        console.error("Error sending reminder email:", error);
+        return res.status(500).json({ error: "Failed to send reminder email" });
+    }
+};
+
+export const sendPaymentEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        studentName, 
+        amount, 
+        paymentMethod, 
+        transactionId, 
+        sessionDetails, 
+        classDetails 
+    } = req.body;
+    
+    try {
+        await sendPaymentConfirmationEmail(
+            to, 
+            studentName, 
+            amount, 
+            paymentMethod, 
+            transactionId, 
+            sessionDetails, 
+            classDetails
+        );
+        return res.status(200).json({ message: "Payment confirmation email sent successfully" });
+    } catch (error) {
+        console.error("Error sending payment email:", error);
+        return res.status(500).json({ error: "Failed to send payment email" });
+    }
+};
+
+export const sendWelcomeEmailController = async (req: Request, res: Response) => {
+    const { to, userName, userRole, loginUrl } = req.body;
+    
+    try {
+        await sendWelcomeEmail(to, userName, userRole, loginUrl);
+        return res.status(200).json({ message: "Welcome email sent successfully" });
+    } catch (error) {
+        console.error("Error sending welcome email:", error);
+        return res.status(500).json({ error: "Failed to send welcome email" });
+    }
+};
+
+// Email Controllers--------------------------------------------------------------------------
+
+
+export const getMassPaymentsByStudentIdController = async (req: Request, res: Response) => {
+    const student_id = req.params.studentId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    if(!student_id){
+        return res.status(500).json({message:"Student Id is required"});
+    }
+     
+    try{
+    const massPayments = await getMassPaymentsByStudentId(student_id,page,limit);
+    return res.status(200).json(massPayments);
+    }
+    catch(error){
+         console.error("Error getting mass payments:", error);
+         return res.status(500).json({ error: "Failed to get mass payments" });
+    }
+
+}
+
+export const rateMassClassesController=async (req: Request, res: Response) => {
+    const { student_id, class_id, review,rating} = req.body;
+
+    if(!student_id || !class_id || !review || !rating){
+        return res.status(500).json({message:"All Fileds are required"})
+    }
+    try {
+        const updatedClass = await rateMassTurorClass(student_id, class_id, review, rating);
+        return res.status(200).json(updatedClass);
+    } catch (error) {
+        console.error("Error rating mass class:", error);
+        return res.status(500).json({ error: "Failed to rate mass class" });
+    }
+}
+
+export const getClassReviewsByClassIdController=async(req:Request,res:Response)=>{
+
+    const {class_id} = req.params;
+    if(!class_id) {
+        return res.status(400).json({ error: "class_id is required" });
+    }
+    try{
+       const reviews = await getReviewsByClassId(class_id);
+       res.status(200).json(reviews);
+    }
+    catch(error){
+       console.error("Faild to fetch Class Reviews");
+       throw new Error("Faild to fetch Class Reviews");
+    }
+}
