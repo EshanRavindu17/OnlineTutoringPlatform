@@ -13,6 +13,13 @@ import {
   changeAdminPassword,
 } from '../controllers/adminProfile.controller';
 import { requireAdminJWT } from '../middleware/requireAdminJWT';
+import {
+  listPolicies,
+  getPolicy,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+} from '../controllers/policy.controller';
 
 const r = Router();
 
@@ -28,7 +35,14 @@ r.get('/profile', requireAdminJWT, getAdminProfile);
 r.put('/profile', requireAdminJWT, updateAdminProfile);
 r.put('/profile/password', requireAdminJWT, changeAdminPassword);
 
-// Example secured feature route
+// Dashboard
 r.get('/dashboard/metrics', requireAdminJWT, adminMetrics);
+
+// Policies (CRUD) — secured
+r.get('/policies', requireAdminJWT, listPolicies);
+r.get('/policies/:id', requireAdminJWT, getPolicy);
+r.post('/policies', requireAdminJWT, createPolicy);
+r.put('/policies/:id', requireAdminJWT, updatePolicy, () => console.log('Policy updated'));
+r.delete('/policies/:id', requireAdminJWT, deletePolicy);
 
 export default r;

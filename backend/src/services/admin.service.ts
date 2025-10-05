@@ -254,7 +254,7 @@ async function getWeeklyActivity() {
       });
     }
 
-    console.log('Weekly activity data:', weeklyData);
+    // console.log('Weekly activity data:', weeklyData);
     
     return weeklyData;
   } catch (error) {

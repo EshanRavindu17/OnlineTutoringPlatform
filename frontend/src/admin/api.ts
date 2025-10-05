@@ -190,3 +190,33 @@ export const tutorsApi = {
 
   // Get detailed profile of a specific tutor
 };
+
+// ---------------- Policies API ----------------
+export const policiesApi = {
+  list() {
+    return request('/policies') as Promise<{ policies: PolicyRow[] }>;
+  },
+  get(id: string) {
+    return request(`/policies/${id}`) as Promise<PolicyRow>;
+  },
+  create(data: { policy_name: string; type: 'tos'|'privacy'|'guidelines'|'conduct'; description?: string }) {
+    return request('/policies', { method: 'POST', body: JSON.stringify(data) }) as Promise<PolicyRow>;
+  },
+  update(id: string, data: { policy_name?: string; type?: 'tos'|'privacy'|'guidelines'|'conduct'; description?: string }) {
+    return request(`/policies/${id}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<PolicyRow>;
+  },
+  remove(id: string) {
+    return request(`/policies/${id}`, { method: 'DELETE' }) as Promise<{ ok: boolean; policy_id: string }>;
+  },
+};
+
+// Shared policy row shape from backend
+export type PolicyRow = {
+  policy_id: string;
+  policy_name: string;
+  type: 'tos'|'privacy'|'guidelines'|'conduct'|'rates';
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+};

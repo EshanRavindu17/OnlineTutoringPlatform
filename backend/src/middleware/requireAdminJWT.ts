@@ -42,6 +42,8 @@ export async function requireAdminJWT(req: Request, res: Response, next: NextFun
       tokenVersion: admin.token_version,
     };
 
+    // console.log(`Admin ${admin.admin_id} authenticated`);
+
     // Everything's good - continue to route handler
     next();
   } catch (e: any) {
