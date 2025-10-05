@@ -6,10 +6,11 @@ import {
     findTimeSlots,
     getAllIndividualTutors
     ,getAllSessionByStudentId,getClassSlotsByClassID,getIndividualTutorById
-    ,getPaymentSummaryByStudentId,getSlotsOfIndividualTutorById,
+    ,getMassPaymentsByStudentId,getPaymentSummaryByStudentId,getReviewsByClassId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
     getTutorNameAndTypeById,
     getTutorsByStudentId,
+    rateMassTurorClass,
     updateAccessTimeinFreeSlots,
     updateSlotStatus
 } from "../services/studentService";
@@ -116,7 +117,7 @@ export const getStudentIDByUserIDController = async (req: Request, res: Response
 
 
 export const createASessionController = async (req: Request, res: Response) => {
-    const { student_id, i_tutor_id, slots, status, price, date } = req.body;
+    const { student_id, i_tutor_id, slots, status, subject, price, date } = req.body;
 
     console.log("Creating session for student_ID:", student_id);
     console.log("Creating session for i_tutor_id:", i_tutor_id);
@@ -129,6 +130,7 @@ export const createASessionController = async (req: Request, res: Response) => {
         i_tutor_id,
         c_slots,
         status,
+        subject,
         price,
         c_date
     );
@@ -295,6 +297,14 @@ import { getAllMassClasses,
          getClassByStudentId,
          getMassTutorsByStudentId
        } from "../services/studentService";
+import { 
+    conformSessionBookingEmail, 
+    sendEmail,
+    sendSessionCancellationEmail,
+    sendSessionReminderEmail,
+    sendPaymentConfirmationEmail,
+    sendWelcomeEmail 
+} from "../services/email.service";
 
 
 export const getAllMassClassesController = async (req: Request, res: Response) => {
@@ -414,3 +424,191 @@ export const getMassTutorsByStudentIdController = async (req: Request, res: Resp
         return res.status(500).json({ error: "Failed to get mass tutors" });
     }
 };
+
+// Email Controllers--------------------------------------------------------------------------
+export const sendEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime,
+        sessionSubject,
+        sessionDuration,
+        meetingLink
+    } = req.body;
+    
+    try {
+        await conformSessionBookingEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime,
+            sessionSubject,   // optional
+            sessionDuration,  // optional
+            meetingLink       // optional
+        );
+        return res.status(200).json({ message: "Email sent successfully" });
+    } catch (error) {
+        console.error("Error sending email:", error);
+        return res.status(500).json({ error: "Failed to send email" });
+    }
+};
+
+// New enhanced email controllers using the template system
+export const sendCancellationEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime, 
+        reason, 
+        refundAmount 
+    } = req.body;
+    
+    try {
+        await sendSessionCancellationEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime, 
+            reason, 
+            refundAmount
+        );
+        return res.status(200).json({ message: "Cancellation email sent successfully" });
+    } catch (error) {
+        console.error("Error sending cancellation email:", error);
+        return res.status(500).json({ error: "Failed to send cancellation email" });
+    }
+};
+
+export const sendReminderEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        type, 
+        studentName, 
+        tutorName, 
+        sessionDate, 
+        sessionTime, 
+        reminderTime, 
+        meetingLink 
+    } = req.body;
+    
+    try {
+        await sendSessionReminderEmail(
+            to, 
+            type, 
+            studentName, 
+            tutorName, 
+            sessionDate, 
+            sessionTime, 
+            reminderTime, 
+            meetingLink
+        );
+        return res.status(200).json({ message: "Reminder email sent successfully" });
+    } catch (error) {
+        console.error("Error sending reminder email:", error);
+        return res.status(500).json({ error: "Failed to send reminder email" });
+    }
+};
+
+export const sendPaymentEmailController = async (req: Request, res: Response) => {
+    const { 
+        to, 
+        studentName, 
+        amount, 
+        paymentMethod, 
+        transactionId, 
+        sessionDetails, 
+        classDetails 
+    } = req.body;
+    
+    try {
+        await sendPaymentConfirmationEmail(
+            to, 
+            studentName, 
+            amount, 
+            paymentMethod, 
+            transactionId, 
+            sessionDetails, 
+            classDetails
+        );
+        return res.status(200).json({ message: "Payment confirmation email sent successfully" });
+    } catch (error) {
+        console.error("Error sending payment email:", error);
+        return res.status(500).json({ error: "Failed to send payment email" });
+    }
+};
+
+export const sendWelcomeEmailController = async (req: Request, res: Response) => {
+    const { to, userName, userRole, loginUrl } = req.body;
+    
+    try {
+        await sendWelcomeEmail(to, userName, userRole, loginUrl);
+        return res.status(200).json({ message: "Welcome email sent successfully" });
+    } catch (error) {
+        console.error("Error sending welcome email:", error);
+        return res.status(500).json({ error: "Failed to send welcome email" });
+    }
+};
+
+// Email Controllers--------------------------------------------------------------------------
+
+
+export const getMassPaymentsByStudentIdController = async (req: Request, res: Response) => {
+    const student_id = req.params.studentId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    if(!student_id){
+        return res.status(500).json({message:"Student Id is required"});
+    }
+     
+    try{
+    const massPayments = await getMassPaymentsByStudentId(student_id,page,limit);
+    return res.status(200).json(massPayments);
+    }
+    catch(error){
+         console.error("Error getting mass payments:", error);
+         return res.status(500).json({ error: "Failed to get mass payments" });
+    }
+
+}
+
+export const rateMassClassesController=async (req: Request, res: Response) => {
+    const { student_id, class_id, review,rating} = req.body;
+
+    if(!student_id || !class_id || !review || !rating){
+        return res.status(500).json({message:"All Fileds are required"})
+    }
+    try {
+        const updatedClass = await rateMassTurorClass(student_id, class_id, review, rating);
+        return res.status(200).json(updatedClass);
+    } catch (error) {
+        console.error("Error rating mass class:", error);
+        return res.status(500).json({ error: "Failed to rate mass class" });
+    }
+}
+
+export const getClassReviewsByClassIdController=async(req:Request,res:Response)=>{
+
+    const {class_id} = req.params;
+    if(!class_id) {
+        return res.status(400).json({ error: "class_id is required" });
+    }
+    try{
+       const reviews = await getReviewsByClassId(class_id);
+       res.status(200).json(reviews);
+    }
+    catch(error){
+       console.error("Faild to fetch Class Reviews");
+       throw new Error("Faild to fetch Class Reviews");
+    }
+}

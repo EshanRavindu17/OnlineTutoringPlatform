@@ -20,6 +20,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.13.0",
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^1.41.3",
@@ -33,6 +34,7 @@
     "luxon": "^3.7.2",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "node-cron": "^4.2.1",
     "prisma": "^6.13.0",
     "stripe": "^18.5.0",
     "typescript": "^5.9.2"
@@ -46,6 +48,7 @@
     "@types/luxon": "^3.7.1",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.5.2",
+    "@types/node-cron": "^3.0.11",
     "@types/stripe": "^8.0.417",
     "nodemon": "^3.1.10",
     "prisma": "^6.13.0",

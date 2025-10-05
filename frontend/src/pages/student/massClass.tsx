@@ -19,12 +19,15 @@ import {
   PlayCircle,
   Bookmark,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  X
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID } from '../../api/Student';
-import type { MassClassPage, MassClassSlots } from '../../api/Student';
+import MassClassPaymentComponent from '../../components/MassClassPaymentComponent';
+import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID, getReviewByClassID, rateAndReviewClass } from '../../api/Student';
+import type { MassClassPage, MassClassSlots, Review } from '../../api/Student';
 import { useAuth } from '../../context/authContext';
 
 interface ClassMaterial {
@@ -96,6 +99,27 @@ function MassClassPage() {
   const [isClassSaved, setIsClassSaved] = useState(false);
   const [monthLoading, setMonthLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showPayment, setShowPayment] = useState(false);
+  const [studentId, setStudentId] = useState<string | null>(null);
+  
+  // Review and rating states
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewFormData, setReviewFormData] = useState({
+    rating: 0,
+    review: ''
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [editingReview, setEditingReview] = useState(false);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    message: string;
+  }>({ show: false, type: 'info', message: '' });
   
   // Get enrollment status
   const enrollmentStatus = classData?.enrollmentStatus?.status || null;
@@ -297,13 +321,15 @@ function MassClassPage() {
         setLoading(true);
         
         // Get student ID first
-        const studentId = await getStudentIDByUserID(userProfile.id);
-        if (!studentId) {
+        const fetchedStudentId = await getStudentIDByUserID(userProfile.id);
+        if (!fetchedStudentId) {
           throw new Error('Student ID not found');
         }
+        
+        setStudentId(fetchedStudentId);
 
         // Get class details and enrollment status
-        const classInfo = await getClassByClassIdAndStudentId(classId, studentId);
+        const classInfo = await getClassByClassIdAndStudentId(classId, fetchedStudentId);
         setClassData(classInfo);
 
         console.log('Class data:', classInfo);
@@ -355,9 +381,33 @@ function MassClassPage() {
     fetchSlots();
   }, [classId, selectedMonth, classData]);
 
+  // Fetch class reviews when class data is loaded
+  useEffect(() => {
+    if (classData) {
+      fetchClassReviews();
+    }
+  }, [classData]);
+
   // Helper functions
   const toggleSaveClass = () => {
     setIsClassSaved(!isClassSaved);
+  };
+
+  const handleEnrollClick = () => {
+    if (enrollmentStatus !== 'valid') {
+      setShowPayment(true);
+    }
+  };
+
+  const handlePaymentSuccess = (enrollmentId: string) => {
+    console.log('Payment successful! Enrollment ID:', enrollmentId);
+    setShowPayment(false);
+    // Refresh the page to update enrollment status
+    window.location.reload();
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPayment(false);
   };
 
   const renderStars = (rating: number) => {
@@ -373,6 +423,182 @@ function MassClassPage() {
       );
     }
     return stars;
+  };
+
+  // Interactive star rating for review form
+  const renderInteractiveStars = (currentRating: number, onRatingChange: (rating: number) => void) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <button
+          key={i}
+          type="button"
+          onClick={() => onRatingChange(i)}
+          className={`w-6 h-6 transition-colors ${
+            i <= currentRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'
+          }`}
+        >
+          <Star className="w-full h-full" />
+        </button>
+      );
+    }
+    return stars;
+  };
+
+  // Fetch reviews for the class
+  const fetchClassReviews = async () => {
+    if (!classId) return;
+    
+    try {
+      setReviewsLoading(true);
+      const classReviews = await getReviewByClassID(classId);
+      setReviews(classReviews);
+      console.log('Class reviews fetched:', classReviews);
+    } catch (error) {
+      console.error('Error fetching class reviews:', error);
+      showToast('error', 'Failed to load reviews');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  // Handle review form submission
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!studentId || !classId || reviewFormData.rating === 0) {
+      showToast('error', 'Please provide all required information');
+      return;
+    }
+
+    if (reviewFormData.review.trim().length < 10) {
+      showToast('error', 'Review must be at least 10 characters long');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      
+      const result = await rateAndReviewClass(
+        studentId,
+        classId,
+        reviewFormData.review.trim(),
+        reviewFormData.rating
+      );
+      
+      // Check for successful response - handle different response formats
+      const isSuccess = result === true || result?.success === true || (result && !result.error && !result.message?.includes('error'));
+      
+      if (isSuccess) {
+        // Reset form
+        setReviewFormData({ rating: 0, review: '' });
+        setShowReviewForm(false);
+        
+        showToast('success', '🌟 Review submitted successfully!');
+        
+        // Refresh reviews after a short delay to ensure DB update is complete
+        setTimeout(async () => {
+          await fetchClassReviews();
+        }, 500);
+      } else {
+        showToast('error', result?.error || result?.message || 'Failed to submit review');
+      }
+      
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      showToast('error', 'An error occurred while submitting the review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // Check if user has already reviewed this class and get their review
+  const currentUserReview = reviews.find(review => review.student_id === studentId);
+  const hasUserReviewed = !!currentUserReview;
+
+  // Update userReview state when reviews change
+  useEffect(() => {
+    if (currentUserReview && !userReview) {
+      setUserReview(currentUserReview);
+    } else if (!currentUserReview) {
+      setUserReview(null);
+    }
+  }, [currentUserReview, userReview]);
+
+  // Toast notification function
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+    setToast({ show: true, type, message });
+    setTimeout(() => {
+      setToast({ show: false, type: 'info', message: '' });
+    }, 4000); // Hide after 4 seconds
+  };
+
+  // Function to start editing a review
+  const startEditingReview = () => {
+    if (userReview) {
+      setReviewFormData({
+        rating: userReview.rating,
+        review: userReview.review
+      });
+      setEditingReview(true);
+      setShowReviewForm(true);
+    }
+  };
+
+  // Function to cancel editing
+  const cancelEditingReview = () => {
+    setEditingReview(false);
+    setShowReviewForm(false);
+    setReviewFormData({ rating: 0, review: '' });
+  };
+
+  // Function to handle review update
+  const handleReviewUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!studentId || !classId || reviewFormData.rating === 0) {
+      showToast('error', 'Please provide all required information');
+      return;
+    }
+
+    if (reviewFormData.review.trim().length < 10) {
+      showToast('error', 'Review must be at least 10 characters long');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      const result = await rateAndReviewClass(
+        studentId,
+        classId,
+        reviewFormData.review.trim(),
+        reviewFormData.rating
+      );
+
+      // Check for successful response - handle different response formats
+      const isSuccess = result === true || result?.success === true || (result && !result.error && !result.message?.includes('error'));
+      
+      if (isSuccess) {
+        setReviewFormData({ rating: 0, review: '' });
+        setShowReviewForm(false);
+        setEditingReview(false);
+        
+        showToast('success', '✨ Review updated successfully!');
+        
+        // Refresh reviews after a short delay to ensure DB update is complete
+        setTimeout(async () => {
+          await fetchClassReviews();
+        }, 500);
+      } else {
+        showToast('error', result?.error || result?.message || 'Failed to update review');
+      }
+    } catch (error) {
+      console.error('Error updating review:', error);
+      showToast('error', 'An error occurred while updating the review');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   // Use additional course details that supplement the API data
@@ -465,9 +691,68 @@ function MassClassPage() {
     );
   }
 
+  // Show payment component if payment is triggered
+  if (showPayment && classData && studentId) {
+    const paymentData = {
+      classId: classId!, // Use the classId from URL parameters
+      title: classData.title,
+      subject: classData.subject,
+      tutorName: classData.Mass_Tutor.User.name,
+      tutorPhoto: classData.Mass_Tutor.User.photo_url || '',
+      tutorRating: parseFloat(classData.Mass_Tutor.rating),
+      price: parseFloat(classData.Mass_Tutor.prices),
+      duration: '90 minutes', // Default duration as it's not in the interface
+      schedule: `${classData.day} at ${new Date(classData.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}`,
+      studentsEnrolled: classData._count.Enrolment,
+      maxStudents: 50 // You can add this to your API response
+    };
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <MassClassPaymentComponent
+            classData={paymentData}
+            studentId={studentId}
+            onSuccess={handlePaymentSuccess}
+            onCancel={handlePaymentCancel}
+          />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+          <div className={`
+            rounded-lg shadow-lg p-4 max-w-sm min-w-[300px] flex items-center gap-3
+            ${toast.type === 'success' ? 'bg-green-100 border border-green-200 text-green-800' : 
+              toast.type === 'error' ? 'bg-red-100 border border-red-200 text-red-800' : 
+              'bg-blue-100 border border-blue-200 text-blue-800'}
+          `}>
+            <div className="flex-shrink-0">
+              {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
+              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600" />}
+              {toast.type === 'info' && <AlertCircle className="w-5 h-5 text-blue-600" />}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{toast.message}</p>
+            </div>
+            <button 
+              onClick={() => setToast({ show: false, type: 'info', message: '' })}
+              className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Header Section */}
       <div className="bg-white border-b">
@@ -606,7 +891,8 @@ function MassClassPage() {
               </div>
               
               <button 
-                className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                onClick={handleEnrollClick}
+                className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
                 disabled={enrollmentStatus === 'valid'}
               >
                 {enrollmentStatus === 'valid' ? 'Already Enrolled' : 'Enroll Now'}
@@ -920,7 +1206,217 @@ function MassClassPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Course Description */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Reviews and Ratings Section */}
+            <div className="bg-white rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Reviews & Ratings</h3>
+                
+                {/* Add Review Button - Only for enrolled students who haven't reviewed */}
+                {enrollmentStatus === 'valid' && !hasUserReviewed && (
+                  <button
+                    onClick={() => {
+                      setEditingReview(false);
+                      setReviewFormData({ rating: 0, review: '' });
+                      setShowReviewForm(!showReviewForm);
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    <Star className="w-4 h-4 mr-2" />
+                    Write Review
+                  </button>
+                )}
+
+                {/* Edit Review Button - Only for enrolled students who have reviewed */}
+                {enrollmentStatus === 'valid' && hasUserReviewed && (
+                  <button
+                    onClick={startEditingReview}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Review
+                  </button>
+                )}
+              </div>
+
+              {/* Review Form */}
+              {showReviewForm && enrollmentStatus === 'valid' && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-gray-900">
+                      {editingReview ? 'Edit Your Review' : 'Write a Review'}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={editingReview ? cancelEditingReview : () => setShowReviewForm(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={editingReview ? handleReviewUpdate : handleReviewSubmit}>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Rating
+                      </label>
+                      <div className="flex items-center gap-1">
+                        {renderInteractiveStars(reviewFormData.rating, (rating) => 
+                          setReviewFormData(prev => ({ ...prev, rating }))
+                        )}
+                        <span className="ml-2 text-sm text-gray-600">
+                          {reviewFormData.rating > 0 ? `${reviewFormData.rating} star${reviewFormData.rating !== 1 ? 's' : ''}` : 'Click to rate'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <label htmlFor="review" className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Review
+                      </label>
+                      <textarea
+                        id="review"
+                        rows={4}
+                        value={reviewFormData.review}
+                        onChange={(e) => setReviewFormData(prev => ({ ...prev, review: e.target.value }))}
+                        placeholder="Share your experience with this class..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        required
+                        minLength={10}
+                        maxLength={500}
+                      />
+                      <div className="mt-1 text-xs text-gray-500">
+                        {reviewFormData.review.length}/500 characters (minimum 10)
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="submit"
+                        disabled={submittingReview || reviewFormData.rating === 0 || reviewFormData.review.trim().length < 10}
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                      >
+                        {submittingReview ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            {editingReview ? 'Updating...' : 'Submitting...'}
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            {editingReview ? 'Update Review' : 'Submit Review'}
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={editingReview ? cancelEditingReview : () => setShowReviewForm(false)}
+                        className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Reviews List */}
+              {reviewsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <span className="ml-2 text-gray-600">Loading reviews...</span>
+                </div>
+              ) : reviews.length > 0 ? (
+                <div 
+                  className="max-h-96 overflow-y-auto pr-2 scrollbar-thin"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#cbd5e1 #f1f5f9'
+                  }}
+                >
+                  <div className="space-y-4">
+                    {reviews.map((review) => {
+                      const isCurrentUser = review.student_id === studentId;
+                      
+                      return (
+                        <div key={review.r_id} className={`border rounded-lg p-4 ${isCurrentUser ? 'border-purple-200 bg-purple-50' : 'border-gray-200'}`}>
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={review.Student.User.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'}
+                              alt={review.Student.User.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-gray-900">{review.Student.User.name}</h4>
+                                    {isCurrentUser && (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        Your Review
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center">
+                                      {renderStars(review.rating)}
+                                    </div>
+                                    <span className="text-sm text-gray-600">
+                                      {new Date(review.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                {isCurrentUser && enrollmentStatus === 'valid' && (
+                                  <button
+                                    onClick={startEditingReview}
+                                    className="text-blue-600 hover:text-blue-700 p-1"
+                                    title="Edit your review"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-gray-700 leading-relaxed">{review.review}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No reviews yet. Be the first to review this class!</p>
+                </div>
+              )}
+
+              {/* Review Access Message for Non-enrolled Users */}
+              {enrollmentStatus !== 'valid' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center">
+                    <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
+                    <p className="text-blue-800 text-sm">
+                      {enrollmentStatus === null 
+                        ? "Enroll in this class to write a review and see all student feedback"
+                        : "Your enrollment has expired. Renew to write reviews"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Already Reviewed Message */}
+              {enrollmentStatus === 'valid' && hasUserReviewed && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center">
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                    <p className="text-green-800 text-sm">
+                      Thank you for your review! You have already reviewed this class.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Course Description</h3>
               <p className="text-gray-700 mb-6">{massClass.longDescription}</p>

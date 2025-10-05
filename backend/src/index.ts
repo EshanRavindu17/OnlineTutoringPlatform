@@ -34,6 +34,13 @@ import paymentRoutes from './routes/paymentRoutes';
 
 import adminRoutes from './routes/admin.routes';
 import adminTutorsRoutes from './routes/admin.tutors.routes';
+import reminderRoutes from './routes/reminderRoutes';
+
+import zoomRouter from './routes/zoom.routes'
+
+// Import reminder service
+import { startReminderJobs, getReminderJobStatus } from './services/remider.service';
+import  {DateTime}  from 'luxon';
 
 dotenv.config();
 
@@ -78,6 +85,24 @@ app.get('/health', (_req: Request, res: Response) => {
     environment: NODE_ENV,
     timestamp: new Date().toISOString()
   });
+});
+
+// Reminder jobs health check endpoint
+app.get('/health/reminders', (_req: Request, res: Response) => {
+  try {
+    const reminderStatus = getReminderJobStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Email reminder system is active',
+      ...reminderStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Email reminder system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API Routes
@@ -128,6 +153,11 @@ app.use('/payment', paymentRoutes);
 app.use('/Admin', adminRoutes);
 app.use('/Admin/tutors', adminTutorsRoutes);
 
+// Reminder Routes
+app.use('/api/reminders', reminderRoutes);
+
+app.use('/zoom',zoomRouter)
+
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Error:', err.stack);
@@ -161,7 +191,22 @@ app.listen(PORT, () => {
   console.log(`📍 Environment: ${NODE_ENV}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   console.log(`📡 API endpoint: http://localhost:${PORT}/api`);
+  
+  // Initialize reminder cron jobs
+  try {
+    startReminderJobs();
+  } catch (error) {
+    console.error('❌ Failed to start reminder jobs:', error);
+  }
 });
+
+// const time = new Date();
+// console.log(time.toISOString());
+// console.log(new Date(time.getTime()+5*60*60*1000+30*60*1000))
+// console.log(time.toString());
+// console.log(time.toLocaleTimeString());
+
+
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { getPaymentSummaryByStudentId, getStudentIDByUserID, getMassPaymentHistoryByStudentId } from '../../api/Student';
+import { getPaymentSummaryByStudentId, getStudentIDByUserID, getMassPayment, Payment } from '../../api/Student';
 import { useAuth } from '../../context/authContext';
 
 // Payment type for tab navigation
@@ -98,6 +98,13 @@ export default function PaymentHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    message: string;
+  }>({ show: false, type: 'info', message: '' });
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [activeTab, setActiveTab] = useState<PaymentType>('all');
@@ -115,6 +122,14 @@ export default function PaymentHistoryPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
+
+  // Toast notification function
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+    setToast({ show: true, type, message });
+    setTimeout(() => {
+      setToast({ show: false, type: 'info', message: '' });
+    }, 4000);
+  };
 
   const fetchPaymentHistory = async () => {
     if (!userProfile?.id) {
@@ -145,15 +160,25 @@ export default function PaymentHistoryPage() {
           individualData = await getPaymentSummaryByStudentId(studentId);
         } catch (error) {
           console.error('Failed to fetch individual payments:', error);
+          showToast('error', 'Failed to load individual payment history');
         }
       }
 
       // Fetch mass class payments if needed
       if (activeTab === 'mass' || activeTab === 'all') {
         try {
-          massData = await getMassPaymentHistoryByStudentId(studentId);
+          const massPayments = await getMassPayment(studentId);
+          // Transform to match the expected structure
+          massData = {
+            transactions: massPayments,
+            totalAmount: massPayments.reduce((sum, payment) => sum + payment.amount, 0),
+            successfulPaymentsCount: massPayments.filter(payment => payment.status === 'succeeded').length,
+            totalClasses: new Set(massPayments.map(payment => payment.class_id)).size,
+            totalMonthsPaid: massPayments.length
+          };
         } catch (error) {
           console.error('Failed to fetch mass payments:', error);
+          showToast('error', 'Failed to load mass class payment history');
         }
       }
 
@@ -194,8 +219,8 @@ export default function PaymentHistoryPage() {
           createdAt: new Date(transaction.payment_time).toISOString(),
           paidMonth: transaction.paidMonth,
           paymentDate: new Date(transaction.payment_time).toISOString().split('T')[0],
-          className: transaction.Class?.Mass_Tutor?.heading || `Class ${transaction.class_id.substring(0, 8)}`,
-          subject: transaction.Class?.subject || 'Mass Class',
+          className: transaction.Class?.title || `Class ${transaction.class_id.substring(0, 8)}`,
+          subject: 'Mass Class', // Will be updated when we get the actual subject from API
           tutorName: transaction.Class?.Mass_Tutor?.User?.name || 'Mass Tutor',
           tutorPhoto: transaction.Class?.Mass_Tutor?.User?.photo_url || 
                      `https://ui-avatars.com/api/?name=${encodeURIComponent(transaction.Class?.Mass_Tutor?.User?.name || 'Tutor')}&background=4F46E5&color=FFFFFF`,
@@ -228,6 +253,25 @@ export default function PaymentHistoryPage() {
       setPayments(allPayments);
       setTotalItems(allPayments.length);
       setTotalPages(Math.ceil(allPayments.length / 10));
+      
+      if (allPayments.length > 0) {
+        const massPaymentCount = allPayments.filter(p => p.type === 'mass').length;
+        const individualPaymentCount = allPayments.filter(p => p.type === 'individual').length;
+        
+        let message = `✅ Loaded ${allPayments.length} payment records successfully!`;
+        if (activeTab === 'all' && massPaymentCount > 0 && individualPaymentCount > 0) {
+          message += ` (${individualPaymentCount} individual, ${massPaymentCount} mass class)`;
+        } else if (activeTab === 'mass' && massPaymentCount > 0) {
+          message = `✅ Loaded ${massPaymentCount} mass class payments successfully!`;
+        } else if (activeTab === 'individual' && individualPaymentCount > 0) {
+          message = `✅ Loaded ${individualPaymentCount} individual session payments successfully!`;
+        }
+        
+        showToast('success', message);
+      } else if (studentId) {
+        const tabName = activeTab === 'all' ? 'payment' : activeTab === 'mass' ? 'mass class payment' : 'individual session payment';
+        showToast('info', `ℹ️ No ${tabName} records found`);
+      }
       
     } catch (err) {
       setError('Failed to fetch payment history');
@@ -443,6 +487,33 @@ export default function PaymentHistoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+          <div className={`
+            rounded-lg shadow-lg p-4 max-w-sm min-w-[300px] flex items-center gap-3
+            ${toast.type === 'success' ? 'bg-green-100 border border-green-200 text-green-800' : 
+              toast.type === 'error' ? 'bg-red-100 border border-red-200 text-red-800' : 
+              'bg-blue-100 border border-blue-200 text-blue-800'}
+          `}>
+            <div className="flex-shrink-0">
+              {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-green-600" />}
+              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600" />}
+              {toast.type === 'info' && <AlertCircle className="w-5 h-5 text-blue-600" />}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{toast.message}</p>
+            </div>
+            <button 
+              onClick={() => setToast({ show: false, type: 'info', message: '' })}
+              className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
