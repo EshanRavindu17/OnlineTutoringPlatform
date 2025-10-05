@@ -52,6 +52,7 @@ import TutorApproval from './admin/TutorApproval';
 import TutorSuspend from './admin/TutorSuspend';
 import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
+import Complaints from './admin/Complaints';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
 
@@ -136,6 +137,7 @@ const App = () => {
             <Route path="tutors/suspend" element={<TutorSuspend />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="broadcast" element={<Broadcast />} />
+            <Route path="complaints" element={<Complaints />} />
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>

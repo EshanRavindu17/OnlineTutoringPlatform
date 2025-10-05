@@ -18,6 +18,7 @@ model Admin {
   last_login_at DateTime?    @db.Timestamptz(6)
   Commission    Commission[]
   Policies      Policies[]
+  Reports       Reports[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -87,6 +88,7 @@ model Individual_Tutor {
   certificateUrls String[]
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
+  Reports         Reports[]
   Sessions        Sessions[]
 }
 
@@ -105,6 +107,7 @@ model Mass_Tutor {
   location       String?
   Class          Class[]
   User           User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
+  Reports        Reports[]
 }
 
 model Notifications {
@@ -128,17 +131,21 @@ model Rating_N_Review_Session {
 }
 
 model Reports {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  student_id     String?       @db.Uuid
-  tutor_id       String?       @db.Uuid
-  tutor_type     TutorType?
-  description    String?
-  reason         String?
-  resolve_date   DateTime?     @db.Date
-  response       String?
-  status         ReportStatus? @default(under_review)
-  submitted_date DateTime?     @db.Date
-  Student        Student?      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id       String?           @db.Uuid
+  tutor_type       TutorType?
+  description      String?
+  reason           String?
+  resolve_date     DateTime?         @db.Date
+  response         String?
+  status           ReportStatus?     @default(under_review)
+  submitted_date   DateTime?         @db.Date
+  resolved_by      String?           @db.Uuid
+  tutor_id         String?           @db.Uuid
+  Admin            Admin?            @relation(fields: [resolved_by], references: [admin_id])
+  Individual_Tutor Individual_Tutor? @relation(fields: [tutor_id], references: [i_tutor_id])
+  Mass_Tutor       Mass_Tutor?       @relation(fields: [tutor_id], references: [m_tutor_id], map: "Reports_tutor_id_fkey1")
+  Student          Student?          @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
 }
 
 model Sessions {

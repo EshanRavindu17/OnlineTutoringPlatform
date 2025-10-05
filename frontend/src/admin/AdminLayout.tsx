@@ -34,6 +34,12 @@ const nav = [
     description: 'Send platform announcements'
   },
   { 
+    to: '/admin/complaints', 
+    label: 'Reports & Complaints', 
+    icon: FlagIcon,
+    description: 'Manage student reports'
+  },
+  { 
     to: '/admin/policies', 
     label: 'Policies', 
     icon: DocIcon,
@@ -215,6 +221,10 @@ function ChartIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 function MegaphoneIcon({ className = "w-4 h-4" }: { className?: string }) {
   return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M2 8v4a2 2 0 0 0 2 2h1l2 3h2V6L5 8H4a2 2 0 0 0-2 2zM13 5l5-2v14l-5-2V5z"/></svg>;
+}
+
+function FlagIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 1 1-1h12a1 1 0 0 1 .707 1.707L14.414 6l2.293 2.293A1 1 0 0 1 16 10H4v7a1 1 0 1 1-2 0V3z"/></svg>;
 }
 
 function DocIcon({ className = "w-4 h-4" }: { className?: string }) {

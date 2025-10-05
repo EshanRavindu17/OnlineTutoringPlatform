@@ -21,6 +21,10 @@ import {
   updatePolicy,
   deletePolicy,
 } from '../controllers/policy.controller';
+import {
+  listAllReportsController,
+  toggleReportStatusController,
+} from '../controllers/report.controller';
 
 const r = Router();
 
@@ -46,5 +50,9 @@ r.get('/policies/:id', requireAdminJWT, getPolicy);
 r.post('/policies', requireAdminJWT, createPolicy);
 r.put('/policies/:id', requireAdminJWT, updatePolicy, () => console.log('Policy updated'));
 r.delete('/policies/:id', requireAdminJWT, deletePolicy);
+
+// Reports / Complaints — secured
+r.get('/reports', requireAdminJWT, listAllReportsController);
+r.put('/reports/:id/toggle-status', requireAdminJWT, toggleReportStatusController);
 
 export default r;

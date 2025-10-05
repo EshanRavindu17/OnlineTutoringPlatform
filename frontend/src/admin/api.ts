@@ -129,6 +129,18 @@ export const adminApi = {
   async getAnalytics() {
     return request('/analytics');
   },
+
+  // Get all reports/complaints
+  async listReports() {
+    return request('/reports');
+  },
+
+  // Toggle report status (solve <-> under_review)
+  async toggleReportStatus(reportId: string) {
+    return request(`/reports/${reportId}/toggle-status`, {
+      method: 'PUT',
+    });
+  },
 };
 
 // Tutor application moderation endpoints
