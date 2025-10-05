@@ -6,7 +6,8 @@ import {
   createSessionReminderEmail,
   createPaymentConfirmationEmail,
   createWelcomeEmail,
-  EmailContent
+  EmailContent,
+  createClassReminderEmail
 } from '../templates/emails';
 
 dotenv.config();
@@ -113,6 +114,34 @@ export const sendSessionReminderEmail = async (
         tutorName,
         sessionDate,
         sessionTime,
+        meetingLink,
+        reminderTime
+    });
+
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Class reminder email
+export const sendClassReminderEmail = async (
+    to: string,
+    type: 'student' | 'massTutor',
+    className: string,
+    classDate: string,
+    classTime: string,
+    reminderTime: string,
+    studentName?: string,
+    tutorName?: string,
+    subject?: string,
+    meetingLink?: string
+) => {
+    const emailContent = createClassReminderEmail({
+        type,
+        studentName,
+        tutorName,
+        className,
+        classDate,
+        classTime,
+        subject,
         meetingLink,
         reminderTime
     });

@@ -161,6 +161,60 @@ export const createSessionReminderEmail = (data: {
   };
 };
 
+export const createClassReminderEmail = (data: {
+  type: 'student' | 'massTutor';
+  studentName?: string;
+  tutorName?: string;
+  className: string;
+  classDate: string;
+  classTime: string;
+  subject?: string;
+  meetingLink?: string;
+  reminderTime: string; // e.g., "24 hours", "1 hour"
+}): EmailContent => {
+  const { type, studentName, tutorName, className, classDate, classTime, subject, meetingLink, reminderTime } = data;
+  
+  const isStudent = type === 'student';
+  
+  const templateOptions = {
+    title: `Class Reminder - ${reminderTime} 🎓`,
+    content: isStudent
+      ? `<p>Dear <strong>${studentName}</strong>,</p>
+         <p>This is a friendly reminder that your class <strong>${className}</strong>${tutorName ? ` with ${tutorName}` : ''} is coming up in ${reminderTime}.</p>
+         <p>Please make sure you're prepared and have a stable internet connection for the best learning experience.</p>`
+      : `<p>Dear <strong>${tutorName}</strong>,</p>
+         <p>This is a reminder that your class <strong>${className}</strong> is scheduled to start in ${reminderTime}.</p>
+         <p>Please ensure you're prepared with all necessary materials and that your meeting link is ready for your students.</p>`,
+    
+    alertType: 'info' as const,
+    alertMessage: `Class starts in ${reminderTime}`,
+    
+    details: [
+      { label: 'Class', value: className },
+      ...(subject ? [{ label: 'Subject', value: subject }] : []),
+      { label: 'Date', value: classDate },
+      { label: 'Time', value: classTime },
+      ...(isStudent && tutorName ? [{ label: 'Tutor', value: tutorName }] : [])
+    ],
+    
+    ctaButton: meetingLink ? {
+      text: 'Join Class',
+      url: meetingLink,
+      color: '#8b5cf6'
+    } : undefined,
+    
+    footerMessage: isStudent 
+      ? 'See you in class!'
+      : 'Thank you for being part of the Tutorly community'
+  };
+
+  return {
+    subject: `Class Reminder - ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
 /**
  * Payment confirmation email template
  */
