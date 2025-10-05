@@ -118,6 +118,10 @@ const TutorDashboard: React.FC = () => {
     pricing: false
   });
 
+  // Session tab states
+  const [activeSessionTab, setActiveSessionTab] = useState('upcoming');
+  const [sessionFilter, setSessionFilter] = useState('');
+
   // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([
     {
@@ -134,7 +138,7 @@ const TutorDashboard: React.FC = () => {
       id: 2,
       type: 'payment',
       title: 'Payment Received',
-      message: 'Payment of $65 received for your session with Jane Smith',
+      message: 'Payment of LKR 65 received for your session with Jane Smith',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       isRead: false,
       studentName: 'Jane Smith'
@@ -297,19 +301,43 @@ const TutorDashboard: React.FC = () => {
   const loadSessionsData = async () => {
     if (currentUser?.uid) {
       try {
-        // Load all sessions
         const allSessions = await sessionService.getAllSessions(currentUser.uid);
-        
-        // Load session statistics
+
         const statistics = await sessionService.getSessionStatistics(currentUser.uid);
         setSessionStats(statistics);
         
-        // Categorize sessions
-        const upcoming = allSessions.filter(session => 
-          session.status === 'scheduled' && 
-          session.date && 
-          new Date(session.date) > new Date()
-        );
+        // Categorize sessions with time-based logic
+        const now = new Date();
+        const upcoming = [];
+        const ongoing = [];
+        
+        for (const session of allSessions) {
+          if (session.status === 'scheduled' && session.date && session.slots) {
+            const sessionDate = new Date(session.date);
+            
+            // Check if session is today
+            const isToday = sessionDate.toDateString() === now.toDateString();
+            
+            if (isToday && session.slots.length > 0) {
+              // Parse session time slots to determine if ongoing
+              const startSlot = new Date(session.slots[0]);
+              const endSlot = new Date(session.slots[session.slots.length - 1]);
+              endSlot.setHours(endSlot.getHours() + 1); // Add 1 hour to last slot
+              
+              const currentTime = now.getTime();
+              const sessionStart = startSlot.getTime();
+              const sessionEnd = endSlot.getTime();
+              
+              if (currentTime >= sessionStart && currentTime <= sessionEnd) {
+                ongoing.push(session);
+              } else if (sessionStart > currentTime) {
+                upcoming.push(session);
+              }
+            } else if (sessionDate > now) {
+              upcoming.push(session);
+            }
+          }
+        }
         
         const previous = allSessions.filter(session => 
           session.status === 'completed'
@@ -321,6 +349,7 @@ const TutorDashboard: React.FC = () => {
         
         setSessions({
           upcoming,
+          ongoing,
           previous,
           cancelled,
           all: allSessions
@@ -504,6 +533,7 @@ const TutorDashboard: React.FC = () => {
   // Sessions Data - Real data from backend
   const [sessions, setSessions] = useState({
     upcoming: [] as SessionWithDetails[],
+    ongoing: [] as SessionWithDetails[],
     previous: [] as SessionWithDetails[],
     cancelled: [] as SessionWithDetails[],
     all: [] as SessionWithDetails[]
@@ -553,6 +583,54 @@ const TutorDashboard: React.FC = () => {
   const [newMaterial, setNewMaterial] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
+  // Auto-switching logic for ongoing sessions
+  useEffect(() => {
+    if (sessions.ongoing.length > 0 && activeSessionTab === 'upcoming') {
+      const shouldSwitch = window.confirm(
+        `You have ${sessions.ongoing.length} ongoing session${sessions.ongoing.length > 1 ? 's' : ''}! Would you like to switch to the Ongoing tab?`
+      );
+      if (shouldSwitch) {
+        setActiveSessionTab('ongoing');
+      }
+    }
+  }, [sessions.ongoing.length, activeSessionTab]);
+
+  // Periodic check for session state changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentUser?.uid) {
+        loadSessionsData();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  // Helper function to extract time from slot format (using UTC to avoid timezone issues)
+  const extractTimeFromSlot = (slot: string | Date): string => {
+    const date = new Date(slot);
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Helper function to calculate session time range from slots
+  const getSessionTimeRange = (slots: (string | Date)[]): string => {
+    if (!slots || slots.length === 0) return 'Time not set';
+    
+    // Sort slots to ensure proper order
+    const sortedSlots = slots.map(slot => new Date(slot)).sort((a, b) => a.getTime() - b.getTime());
+    
+    const startTime = extractTimeFromSlot(sortedSlots[0]);
+    
+    // Calculate end time: start time + number of slots (each slot = 1 hour)
+    const endDate = new Date(sortedSlots[0]);
+    endDate.setUTCHours(endDate.getUTCHours() + slots.length);
+    const endTime = extractTimeFromSlot(endDate);
+    
+    return `${startTime} - ${endTime}`;
+  };
+
   // Helper function to format session data
   const formatSession = (session: SessionWithDetails) => {
     return {
@@ -560,8 +638,14 @@ const TutorDashboard: React.FC = () => {
       studentName: session.Student?.User?.name || 'Unknown Student',
       subject: session.title || 'No Subject',
       title: session.title || 'No Title',
-      date: session.date ? new Date(session.date).toLocaleDateString() : '',
-      time: session.start_time && session.end_time 
+      date: session.date ? new Date(session.date).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }) : 'Date not set',
+      time: session.slots && session.slots.length > 0 
+        ? getSessionTimeRange(session.slots)
+        : session.start_time && session.end_time 
         ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
         : 'Time not set',
       amount: session.price || 0,
@@ -1049,6 +1133,28 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
+  const finishSession = async (sessionId: string) => {
+    if (currentUser?.uid) {
+      try {
+        const confirmed = window.confirm('Are you sure you want to mark this session as completed?');
+        
+        if (confirmed) {
+          const result = await sessionService.finishSession(currentUser.uid, sessionId);
+          if (result.success) {
+            alert(result.message);
+            // Reload sessions to get updated data
+            loadSessionsData();
+          } else {
+            alert('Failed to finish session: ' + result.message);
+          }
+        }
+      } catch (error) {
+        console.error('Error finishing session:', error);
+        alert('Failed to finish session. Please try again.');
+      }
+    }
+  };
+
   const handleZoomMeeting = (sessionId: string, studentName: string, meetingUrls?: string[]) => {
     // Get the Zoom URL from meeting_urls[0] if available
     const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
@@ -1150,7 +1256,7 @@ const TutorDashboard: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Earnings</p>
               <p className="text-3xl font-bold text-green-600">
-                ${EarningsService.formatCurrency(earningsData?.totalEarnings || stats.monthlyEarnings)}
+                LKR {EarningsService.formatCurrency(earningsData?.totalEarnings || stats.monthlyEarnings)}
               </p>
               <p className="text-xs text-gray-500 mt-1">This month</p>
             </div>
@@ -1937,10 +2043,10 @@ const TutorDashboard: React.FC = () => {
         {editMode.pricing ? (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hourly Rate (Maximum: $300)
+              Hourly Rate (Maximum: LKR 300)
             </label>
             <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold text-gray-800">$</span>
+              <span className="text-2xl font-bold text-gray-800">LKR</span>
               <input
                 type="number"
                 max="300"
@@ -1956,7 +2062,7 @@ const TutorDashboard: React.FC = () => {
           </div>
         ) : (
           <div className="text-center">
-            <div className="text-4xl font-bold text-blue-600">${tutorProfile.hourlyRate}</div>
+            <div className="text-4xl font-bold text-blue-600">LKR {tutorProfile.hourlyRate}</div>
             <div className="text-gray-600">per hour</div>
             <div className="flex items-center justify-center mt-2">
               <span className="text-yellow-500 text-xl">★★★★★</span>
@@ -1969,211 +2075,399 @@ const TutorDashboard: React.FC = () => {
   );
 
   const renderSessions = () => {
+    // Filter sessions based on current tab and search
+    const getFilteredSessions = () => {
+      let sessionList = [];
+      switch (activeSessionTab) {
+        case 'upcoming':
+          sessionList = sessions.upcoming;
+          break;
+        case 'ongoing':
+          sessionList = sessions.ongoing;
+          break;
+        case 'previous':
+          sessionList = sessions.previous;
+          break;
+        case 'cancelled':
+          sessionList = sessions.cancelled;
+          break;
+        default:
+          sessionList = sessions.all;
+      }
+      
+      // Apply search filter
+      if (sessionFilter) {
+        sessionList = sessionList.filter(sessionData => {
+          const session = formatSession(sessionData);
+          return session.studentName.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+                 session.subject.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+                 session.title.toLowerCase().includes(sessionFilter.toLowerCase());
+        });
+      }
+      
+      return sessionList;
+    };
+
+    const sessionTabs = [
+      { id: 'upcoming', label: 'Upcoming', count: sessions.upcoming.length, color: 'blue', icon: Calendar },
+      { id: 'ongoing', label: 'Ongoing', count: sessions.ongoing.length, color: 'orange', icon: Clock },
+      { id: 'previous', label: 'Completed', count: sessions.previous.length, color: 'green', icon: CheckCircle },
+      { id: 'cancelled', label: 'Cancelled', count: sessions.cancelled.length, color: 'red', icon: X }
+    ];
+
     return (
       <div className="space-y-6">
-        {/* Upcoming Sessions */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Upcoming Sessions</h2>
-          <div className="space-y-4">
-            {sessions.upcoming.map((sessionData) => {
-              const session = formatSession(sessionData);
-              
-              return (
-                <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
-                  <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-800 flex items-center">
-                      {session.subject} - {session.title}
-                      {session.meeting_urls && session.meeting_urls.length > 0 && (
-                        <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full flex items-center">
-                          <Video size={12} className="mr-1" />
-                          Meeting Ready
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-gray-600">Student: {session.studentName}</p>
-                    <p className="text-gray-600">{session.date} at {session.time}</p>
-                    <p className="text-green-600 font-medium">${session.amount}</p>
-                    {session.meeting_urls && session.meeting_urls.length > 0 && (
-                      <p className="text-blue-600 text-sm flex items-center mt-1">
-                        <ExternalLink size={14} className="mr-1" />
-                        Zoom meeting available
-                      </p>
-                    )}
-                    </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
-                      className="bg-blue-500 text-white px-3 py-2 rounded text-sm flex items-center space-x-1 hover:bg-blue-600 transition-colors"
-                      title="Start Zoom Meeting"
+        {/* Sessions Header with Stats */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Session Management</h1>
+              <p className="text-blue-100 text-lg">Manage your tutoring sessions and materials</p>
+            </div>
+            {/* <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                <div className="text-2xl font-bold">{stats.completedSessions}</div>
+                <div className="text-blue-200 text-sm">Total Completed</div>
+              </div>
+              <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                <div className="text-2xl font-bold">{stats.upcomingSessions}</div>
+                <div className="text-blue-200 text-sm">Upcoming</div>
+              </div>
+            </div> */}
+          </div>
+        </div>
+
+        {/* Enhanced Tabs Navigation */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              {sessionTabs.map((tab) => {
+                const IconComponent = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveSessionTab(tab.id)}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 relative ${
+                      activeSessionTab === tab.id
+                        ? tab.id === 'upcoming' 
+                          ? 'text-blue-700 bg-blue-50 border-b-2 border-blue-600'
+                          : tab.id === 'previous'
+                          ? 'text-green-700 bg-green-50 border-b-2 border-green-600'
+                          : tab.id === 'cancelled'
+                          ? 'text-red-700 bg-red-50 border-b-2 border-red-600'
+                          : 'text-gray-700 bg-gray-50 border-b-2 border-gray-600'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="flex items-center justify-center space-x-2">
+                      <IconComponent className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        activeSessionTab === tab.id
+                          ? tab.id === 'upcoming' 
+                            ? 'bg-blue-100 text-blue-700'
+                            : tab.id === 'previous'
+                            ? 'bg-green-100 text-green-700'
+                            : tab.id === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Search Bar */}
+          <div className="p-6 border-b border-gray-200 bg-gray-50">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by student name, subject, or title..."
+                value={sessionFilter}
+                onChange={(e) => setSessionFilter(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Sessions Content */}
+          <div className="p-6">
+            {getFilteredSessions().length === 0 ? (
+              <div className="text-center py-12">
+                <div className="mx-auto h-24 w-24 text-gray-300 mb-4">
+                  <BookOpen className="w-full h-full" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {sessionFilter ? 'No matching sessions found' : `No ${activeSessionTab} sessions`}
+                </h3>
+                <p className="text-gray-500">
+                  {sessionFilter 
+                    ? 'Try adjusting your search terms' 
+                    : activeSessionTab === 'ongoing'
+                      ? 'No sessions are currently active'
+                      : `You don't have any ${activeSessionTab} sessions yet`
+                  }
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {getFilteredSessions().map((sessionData) => {
+                  const session = formatSession(sessionData);
+                  return (
+                    <div 
+                      key={session.id} 
+                      className={`bg-white border-2 rounded-xl p-6 transition-all duration-200 hover:shadow-lg ${
+                        activeSessionTab === 'upcoming' 
+                          ? 'border-blue-200 hover:border-blue-300' 
+                          : activeSessionTab === 'ongoing'
+                          ? 'border-orange-200 hover:border-orange-300 bg-gradient-to-br from-orange-50 to-yellow-50'
+                          : activeSessionTab === 'previous' 
+                          ? 'border-green-200 hover:border-green-300' 
+                          : 'border-red-200 hover:border-red-300'
+                      }`}
                     >
-                      <Video size={16} />
-                      <span>Zoom</span>
-                    </button>
-                    <button
-                      onClick={() => requestCancellation(session.id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                      title="Cancel session"
-                    >
-                      Cancel
-                    </button>
-                    </div>
-                  </div>
-                  
-                  {/* Meeting Information Section */}
-                  {session.meeting_urls && session.meeting_urls.length > 0 && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-                        <Video className="w-4 h-4 mr-2" />
-                        Meeting Information
-                      </h4>
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-blue-700">
-                          Zoom meeting is ready for this session
+                      {/* Session Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start space-x-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                            activeSessionTab === 'upcoming' 
+                              ? 'bg-blue-500' 
+                              : activeSessionTab === 'ongoing'
+                              ? 'bg-orange-500'
+                              : activeSessionTab === 'previous' 
+                              ? 'bg-green-500' 
+                              : 'bg-red-500'
+                          }`}>
+                            {session.studentName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                              {session.studentName}
+                              {activeSessionTab === 'ongoing' && (
+                                <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full flex items-center animate-pulse">
+                                  <Clock size={12} className="mr-1" />
+                                  Live Session
+                                </span>
+                              )}
+                              {session.meeting_urls && session.meeting_urls.length > 0 && activeSessionTab === 'upcoming' && (
+                                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full flex items-center">
+                                  <Video size={12} className="mr-1" />
+                                  Meeting Ready
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-gray-600 font-medium">{session.subject}</p>
+                            <p className="text-sm text-gray-500">{session.title}</p>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(session.meeting_urls![0]);
-                            alert('Meeting URL copied to clipboard!');
-                          }}
-                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors"
-                          title="Copy meeting URL"
-                        >
-                          Copy URL
-                        </button>
+                        
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">LKR {session.amount}</div>
+                          {session.rating && activeSessionTab === 'previous' && (
+                            <div className="flex items-center justify-end mt-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < (session.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                              <span className="ml-2 text-sm text-gray-600">({session.rating}/5)</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Materials Section */}
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-800 mb-2">Session Materials</h4>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {session.materials?.map((material, index) => (
-                        <div key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center gap-2 group">
-                          <span>{material}</span>
+
+                      {/* Session Details */}
+                      <div className="grid md:grid-cols-2 gap-6 mb-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center text-gray-700">
+                            <Calendar className="w-5 h-5 mr-3 text-blue-600" />
+                            <div>
+                              <span className="text-sm text-gray-500">Date</span>
+                              <div className="font-semibold">{session.date}</div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center text-gray-700">
+                            <Clock className="w-5 h-5 mr-3 text-green-600" />
+                            <div>
+                              <span className="text-sm text-gray-500">Time</span>
+                              <div className="font-semibold font-mono">{session.time}</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {activeSessionTab === 'cancelled' && session.reason && (
+                          <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                            <p className="text-sm font-medium text-red-800 mb-1">Cancellation Reason:</p>
+                            <p className="text-sm text-red-600">{session.reason}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Review Section for Previous Sessions */}
+                      {session.review && activeSessionTab === 'previous' && (
+                        <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <h4 className="font-medium text-yellow-800 mb-2 flex items-center">
+                            <MessageSquare className="w-4 h-4 mr-2" />
+                            Student Review
+                          </h4>
+                          <p className="text-yellow-700 italic">"{session.review}"</p>
+                        </div>
+                      )}
+
+                      {/* Materials Section for Upcoming Sessions */}
+                      {activeSessionTab === 'upcoming' && (
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-800 flex items-center">
+                              <FileText className="w-4 h-4 mr-2" />
+                              Session Materials
+                            </h4>
+                          </div>
+                          
+                          {session.materials && session.materials.length > 0 ? (
+                            <div className="space-y-2 mb-4">
+                              {session.materials.map((material, index) => (
+                                <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+                                  <span className="text-sm font-medium text-gray-700">{material}</span>
+                                  <button
+                                    onClick={() => removeMaterial(session.id, index, material)}
+                                    className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic mb-4">No materials added yet</p>
+                          )}
+                          
+                          {/* Add material form */}
+                          {selectedSessionId === session.id ? (
+                            <div className="flex space-x-2">
+                              <input
+                                type="text"
+                                value={newMaterial}
+                                onChange={(e) => setNewMaterial(e.target.value)}
+                                placeholder="Enter material name, URL, or description..."
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <button
+                                onClick={() => addMaterial(session.id)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                              >
+                                Add
+                              </button>
+                              <button
+                                onClick={() => setSelectedSessionId(null)}
+                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setSelectedSessionId(session.id)}
+                              className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Material
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      {activeSessionTab === 'upcoming' && (
+                        <div className="flex flex-wrap gap-3">
+                          {session.meeting_urls && session.meeting_urls.length > 0 ? (
+                            <button
+                              onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                            >
+                              <Video className="mr-2" size={18} />
+                              Join Meeting
+                            </button>
+                          ) : (
+                            <div className="flex items-center px-6 py-3 bg-gray-100 text-gray-500 rounded-lg">
+                              <Video className="mr-2" size={18} />
+                              Meeting Not Ready
+                            </div>
+                          )}
+                          
                           <button
-                            onClick={() => removeMaterial(session.id, index, material)}
-                            className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            title="Remove material"
+                            onClick={() => requestCancellation(session.id)}
+                            className="flex items-center px-6 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
                           >
-                            <Trash2 size={12} />
+                            <X className="mr-2" size={18} />
+                            Request Cancellation
                           </button>
                         </div>
-                      ))}
-                    </div>
-                    
-                    {selectedSessionId === session.id ? (
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          value={newMaterial}
-                          onChange={(e) => setNewMaterial(e.target.value)}
-                          placeholder="Add material"
-                          className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
-                        />
-                        <button
-                          onClick={() => addMaterial(session.id)}
-                          className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                        >
-                          Add
-                        </button>
-                        <button
-                          onClick={() => setSelectedSessionId(null)}
-                          className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedSessionId(session.id)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        + Add Material
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                      )}
 
-        {/* Previous Sessions */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Previous Sessions</h2>
-          <div className="space-y-4">
-            {sessions.previous.map((sessionData) => {
-              const session = formatSession(sessionData);
-              return (
-                <div key={session.id} className="border border-gray-200 p-4 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">
-                        {session.subject} - {session.title}
-                      </h3>
-                      <p className="text-gray-600">Student: {session.studentName}</p>
-                      <p className="text-gray-600">{session.date} at {session.time}</p>
-                      <p className="text-green-600 font-medium">${session.amount}</p>
-                    </div>
-                    <div className="text-right">
-                      {session.rating && (
-                        <div className="flex items-center justify-end mb-1">
-                          <span className="text-yellow-500">{'★'.repeat(session.rating)}</span>
-                          <span className="text-gray-400">{'★'.repeat(5 - session.rating)}</span>
+                      {/* Ongoing Session Actions */}
+                      {activeSessionTab === 'ongoing' && (
+                        <div className="flex flex-wrap gap-3">
+                          {session.meeting_urls && session.meeting_urls.length > 0 && (
+                            <button
+                              onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                              className="flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                            >
+                              <Video className="mr-2" size={18} />
+                              Join Meeting
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => finishSession(session.id)}
+                            className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                          >
+                            <CheckCircle className="mr-2" size={18} />
+                            Finish Session
+                          </button>
                         </div>
                       )}
-                      <span className="text-sm text-gray-600">Completed</span>
-                    </div>
-                  </div>
-                  {session.review && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded">
-                      <p className="text-gray-700 text-sm">"{session.review}"</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Cancelled Sessions */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Cancelled Sessions</h2>
-          <div className="space-y-4">
-            {sessions.cancelled.map((sessionData) => {
-              const session = formatSession(sessionData);
-              return (
-                <div key={session.id} className="border border-red-200 p-4 rounded-lg bg-red-50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800">
-                        {session.subject} - {session.title}
-                      </h3>
-                      <p className="text-gray-600">Student: {session.studentName}</p>
-                      <p className="text-gray-600">{session.date} at {session.time}</p>
-                      <p className="text-red-600 font-medium">
-                        ${session.amount} {session.refunded ? '(Refunded)' : '(Pending Refund)'}
-                      </p>
+                      {/* Status Badge */}
+                      <div className="flex justify-end mt-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          activeSessionTab === 'upcoming' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : activeSessionTab === 'ongoing'
+                            ? 'bg-orange-100 text-orange-800'
+                            : activeSessionTab === 'previous' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {activeSessionTab === 'upcoming' ? 'Scheduled' : 
+                           activeSessionTab === 'ongoing' ? 'In Progress' :
+                           activeSessionTab === 'previous' ? 'Completed' : 
+                           session.refunded ? 'Refunded' : 'Cancelled'}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm text-red-600 font-medium">Cancelled</span>
-                  </div>
-                  {session.reason && (
-                    <div className="mt-3">
-                      <p className="text-gray-700 text-sm">
-                        <span className="font-medium">Reason:</span> {session.reason}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   };
+
+
+
 
   const renderEarnings = () => (
     <div className="space-y-6">
@@ -2193,7 +2487,7 @@ const TutorDashboard: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-600">Total Earnings</h3>
               <p className="text-3xl font-bold text-green-600">
-                ${EarningsService.formatCurrency(earningsData?.totalEarnings || tutorProfile.totalEarnings)}
+                LKR {EarningsService.formatCurrency(earningsData?.totalEarnings || tutorProfile.totalEarnings)}
               </p>
               <p className="text-xs text-gray-500 mt-1">Gross revenue</p>
             </div>
@@ -2208,7 +2502,7 @@ const TutorDashboard: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-600">Admin Commission</h3>
               <p className="text-3xl font-bold text-red-600">
-                ${EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
+                LKR {EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
               </p>
               <p className="text-xs text-gray-500 mt-1">Platform fee</p>
             </div>
@@ -2223,7 +2517,7 @@ const TutorDashboard: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-600">Net Earnings</h3>
               <p className="text-3xl font-bold text-blue-600">
-                ${EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
+                LKR {EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
               </p>
               <p className="text-xs text-gray-500 mt-1">Your profit</p>
             </div>
@@ -2238,7 +2532,7 @@ const TutorDashboard: React.FC = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-600">This Month</h3>
               <p className="text-3xl font-bold text-purple-600">
-                ${EarningsService.formatCurrency(earningsData?.thisMonthEarnings || 0)}
+                LKR {EarningsService.formatCurrency(earningsData?.thisMonthEarnings || 0)}
               </p>
               <p className="text-xs text-gray-500 mt-1">Current month</p>
             </div>
@@ -2270,7 +2564,7 @@ const TutorDashboard: React.FC = () => {
                 Average Session Value
               </span>
               <span className="font-semibold text-green-600">
-                ${EarningsService.formatCurrency(earningsData?.averageSessionValue || 0)}
+                LKR {EarningsService.formatCurrency(earningsData?.averageSessionValue || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
@@ -2279,7 +2573,7 @@ const TutorDashboard: React.FC = () => {
                 Platform Commission
               </span>
               <span className="font-semibold text-red-600">
-                -${EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
+                -LKR {EarningsService.formatCurrency(earningsData?.adminCommission || tutorProfile.adminCommission)}
               </span>
             </div>
             <div className="flex justify-between items-center py-3 text-lg font-bold border-t border-gray-300 pt-4">
@@ -2288,7 +2582,7 @@ const TutorDashboard: React.FC = () => {
                 Net Earnings
               </span>
               <span className="text-blue-600">
-                ${EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
+                LKR {EarningsService.formatCurrency(earningsData?.netEarnings || tutorProfile.profit)}
               </span>
             </div>
           </div>
@@ -2303,13 +2597,13 @@ const TutorDashboard: React.FC = () => {
             <div className="flex justify-between items-center py-3">
               <span className="text-gray-700">This Week</span>
               <span className="font-semibold text-blue-600">
-                ${EarningsService.formatCurrency(earningsData?.thisWeekEarnings || 0)}
+                LKR {EarningsService.formatCurrency(earningsData?.thisWeekEarnings || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center py-3">
               <span className="text-gray-700">Today</span>
               <span className="font-semibold text-green-600">
-                ${EarningsService.formatCurrency(earningsData?.todayEarnings || 0)}
+                LKR {EarningsService.formatCurrency(earningsData?.todayEarnings || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center py-3">
@@ -2344,9 +2638,9 @@ const TutorDashboard: React.FC = () => {
                   <p className="text-xs text-gray-500">Status: {payment.payment_status}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-green-600">${EarningsService.formatCurrency(payment.amount)}</p>
-                  <p className="text-sm text-gray-600">Commission: ${EarningsService.formatCurrency(payment.commission)}</p>
-                  <p className="text-sm font-medium text-blue-600">Net: ${EarningsService.formatCurrency(payment.net_amount)}</p>
+                  <p className="font-semibold text-green-600">LKR {EarningsService.formatCurrency(payment.amount)}</p>
+                  <p className="text-sm text-gray-600">Commission: LKR {EarningsService.formatCurrency(payment.commission)}</p>
+                  <p className="text-sm font-medium text-blue-600">Net: LKR {EarningsService.formatCurrency(payment.net_amount)}</p>
                 </div>
               </div>
             ))}
@@ -2672,7 +2966,7 @@ const TutorDashboard: React.FC = () => {
                   </div>
                   <div className="flex items-center">
                     <DollarSign className="w-5 h-5 text-green-300 mr-1" />
-                    <span className="font-semibold">${tutorProfile.hourlyRate}/hour</span>
+                    <span className="font-semibold">LKR {tutorProfile.hourlyRate}/hour</span>
                   </div>
                 </div>
               </div>

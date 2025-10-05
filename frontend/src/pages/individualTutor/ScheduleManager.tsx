@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, AlertCircle, Loader, Save } from 'lucide-react';
 import { ScheduleService, TimeSlot as APITimeSlot, CreateTimeSlotRequest } from '../../api/ScheduleService';
+import { formatDateToString, formatDisplayDate, normalizeTimeSlot, commonStyles } from '../../utils/timeSlotUtils';
 
 interface TimeSlot {
   id: string;
@@ -24,9 +25,10 @@ interface HourSlot {
 
 interface ScheduleManagerProps {
   tutorId: string;
+  onScheduleChange?: () => void;
 }
 
-const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
+const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId, onScheduleChange }) => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
   // Generate hour slots from 6 AM to 12 AM (18 hours total)
   const generateHourSlots = (): HourSlot[] => {
     const slots: HourSlot[] = [];
-    for (let hour = 6; hour < 24; hour++) {
+    for (let hour = 6; hour < 23; hour++) {
       const startHour = hour;
       const endHour = hour + 1;
       
@@ -82,34 +84,22 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
     String(now.getDate()).padStart(2, '0');
   const currentHour = now.getHours();
 
-  // Helper functions
-  const formatDate = (date: Date): string => {
-    return date.getFullYear() + '-' + 
-      String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-      String(date.getDate()).padStart(2, '0');
-  };
-
-  const formatDisplayDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    });
-  };
-
-  const isSlotInPast = (date: string, hour: number): boolean => {
-    if (date < currentDate) return true;
-    if (date === currentDate && hour <= currentHour) return true;
-    return false;
-  };
+  // Helper functions - using utility functions to avoid redundancy
 
   const isSlotInPastWithMinutes = (date: string, hour: number): boolean => {
+    // If the slot date is before today, it's definitely past
     if (date < currentDate) return true;
+    
+    // If it's today, check if the slot start time has passed
     if (date === currentDate) {
-      if (hour < currentHour) return true;
-      if (hour === currentHour) {
-        return true;
-      }
+      const now = new Date();
+      const slotStartTime = new Date();
+      slotStartTime.setHours(hour, 0, 0, 0); // Set to start of the slot hour
+      
+      // Consider past if the current time is past the START of the slot hour
+      return now >= slotStartTime;
     }
+    
     return false;
   };
 
@@ -128,75 +118,30 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
 
   // Convert API time slot to component format
   const convertAPITimeSlot = (apiSlot: APITimeSlot): TimeSlot => {
-    // Handle date conversion
-    let date: string;
-    if (apiSlot.date instanceof Date) {
-      date = formatDate(apiSlot.date);
-    } else if (typeof apiSlot.date === 'string') {
-      // If it's already a string, just take the date part
-      date = apiSlot.date.split('T')[0];
-    } else {
-      date = String(apiSlot.date);
-    }
+    const normalized = normalizeTimeSlot({
+      date: apiSlot.date,
+      start_time: apiSlot.start_time,
+      end_time: apiSlot.end_time
+    });
     
-    // Handle start_time conversion - improved logic
-    let startTime: string;
-    if (apiSlot.start_time instanceof Date) {
-      const timeStr = apiSlot.start_time.toISOString();
-      startTime = timeStr.substr(11, 5); // Extract HH:MM from ISO string
-    } else if (typeof apiSlot.start_time === 'string') {
-      // Check if it's an ISO string or just time
-      if (apiSlot.start_time.includes('T')) {
-        startTime = apiSlot.start_time.split('T')[1].slice(0, 5);
-      } else if (apiSlot.start_time.includes('1970-01-01T')) {
-        // Handle 1970-01-01T format from database
-        startTime = apiSlot.start_time.split('T')[1].slice(0, 5);
-      } else {
-        // Already in HH:MM format
-        startTime = apiSlot.start_time.slice(0, 5);
-      }
-    } else {
-      startTime = String(apiSlot.start_time).slice(0, 5);
-    }
-    
-    // Handle end_time conversion - improved logic
-    let endTime: string;
-    if (apiSlot.end_time instanceof Date) {
-      const timeStr = apiSlot.end_time.toISOString();
-      endTime = timeStr.substr(11, 5); // Extract HH:MM from ISO string
-    } else if (typeof apiSlot.end_time === 'string') {
-      // Check if it's an ISO string or just time
-      if (apiSlot.end_time.includes('T')) {
-        endTime = apiSlot.end_time.split('T')[1].slice(0, 5);
-      } else if (apiSlot.end_time.includes('1970-01-01T')) {
-        // Handle 1970-01-01T format from database
-        endTime = apiSlot.end_time.split('T')[1].slice(0, 5);
-      } else {
-        // Already in HH:MM format
-        endTime = apiSlot.end_time.slice(0, 5);
-      }
-    } else {
-      endTime = String(apiSlot.end_time).slice(0, 5);
-    }
-    
-    console.log(`Converting API slot: date=${date}, startTime=${startTime}, endTime=${endTime}, status=${apiSlot.status}`);
-    
-    return {
+    const convertedSlot: TimeSlot = {
       id: apiSlot.slot_id,
-      date: date,
-      startTime: startTime,
-      endTime: endTime,
+      date: normalized.date,
+      startTime: normalized.startTime,
+      endTime: normalized.endTime || normalized.startTime,
       status: apiSlot.status === 'free' ? 'AVAILABLE' : apiSlot.status === 'booked' ? 'BOOKED' : 'UNAVAILABLE',
       isBooked: apiSlot.status === 'booked',
       studentName: undefined
     };
+    
+    return convertedSlot;
   };
 
   // Initialize weekly schedule with hour slots
   const initializeWeeklySchedule = () => {
     const schedule: { [date: string]: HourSlot[] } = {};
     weekDates.forEach(date => {
-      const dateStr = formatDate(date);
+      const dateStr = formatDateToString(date);
       schedule[dateStr] = generateHourSlots();
     });
     return schedule;
@@ -206,6 +151,8 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
   const updateScheduleWithTimeSlots = (slots: TimeSlot[]) => {
     const schedule = initializeWeeklySchedule();
     
+    // Backend already filters past slots correctly, so we don't need additional frontend filtering
+    // Just use all slots returned from the backend
     slots.forEach(slot => {
       const dateSlots = schedule[slot.date];
       if (dateSlots) {
@@ -220,13 +167,10 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
             isBooked: slot.status === 'BOOKED',
             slotId: slot.id
           };
-        } else {
-          console.log(`No matching hour slot found for hour ${startHour}`);
         }
-      } else {
-        console.log(`No schedule found for date ${slot.date}`);
       }
     });
+    
     setWeeklySchedule(schedule);
   };
 
@@ -236,11 +180,10 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
       setLoading(true);
       setError(null);
       
-      const weekStart = formatDate(currentWeekStart);
-      const weekEnd = formatDate(new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000));
+      const weekStart = formatDateToString(currentWeekStart);
+      const weekEnd = formatDateToString(new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000));
             
       const response = await ScheduleService.getTutorTimeSlots(tutorId, weekStart, weekEnd);
-      
       
       if (response.success) {
         const convertedSlots = response.data.map(convertAPITimeSlot);
@@ -248,12 +191,10 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
         setTimeSlots(convertedSlots);
         updateScheduleWithTimeSlots(convertedSlots);
       } else {
-        console.error('Failed to load time slots:', response);
         setError('Failed to load time slots');
         setWeeklySchedule(initializeWeeklySchedule());
       }
     } catch (err) {
-      console.error('Error loading time slots:', err);
       setError(err instanceof Error ? err.message : 'Failed to load time slots');
       setWeeklySchedule(initializeWeeklySchedule());
     } finally {
@@ -267,6 +208,8 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
       loadTimeSlots();
     }
   }, [tutorId, currentWeekStart]);
+
+
 
   // Navigation functions
   const goToPreviousWeek = () => {
@@ -305,7 +248,6 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
     const newHourSlot = { ...hourSlot };
 
     if (hourSlot.isSelected && hourSlot.slotId) {
-      // Show confirmation for removing available slot
       const confirmed = window.confirm(
         'Are you sure you want to remove this available time slot? Students will no longer be able to book it.'
       );
@@ -313,8 +255,6 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
       if (!confirmed) {
         return;
       }
-
-      // Deselect - delete from database
       try {
         setSaving(true);
         const response = await ScheduleService.deleteTimeSlot(hourSlot.slotId);
@@ -327,6 +267,9 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           
           // Update timeSlots state
           setTimeSlots(prev => prev.filter(slot => slot.id !== hourSlot.slotId));
+          
+          // Notify parent component about schedule change
+          onScheduleChange?.();
         } else {
           alert('Failed to remove time slot: ' + (response.message || 'Unknown error'));
         }
@@ -353,12 +296,16 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           newHourSlot.slotId = newTimeSlot.id;
           newSchedule[date][hourIndex] = newHourSlot;
           setWeeklySchedule(newSchedule);
+          
+          // Update timeSlots state
           setTimeSlots(prev => [...prev, newTimeSlot]);
+          
+          // Notify parent component about schedule change
+          onScheduleChange?.();
         } else {
           alert('Failed to create time slot: ' + (response.message || 'Unknown error'));
         }
       } catch (err) {
-        console.error('Error creating time slot:', err);
         alert(err instanceof Error ? err.message : 'Failed to create time slot');
       } finally {
         setSaving(false);
@@ -461,7 +408,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
               Time
             </div>
             {weekDates.map((date, index) => {
-              const dateStr = formatDate(date);
+              const dateStr = formatDateToString(date);
               const dayName = daysOfWeek[index];
               const isToday = dateStr === currentDate;
               const isPast = dateStr < currentDate;
@@ -495,7 +442,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
               
               {/* Hour Slots for Each Day */}
               {weekDates.map(date => {
-                const dateStr = formatDate(date);
+                const dateStr = formatDateToString(date);
                 const hourSlot = weeklySchedule[dateStr]?.[hourIndex] || hourTemplate;
                 const isPast = isSlotInPastWithMinutes(dateStr, hourSlot.hour);
                 const isToday = dateStr === currentDate;
@@ -583,7 +530,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId }) => {
           <p>• Click empty slots to make them available for booking</p>
           <p>• Click available slots again to remove them (confirmation will be shown)</p>
           <p>• Changes are saved automatically</p>
-          <p>• Booked slots cannot be modified</p>
+          <p>• Booked slots cannot be modified (students have reserved them)</p>
           <p>• Past time slots are automatically hidden</p>
         </div>
       </div>
