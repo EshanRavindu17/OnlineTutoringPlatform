@@ -141,6 +141,24 @@ export const adminApi = {
       method: 'PUT',
     });
   },
+
+  // Get current commission rate
+  async getCommission() {
+    return request('/finance/commission');
+  },
+
+  // Update commission rate
+  async updateCommission(rate: number) {
+    return request('/finance/commission', {
+      method: 'PUT',
+      body: JSON.stringify({ rate }),
+    });
+  },
+
+  // Get comprehensive finance analytics
+  async getFinanceAnalytics() {
+    return request('/finance/analytics');
+  },
 };
 
 // Tutor application moderation endpoints

@@ -25,6 +25,11 @@ import {
   listAllReportsController,
   toggleReportStatusController,
 } from '../controllers/report.controller';
+import {
+  getCommissionController,
+  updateCommissionController,
+  getFinanceAnalyticsController,
+} from '../controllers/finance.controller';
 
 const r = Router();
 
@@ -54,5 +59,10 @@ r.delete('/policies/:id', requireAdminJWT, deletePolicy);
 // Reports / Complaints — secured
 r.get('/reports', requireAdminJWT, listAllReportsController);
 r.put('/reports/:id/toggle-status', requireAdminJWT, toggleReportStatusController);
+
+// Finance — secured
+r.get('/finance/commission', requireAdminJWT, getCommissionController);
+r.put('/finance/commission', requireAdminJWT, updateCommissionController);
+r.get('/finance/analytics', requireAdminJWT, getFinanceAnalyticsController);
 
 export default r;

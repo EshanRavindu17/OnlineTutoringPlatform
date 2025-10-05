@@ -53,6 +53,7 @@ import TutorSuspend from './admin/TutorSuspend';
 import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
 import Complaints from './admin/Complaints';
+import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
 
@@ -138,6 +139,7 @@ const App = () => {
             <Route path="analytics" element={<Analytics />} />
             <Route path="broadcast" element={<Broadcast />} />
             <Route path="complaints" element={<Complaints />} />
+            <Route path="finance" element={<Finance />} />
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>

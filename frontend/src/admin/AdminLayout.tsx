@@ -40,6 +40,12 @@ const nav = [
     description: 'Manage student reports'
   },
   { 
+    to: '/admin/finance', 
+    label: 'Finance & Revenue', 
+    icon: MoneyIcon,
+    description: 'Manage commission and payments'
+  },
+  { 
     to: '/admin/policies', 
     label: 'Policies', 
     icon: DocIcon,
@@ -225,6 +231,10 @@ function MegaphoneIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 function FlagIcon({ className = "w-4 h-4" }: { className?: string }) {
   return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 1 1-1h12a1 1 0 0 1 .707 1.707L14.414 6l2.293 2.293A1 1 0 0 1 16 10H4v7a1 1 0 1 1-2 0V3z"/></svg>;
+}
+
+function MoneyIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267zM10 0a10 10 0 1010 10A10.011 10.011 0 0010 0zm0 18a8 8 0 118-8 8.009 8.009 0 01-8 8zm1-13h2a1 1 0 010 2h-2v1.849c.863.142 1.683.521 2.217 1.15C14.13 10.95 14 11.924 14 12c0 .914-.53 1.712-1.217 2.217C12.183 14.848 11.363 15.227 10.5 15.369V16h-1v-.631c-.863-.142-1.683-.521-2.217-1.15C6.37 13.05 6.5 12.076 6.5 12c0-.914.53-1.712 1.217-2.217C8.317 9.152 9.137 8.773 10 8.631V7H8a1 1 0 010-2h2V4h1v1z"/></svg>;
 }
 
 function DocIcon({ className = "w-4 h-4" }: { className?: string }) {
