@@ -312,27 +312,63 @@ class SessionService {
     }
   }
 
-  // Helper method to format session data for display
-  formatSessionForDisplay(session: SessionWithDetails) {
-    return {
-      id: session.session_id,
-      studentName: session.Student?.User.name || 'Unknown Student',
-      studentEmail: session.Student?.User.email || '',
-      studentPhoto: session.Student?.User.photo_url || null,
-      subject: session.title || 'No Subject',
-      title: session.title || 'No Title',
-      date: session.date ? new Date(session.date).toISOString().split('T')[0] : '',
-      time: session.start_time && session.end_time 
-        ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
-        : 'Time not set',
-      amount: session.price || 0,
-      status: session.status || 'scheduled',
-      materials: session.materials || [],
-      meetingUrls: session.meeting_urls || [],
-      rating: session.Rating_N_Review_Session?.[0]?.rating || null,
-      review: session.Rating_N_Review_Session?.[0]?.review || null,
-    };
+  // Finish an ongoing session
+  async finishSession(firebaseUid: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/finish/${sessionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'completed',
+          end_time: new Date().toISOString()
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'Failed to finish session'
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Session marked as completed successfully'
+      };
+    } catch (error) {
+      console.error('Error finishing session:', error);
+      return {
+        success: false,
+        message: 'Network error occurred while finishing session'
+      };
+    }
   }
+
+  // Helper method to format session data for display
+  // formatSessionForDisplay(session: SessionWithDetails) {
+  //   return {
+  //     id: session.session_id,
+  //     studentName: session.Student?.User.name || 'Unknown Student',
+  //     studentEmail: session.Student?.User.email || '',
+  //     studentPhoto: session.Student?.User.photo_url || null,
+  //     subject: session.title || 'No Subject',
+  //     title: session.title || 'No Title',
+  //     date: session.date ? new Date(session.date).toISOString().split('T')[0] : '',
+  //     time: session.start_time && session.end_time 
+  //       ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
+  //       : 'Time not set',
+  //     amount: session.price || 0,
+  //     status: session.status || 'scheduled',
+  //     materials: session.materials || [],
+  //     meetingUrls: session.meeting_urls || [],
+  //     rating: session.Rating_N_Review_Session?.[0]?.rating || null,
+  //     review: session.Rating_N_Review_Session?.[0]?.review || null,
+  //   };
+  // }
 }
 
 export const sessionService = new SessionService();
