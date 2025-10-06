@@ -12,7 +12,11 @@ import {
   getSessionById,
   getTutorSessionsInDateRange,
   getTutorTodaySessions,
-  getSessionMaterials
+  getSessionMaterials,
+  startSession,
+  completeSession,
+  autoExpireScheduledSessions,
+  autoCompleteLongRunningSessions
 } from "../services/sessionService";
 import { SessionStatus } from "@prisma/client";
 import { getTutorIdByFirebaseUid } from "../services/scheduleService";
@@ -1066,6 +1070,148 @@ export const batchUploadMaterialsController = async (req: Request, res: Response
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : 'Batch upload failed'
+    });
+  }
+};
+
+// Start Session Controller (for Zoom button functionality)
+export const startSessionController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    const updatedSession = await startSession(tutorId, sessionId);
+    
+    return res.status(200).json({
+      success: true,
+      message: "Session started successfully",
+      data: updatedSession
+    });
+  } catch (error) {
+    console.error("Error starting session:", error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('not in scheduled status')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+      if (error.message.includes('not an individual tutor') || 
+          error.message.includes('profile not found')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to start session",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+};
+
+// Complete Session Controller 
+export const completeSessionController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    
+    if (!firebaseUid || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID and session ID are required"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    const updatedSession = await completeSession(tutorId, sessionId);
+    
+    return res.status(200).json({
+      success: true,
+      message: "Session completed successfully",
+      data: updatedSession
+    });
+  } catch (error) {
+    console.error("Error completing session:", error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || 
+          error.message.includes('not in ongoing status')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+      if (error.message.includes('not an individual tutor') || 
+          error.message.includes('profile not found')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to complete session",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+};
+
+// Auto-expire sessions controller (for cleanup jobs)
+export const autoExpireSessionsController = async (req: Request, res: Response) => {
+  try {
+    const result = await autoExpireScheduledSessions();
+    
+    return res.status(200).json({
+      success: true,
+      message: `Auto-expired ${result.expiredCount} sessions`,
+      data: result
+    });
+  } catch (error) {
+    console.error("Error auto-expiring sessions:", error);
+    
+    return res.status(500).json({
+      success: false,
+      message: "Failed to auto-expire sessions",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+};
+
+// Auto-complete long running sessions controller
+export const autoCompleteSessionsController = async (req: Request, res: Response) => {
+  try {
+    const result = await autoCompleteLongRunningSessions();
+    
+    return res.status(200).json({
+      success: true,
+      message: `Auto-completed ${result.completedCount} sessions`,
+      data: result
+    });
+  } catch (error) {
+    console.error("Error auto-completing sessions:", error);
+    
+    return res.status(500).json({
+      success: false,
+      message: "Failed to auto-complete sessions",
+      error: error instanceof Error ? error.message : "Unknown error"
     });
   }
 };

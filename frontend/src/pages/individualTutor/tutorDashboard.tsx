@@ -627,17 +627,21 @@ const TutorDashboard: React.FC = () => {
         console.log('Loading sessions data for user:', currentUser.uid);
         
         // Use dedicated endpoints for better performance and accuracy
-        const [allSessions, upcomingSessions, ongoingSessions, statistics] = await Promise.all([
+        const [allSessions, upcomingSessions, ongoingSessions, completedSessions, cancelledSessions, statistics] = await Promise.all([
           sessionService.getAllSessions(currentUser.uid),
           sessionService.getUpcomingSessions(currentUser.uid),
           sessionService.getSessionsByStatus(currentUser.uid, 'ongoing'),
+          sessionService.getSessionsByStatus(currentUser.uid, 'completed'),
+          sessionService.getSessionsByStatus(currentUser.uid, 'canceled'), // Get only latest canceled sessions
           sessionService.getSessionStatistics(currentUser.uid)
         ]);
 
         console.log('Received sessions:', {
           total: allSessions.length,
           upcoming: upcomingSessions.length,
-          ongoing: ongoingSessions.length
+          ongoing: ongoingSessions.length,
+          completed: completedSessions.length,
+          cancelled: cancelledSessions.length
         });
 
         setSessionStats(statistics);
@@ -648,34 +652,25 @@ const TutorDashboard: React.FC = () => {
         // Sort ongoing sessions by start time (earliest first)
         const sortedOngoing = ongoingSessions.sort((a, b) => getSessionStartTime(a) - getSessionStartTime(b));
         
-        // Filter completed and cancelled sessions from all sessions
-        const completedSessions = allSessions.filter(session => 
-          session.status === 'completed'
-        );
+        // Sort previous sessions by date (most recent first) - backend should already sort, but ensure it
+        const sortedCompleted = completedSessions.sort((a, b) => getSessionStartTime(b) - getSessionStartTime(a));
         
-        // Sort previous sessions by date (most recent first)
-        completedSessions.sort((a, b) => getSessionStartTime(b) - getSessionStartTime(a));
-        
-        const cancelledSessions = allSessions.filter(session => 
-          session.status === 'canceled'
-        );
-        
-        // Sort cancelled sessions by date (most recent first)  
-        cancelledSessions.sort((a, b) => getSessionStartTime(b) - getSessionStartTime(a));
+        // Cancelled sessions are already limited and sorted by the backend (latest 10)
+        const sortedCancelled = cancelledSessions;
         
         setSessions({
           upcoming: sortedUpcoming,
           ongoing: sortedOngoing,
-          previous: completedSessions,
-          cancelled: cancelledSessions,
+          previous: sortedCompleted,
+          cancelled: sortedCancelled,
           all: allSessions
         });
 
         console.log('Sessions updated in state:', {
           upcoming: sortedUpcoming.length,
           ongoing: sortedOngoing.length,
-          previous: completedSessions.length,
-          cancelled: cancelledSessions.length
+          previous: sortedCompleted.length,
+          cancelled: sortedCancelled.length
         });
 
       } catch (error) {
@@ -944,16 +939,31 @@ const TutorDashboard: React.FC = () => {
     }
   }, [sessions.ongoing.length, activeSessionTab]);
 
-  // Periodic check for session state changes
+  // Periodic check for session state changes and button availability
   useEffect(() => {
     const interval = setInterval(() => {
       if (currentUser?.uid) {
+        // Force re-render to update button visibility based on current time
+        setStats(prev => ({ ...prev })); // Trigger re-render
+        // Also refresh session data to catch any backend updates
         loadSessionsData();
       }
-    }, 30000); // Check every 30 seconds
+    }, 60000); // Check every 60 seconds (1 minute) for button availability
 
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  // More frequent check specifically for button state updates (every 30 seconds)
+  useEffect(() => {
+    const quickInterval = setInterval(() => {
+      // Just trigger a state update to refresh button visibility
+      if (activeSessionTab === 'upcoming') {
+        setStats(prev => ({ ...prev })); // Force re-render without API call
+      }
+    }, 30000); // Check every 30 seconds for button state
+
+    return () => clearInterval(quickInterval);
+  }, [activeSessionTab]);
 
   // Helper function to extract time from slot format (using UTC to avoid timezone issues)
   const extractTimeFromSlot = (slot: string | Date): string => {
@@ -961,6 +971,118 @@ const TutorDashboard: React.FC = () => {
     const hours = date.getUTCHours().toString().padStart(2, '0');
     const minutes = date.getUTCMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
+  };
+
+  // Helper function to check if session start time has arrived
+  const isSessionTimeArrived = (session: SessionWithDetails): boolean => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (!session.date || !session.slots || session.slots.length === 0) {
+      return true; // If no time info, allow starting (fallback behavior)
+    }
+    
+    const sessionDate = new Date(session.date);
+    sessionDate.setHours(0, 0, 0, 0);
+    
+    // If session is not today, don't show button
+    if (sessionDate.getTime() !== today.getTime()) {
+      return sessionDate.getTime() < today.getTime(); // Show if session date has passed
+    }
+    
+    // If session is today, check if the start time has arrived
+    const firstSlot: any = session.slots[0];
+    let sessionHour: number;
+    let sessionMinute: number;
+    
+    if (firstSlot instanceof Date) {
+      sessionHour = firstSlot.getUTCHours();
+      sessionMinute = firstSlot.getUTCMinutes();
+    } else {
+      const timeStr = String(firstSlot);
+      if (timeStr.includes('T')) {
+        // ISO format like "1970-01-01T12:00:00.000Z"
+        const timePart = timeStr.split('T')[1];
+        const [hours, minutes] = timePart.split(':').map(Number);
+        sessionHour = hours;
+        sessionMinute = minutes || 0;
+      } else if (timeStr.includes(':')) {
+        // Direct time format like "12:00"
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        sessionHour = hours;
+        sessionMinute = minutes || 0;
+      } else {
+        // If we can't parse the time, allow starting
+        return true;
+      }
+    }
+    
+    // Create session start time for today
+    const sessionStartTime = new Date();
+    sessionStartTime.setHours(sessionHour, sessionMinute, 0, 0);
+    
+    // Allow starting from the session time onwards
+    return now.getTime() >= sessionStartTime.getTime();
+  };
+
+  // Helper function to get time remaining until session can be started
+  const getTimeUntilCanStart = (session: SessionWithDetails): string => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (!session.date || !session.slots || session.slots.length === 0) {
+      return '';
+    }
+    
+    const sessionDate = new Date(session.date);
+    sessionDate.setHours(0, 0, 0, 0);
+    
+    // If not today, return empty (button should not show)
+    if (sessionDate.getTime() !== today.getTime()) {
+      return '';
+    }
+    
+    // Calculate session start time
+    const firstSlot: any = session.slots[0];
+    let sessionHour: number;
+    let sessionMinute: number;
+    
+    if (firstSlot instanceof Date) {
+      sessionHour = firstSlot.getUTCHours();
+      sessionMinute = firstSlot.getUTCMinutes();
+    } else {
+      const timeStr = String(firstSlot);
+      if (timeStr.includes('T')) {
+        const timePart = timeStr.split('T')[1];
+        const [hours, minutes] = timePart.split(':').map(Number);
+        sessionHour = hours;
+        sessionMinute = minutes || 0;
+      } else if (timeStr.includes(':')) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        sessionHour = hours;
+        sessionMinute = minutes || 0;
+      } else {
+        return '';
+      }
+    }
+    
+    const sessionStartTime = new Date();
+    sessionStartTime.setHours(sessionHour, sessionMinute, 0, 0);
+    
+    const timeDiff = sessionStartTime.getTime() - now.getTime();
+    
+    if (timeDiff <= 0) return '';
+    
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
   };
 
   // Helper function to calculate session time range from slots
@@ -1546,6 +1668,42 @@ const TutorDashboard: React.FC = () => {
     closeSessionActions();
   };
 
+  const completeSession = async (sessionId: string, studentName: string) => {
+    try {
+      if (!currentUser?.uid) {
+        alert('Please log in to complete the session');
+        return;
+      }
+
+      // Confirm completion
+      const confirmed = window.confirm(
+        `Are you sure you want to complete the session with ${studentName}?\n\n` +
+        `This action cannot be undone.`
+      );
+
+      if (!confirmed) return;
+
+      await sessionService.completeSession(currentUser.uid, sessionId);
+      
+      // Show success message
+      const tempMessage = document.createElement('div');
+      tempMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+      tempMessage.textContent = `Session with ${studentName} completed successfully!`;
+      document.body.appendChild(tempMessage);
+      
+      setTimeout(() => {
+        document.body.removeChild(tempMessage);
+      }, 3000);
+
+      // Reload sessions to show updated status
+      await loadSessionsData();
+    } catch (error) {
+      console.error('Error completing session:', error);
+      alert(`Failed to complete session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // Legacy method for backward compatibility
   const finishSession = async (sessionId: string) => {
     if (currentUser?.uid) {
       try {
@@ -1568,30 +1726,71 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  const handleZoomMeeting = (sessionId: string, studentName: string, meetingUrls?: string[]) => {
-    // Get the Zoom URL from meeting_urls[0] if available
-    const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
-    
-    if (zoomLink) {
-      // Confirm before opening the meeting
-      const confirmed = window.confirm(
-        `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab.`
-      );
-      
-      if (confirmed) {
-        // Open the actual Zoom meeting in a new tab
-        window.open(zoomLink, '_blank');
+  const handleZoomMeeting = async (sessionId: string, studentName: string, meetingUrls?: string[]) => {
+    try {
+      // First, start the session (change status from scheduled to ongoing)
+      if (currentUser?.uid) {
+        await sessionService.startSession(currentUser.uid, sessionId);
+        
+        // Reload sessions to reflect the status change
+        await loadSessionsData();
+        
+        // Show success message briefly
+        const tempMessage = document.createElement('div');
+        tempMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        tempMessage.textContent = `Session with ${studentName} has been started!`;
+        document.body.appendChild(tempMessage);
+        
+        setTimeout(() => {
+          document.body.removeChild(tempMessage);
+        }, 3000);
       }
-    } else {
-      // Fallback if no meeting URL is available
-      alert(
-        `❌ No Zoom meeting URL found for this session with ${studentName}.\n\n` +
-        `Possible reasons:\n` +
-        `• The meeting hasn't been set up yet\n` +
-        `• The session is scheduled for later\n` +
-        `• Technical issue with meeting creation\n\n` +
-        `Please contact the student or admin for assistance.`
-      );
+
+      // Then open Zoom link
+      const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
+      
+      if (zoomLink) {
+        // Confirm before opening the meeting
+        const confirmed = window.confirm(
+          `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab and mark the session as ongoing.`
+        );
+        
+        if (confirmed) {
+          // Open the actual Zoom meeting in a new tab
+          window.open(zoomLink, '_blank');
+        }
+      } else {
+        // No zoom link available - provide options to add one
+        const addUrl = window.confirm(
+          `Session started successfully!\n\n` +
+          `❌ No Zoom meeting URL found for this session with ${studentName}.\n\n` +
+          `Would you like to add a meeting URL now?`
+        );
+        
+        if (addUrl) {
+          const meetingUrl = prompt('Please enter the meeting URL:');
+          if (meetingUrl && meetingUrl.trim() && currentUser?.uid) {
+            try {
+              await sessionService.addMeetingUrl(currentUser.uid, sessionId, meetingUrl.trim());
+              
+              // Show success and reload sessions
+              alert(`Meeting URL added successfully!\n\nURL: ${meetingUrl}`);
+              await loadSessionsData();
+              
+              // Offer to open the newly added URL
+              if (window.confirm('Would you like to open the meeting now?')) {
+                window.open(meetingUrl.trim(), '_blank');
+              }
+            } catch (error) {
+              console.error('Error adding meeting URL:', error);
+              alert('Failed to add meeting URL. Please try again.');
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error starting session:', error);
+      alert(`Failed to start session: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -2611,6 +2810,18 @@ const TutorDashboard: React.FC = () => {
 
           {/* Sessions Content */}
           <div className="p-6">
+            {/* Info note for cancelled sessions */}
+            {activeSessionTab === 'cancelled' && sessions.cancelled.length > 0 && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mr-2" />
+                  <p className="text-sm text-amber-700">
+                    Showing the latest 10 cancelled sessions. Older cancellations are archived to keep the interface clean.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             {getFilteredSessions().length === 0 ? (
               <div className="text-center py-12">
                 <div className="mx-auto h-24 w-24 text-gray-300 mb-4">
@@ -2624,6 +2835,8 @@ const TutorDashboard: React.FC = () => {
                     ? 'Try adjusting your search terms' 
                     : activeSessionTab === 'ongoing'
                       ? 'No sessions are currently active'
+                      : activeSessionTab === 'cancelled'
+                      ? 'You have no recent cancelled sessions'
                       : `You don't have any ${activeSessionTab} sessions yet`
                   }
                 </p>
@@ -2714,6 +2927,31 @@ const TutorDashboard: React.FC = () => {
                             <div>
                               <span className="text-sm text-gray-500">Time</span>
                               <div className="font-semibold font-mono">{session.time}</div>
+                              {/* Show time status for upcoming sessions */}
+                              {activeSessionTab === 'upcoming' && (() => {
+                                const originalSession = getFilteredSessions().find(s => s.session_id === session.id);
+                                if (originalSession) {
+                                  const canStart = isSessionTimeArrived(originalSession);
+                                  const timeUntilStart = getTimeUntilCanStart(originalSession);
+                                  
+                                  if (canStart) {
+                                    return (
+                                      <div className="text-xs text-green-600 font-medium flex items-center mt-1">
+                                        <CheckCircle size={12} className="mr-1" />
+                                        Ready to start
+                                      </div>
+                                    );
+                                  } else if (timeUntilStart) {
+                                    return (
+                                      <div className="text-xs text-orange-600 font-medium flex items-center mt-1">
+                                        <Clock size={12} className="mr-1" />
+                                        Starts in {timeUntilStart}
+                                      </div>
+                                    );
+                                  }
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -2835,20 +3073,31 @@ const TutorDashboard: React.FC = () => {
                       {/* Action Buttons */}
                       {activeSessionTab === 'upcoming' && (
                         <div className="flex flex-wrap gap-3">
-                          {session.meeting_urls && session.meeting_urls.length > 0 ? (
-                            <button
-                              onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
-                              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                            >
-                              <Video className="mr-2" size={18} />
-                              Join Meeting
-                            </button>
-                          ) : (
-                            <div className="flex items-center px-6 py-3 bg-gray-100 text-gray-500 rounded-lg">
-                              <Video className="mr-2" size={18} />
-                              Meeting Not Ready
-                            </div>
-                          )}
+                          {/* Check if session time has arrived */}
+                          {(() => {
+                            const originalSession = getFilteredSessions().find(s => s.session_id === session.id);
+                            const canStart = originalSession ? isSessionTimeArrived(originalSession) : false;
+                            const timeUntilStart = originalSession ? getTimeUntilCanStart(originalSession) : '';
+                            
+                            if (canStart) {
+                              return (
+                                <button
+                                  onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                                  className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                >
+                                  <Video className="mr-2" size={18} />
+                                  {session.meeting_urls && session.meeting_urls.length > 0 ? 'Start Session & Join Meeting' : 'Start Session'}
+                                </button>
+                              );
+                            } else {
+                              return (
+                                <div className="flex items-center px-6 py-3 bg-gray-100 text-gray-500 rounded-lg border-2 border-dashed border-gray-300">
+                                  <Clock className="mr-2" size={18} />
+                                  {timeUntilStart ? `Available in ${timeUntilStart}` : 'Session not ready'}
+                                </div>
+                              );
+                            }
+                          })()}
                           
                           <button
                             onClick={() => {
@@ -2861,7 +3110,7 @@ const TutorDashboard: React.FC = () => {
                             className="flex items-center px-6 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
                           >
                             <X className="mr-2" size={18} />
-                            Session Actions
+                            Cancel Session
                           </button>
                         </div>
                       )}
@@ -2871,7 +3120,15 @@ const TutorDashboard: React.FC = () => {
                         <div className="flex flex-wrap gap-3">
                           {session.meeting_urls && session.meeting_urls.length > 0 && (
                             <button
-                              onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                              onClick={() => {
+                                // For ongoing sessions, just open the meeting without changing status
+                                const zoomLink = session.meeting_urls && session.meeting_urls.length > 0 ? session.meeting_urls[0] : null;
+                                if (zoomLink) {
+                                  window.open(zoomLink, '_blank');
+                                } else {
+                                  alert('No meeting URL available for this session');
+                                }
+                              }}
                               className="flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
                             >
                               <Video className="mr-2" size={18} />
@@ -2880,11 +3137,11 @@ const TutorDashboard: React.FC = () => {
                           )}
                           
                           <button
-                            onClick={() => finishSession(session.id)}
+                            onClick={() => completeSession(session.id, session.studentName)}
                             className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                           >
                             <CheckCircle className="mr-2" size={18} />
-                            Finish Session
+                            Complete Session
                           </button>
                         </div>
                       )}

@@ -218,6 +218,109 @@ export const createPaymentConfirmationEmail = (data: {
 };
 
 /**
+ * Session completion email template
+ */
+export const createSessionCompletionEmail = (data: {
+  type: 'student' | 'tutor';
+  studentName: string;
+  tutorName: string;
+  sessionDate: string;
+  sessionTime: string;
+  sessionSubject?: string;
+  sessionDuration?: string;
+  amount?: number;
+}): EmailContent => {
+  const { type, studentName, tutorName, sessionDate, sessionTime, sessionSubject, sessionDuration, amount } = data;
+  
+  const isStudent = type === 'student';
+  
+  const templateOptions = {
+    title: 'Session Completed! ✅',
+    content: isStudent
+      ? `<p>Dear <strong>${studentName}</strong>,</p>
+         <p>Your tutoring session with <strong>${tutorName}</strong> has been successfully completed. We hope you had a great learning experience!</p>
+         <p>Please consider leaving a review to help other students and support your tutor.</p>`
+      : `<p>Dear <strong>${tutorName}</strong>,</p>
+         <p>Your tutoring session with <strong>${studentName}</strong> has been marked as completed. Thank you for providing quality education!</p>
+         <p>Your payment will be processed according to our standard schedule.</p>`,
+    
+    alertType: 'success' as const,
+    alertMessage: 'Session successfully completed!',
+    
+    details: [
+      { label: isStudent ? 'Tutor' : 'Student', value: isStudent ? tutorName : studentName },
+      { label: 'Date', value: sessionDate },
+      { label: 'Time', value: sessionTime },
+      ...(sessionSubject ? [{ label: 'Subject', value: sessionSubject }] : []),
+      ...(sessionDuration ? [{ label: 'Duration', value: sessionDuration }] : []),
+      ...(amount && isStudent ? [{ label: 'Session Fee', value: `Rs. ${amount}` }] : [])
+    ],
+    
+    footerMessage: isStudent 
+      ? 'Thank you for choosing Tutorly for your learning journey'
+      : 'Thank you for being part of the Tutorly community'
+  };
+
+  return {
+    subject: 'Session Completed Successfully',
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
+ * Auto-cancellation email template (for sessions not started by tutor)
+ */
+export const createAutoCancellationEmail = (data: {
+  type: 'student' | 'tutor';
+  studentName: string;
+  tutorName: string;
+  sessionDate: string;
+  sessionTime: string;
+  sessionSubject?: string;
+  refundAmount?: number;
+}): EmailContent => {
+  const { type, studentName, tutorName, sessionDate, sessionTime, sessionSubject, refundAmount } = data;
+  
+  const isStudent = type === 'student';
+  
+  const templateOptions = {
+    title: 'Session Auto-Cancelled ⚠️',
+    content: isStudent
+      ? `<p>Dear <strong>${studentName}</strong>,</p>
+         <p>Your tutoring session with <strong>${tutorName}</strong> has been automatically cancelled because the tutor did not start the session within the allocated time window.</p>
+         <p>We sincerely apologize for this inconvenience. This is not the standard of service we strive to provide.</p>
+         ${refundAmount ? `<p>A full refund of <strong>Rs. ${refundAmount}</strong> will be processed automatically within 3-5 business days.</p>` : ''}
+         <p>We encourage you to book another session with a different tutor or reschedule with the same tutor if they become available.</p>`
+      : `<p>Dear <strong>${tutorName}</strong>,</p>
+         <p>Your scheduled tutoring session with <strong>${studentName}</strong> has been automatically cancelled because it was not started within the required time window.</p>
+         <p>As per our policy, sessions must be started within 15 minutes of the scheduled end time to ensure a positive experience for students.</p>
+         <p>The student has been automatically refunded, and this may affect your tutor rating. Please ensure you're available and ready for your scheduled sessions.</p>`,
+    
+    alertType: 'error' as const,
+    alertMessage: isStudent ? 'Session cancelled due to tutor absence' : 'Session auto-cancelled - action required',
+    
+    details: [
+      { label: isStudent ? 'Tutor' : 'Student', value: isStudent ? tutorName : studentName },
+      { label: 'Scheduled Date', value: sessionDate },
+      { label: 'Scheduled Time', value: sessionTime },
+      ...(sessionSubject ? [{ label: 'Subject', value: sessionSubject }] : []),
+      ...(refundAmount ? [{ label: 'Refund Amount', value: `Rs. ${refundAmount}` }] : [])
+    ],
+    
+    footerMessage: isStudent 
+      ? 'We are committed to providing you with reliable tutoring services'
+      : 'Please ensure punctuality for future sessions to maintain your tutor rating'
+  };
+
+  return {
+    subject: 'Session Auto-Cancelled - Immediate Action Required',
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
  * Welcome email template for new users
  */
 export const createWelcomeEmail = (data: {
