@@ -27,6 +27,23 @@ import {User,Calendar,DollarSign,Star,BookOpen,Clock,TrendingUp,Award,Users,Edit
   Camera,
   Search
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart
+} from 'recharts';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../context/authContext';
 import { Subject, Title, tutorService } from '../../api/TutorService';
@@ -3338,7 +3355,7 @@ const TutorDashboard: React.FC = () => {
         </h2>
         {recentPayments.length > 0 ? (
           <div className="space-y-3">
-            {recentPayments.slice(0, 8).map((payment) => (
+            {recentPayments.slice(0, 6).map((payment) => (
               <div key={payment.session_id} className="flex justify-between items-center py-3 border-b border-gray-200 hover:bg-gray-50 transition-colors rounded-lg px-3">
                 <div className="flex-1">
                   <p className="font-medium text-gray-800">{payment.student_name}</p>
@@ -3583,55 +3600,731 @@ const TutorDashboard: React.FC = () => {
   // Add Analytics Component
   const renderAnalytics = () => (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-          <BarChart3 className="mr-3 text-purple-600" size={24} />
-          Performance Analytics
-        </h2>
-        
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-green-600 mb-2">{stats.monthlyEarnings}</div>
-            <div className="text-sm text-gray-600">Monthly Revenue</div>
-            <div className="text-xs text-green-600 mt-1">↗ +12% from last month</div>
+      {/* Analytics Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-8 rounded-2xl shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Performance Analytics</h1>
+            <p className="text-purple-100 text-lg">Comprehensive insights into your tutoring performance</p>
           </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600 mb-2">{stats.completedSessions}</div>
-            <div className="text-sm text-gray-600">Sessions Completed</div>
-            <div className="text-xs text-blue-600 mt-1">↗ +8% from last month</div>
+          <div className="bg-white bg-opacity-20 rounded-lg p-4">
+            <BarChart3 className="w-12 h-12 text-white" />
           </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-yellow-600 mb-2">{stats.averageRating}</div>
-            <div className="text-sm text-gray-600">Average Rating</div>
-            <div className="text-xs text-yellow-600 mt-1">→ Same as last month</div>
+        </div>
+      </div>
+
+      {/* Key Performance Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Earnings */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-green-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Total</span>
           </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600 mb-2">{stats.responseRate}%</div>
-            <div className="text-sm text-gray-600">Response Rate</div>
-            <div className="text-xs text-purple-600 mt-1">↗ +3% from last month</div>
+          <div className="text-2xl font-bold text-gray-900 mb-1">
+            LKR {earningsData ? EarningsService.formatCurrency(earningsData.netEarnings) : '0'}
+          </div>
+          <div className="text-sm text-gray-600">Net Earnings</div>
+          <div className="text-xs text-green-600 mt-2 flex items-center">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            {earningsData ? `${earningsData.paidPayments} payments` : 'No payments yet'}
           </div>
         </div>
 
-        {/* Charts Placeholder */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Earnings Trend</h3>
+        {/* This Month Earnings */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-blue-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-blue-600" />
+            </div>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Month</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mb-1">
+            LKR {earningsData ? EarningsService.formatCurrency(earningsData.thisMonthEarnings) : '0'}
+          </div>
+          <div className="text-sm text-gray-600">This Month</div>
+          <div className="text-xs text-blue-600 mt-2 flex items-center">
+            <Activity className="w-3 h-3 mr-1" />
+            {sessionStats ? `${sessionStats.completedSessions} completed` : 'No sessions yet'}
+          </div>
+        </div>
+
+        {/* Average Rating */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-yellow-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Star className="w-6 h-6 text-yellow-600" />
+            </div>
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Rating</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mb-1 flex items-center">
+            {reviewStats ? reviewStats.averageRating.toFixed(1) : '0.0'}
+            <Star className="w-5 h-5 text-yellow-400 ml-1 fill-current" />
+          </div>
+          <div className="text-sm text-gray-600">Average Rating</div>
+          <div className="text-xs text-yellow-600 mt-2 flex items-center">
+            <Users className="w-3 h-3 mr-1" />
+            {reviewStats ? `${reviewStats.totalReviews} reviews` : 'No reviews yet'}
+          </div>
+        </div>
+
+        {/* Session Completion Rate */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border-2 border-purple-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Target className="w-6 h-6 text-purple-600" />
+            </div>
+            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Success</span>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 mb-1">
+            {sessionStats && sessionStats.totalSessions > 0 
+              ? Math.round((sessionStats.completedSessions / sessionStats.totalSessions) * 100)
+              : 0}%
+          </div>
+          <div className="text-sm text-gray-600">Completion Rate</div>
+          <div className="text-xs text-purple-600 mt-2 flex items-center">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            {sessionStats ? `${sessionStats.completedSessions}/${sessionStats.totalSessions} sessions` : 'No data'}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Earnings Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <TrendingUp className="mr-2 text-green-600" size={20} />
+            Monthly Earnings Trend
+          </h3>
+          {earningsData?.monthlyBreakdown && earningsData.monthlyBreakdown.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart
+                data={earningsData.monthlyBreakdown.slice(-6).map(month => ({
+                  month: `${month.month.slice(0, 3)} ${month.year}`,
+                  gross: month.grossEarnings,
+                  net: month.netEarnings,
+                  sessions: month.sessions
+                }))}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `LKR ${value}`}
+                />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    `LKR ${EarningsService.formatCurrency(Number(value))}`, 
+                    name === 'gross' ? 'Gross Earnings' : name === 'net' ? 'Net Earnings' : 'Sessions'
+                  ]}
+                  labelFormatter={(label) => `Month: ${label}`}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="gross" 
+                  stackId="1" 
+                  stroke="#10b981" 
+                  fill="#10b981" 
+                  fillOpacity={0.3}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="net" 
+                  stackId="2" 
+                  stroke="#059669" 
+                  fill="#059669" 
+                  fillOpacity={0.6}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
             <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
               <div className="text-center text-gray-500">
-                <BarChart3 size={48} className="mx-auto mb-2 opacity-50" />
-                <p>Earnings chart will be displayed here</p>
+                <TrendingUp size={48} className="mx-auto mb-2 opacity-50" />
+                <p>No earnings data available</p>
               </div>
             </div>
-          </div>
-          <div className="border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Session Distribution</h3>
+          )}
+        </div>
+
+        {/* Session Distribution Pie Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <PieChart className="mr-2 text-blue-600" size={20} />
+            Session Distribution
+          </h3>
+          {sessionStats && sessionStats.totalSessions > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={[
+                    { name: 'Completed', value: sessionStats.completedSessions, color: '#10b981' },
+                    { name: 'Upcoming', value: sessionStats.upcomingSessions, color: '#3b82f6' },
+                    { name: 'Ongoing', value: sessionStats.ongoingSessions, color: '#f59e0b' },
+                    { name: 'Cancelled', value: sessionStats.cancelledSessions, color: '#ef4444' }
+                  ].filter(item => item.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={120}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {[
+                    { name: 'Completed', value: sessionStats.completedSessions, color: '#10b981' },
+                    { name: 'Upcoming', value: sessionStats.upcomingSessions, color: '#3b82f6' },
+                    { name: 'Ongoing', value: sessionStats.ongoingSessions, color: '#f59e0b' },
+                    { name: 'Cancelled', value: sessionStats.cancelledSessions, color: '#ef4444' }
+                  ].filter(item => item.value > 0).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} sessions`, 'Count']} />
+                <Legend />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          ) : (
             <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
               <div className="text-center text-gray-500">
                 <PieChart size={48} className="mx-auto mb-2 opacity-50" />
-                <p>Session distribution chart will be displayed here</p>
+                <p>No session data available</p>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Rating Distribution Chart */}
+      {reviewStats && reviewStats.totalReviews > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <Star className="mr-2 text-yellow-600" size={20} />
+            Rating Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={Object.entries(reviewStats.ratingDistribution)
+                .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                .map(([rating, count]) => ({
+                  rating: `${rating} Star${rating !== '1' ? 's' : ''}`,
+                  count: count,
+                  percentage: reviewStats.totalReviews > 0 ? ((count / reviewStats.totalReviews) * 100).toFixed(1) : '0'
+                }))}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="rating" 
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                label={{ value: 'Number of Reviews', angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip 
+                formatter={(value, name, props) => [
+                  `${value} reviews (${props.payload.percentage}%)`, 
+                  'Count'
+                ]}
+                labelFormatter={(label) => label}
+              />
+              <Bar 
+                dataKey="count" 
+                fill="#fbbf24"
+                radius={[4, 4, 0, 0]}
+              >
+                {Object.entries(reviewStats.ratingDistribution).map((_, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={`hsl(${45 + index * 15}, 70%, ${60 - index * 5}%)`} 
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Subject Performance Chart */}
+      {reviewStats?.subjectRatings && Object.keys(reviewStats.subjectRatings).length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <BookOpen className="mr-2 text-blue-600" size={20} />
+            Subject Performance Analysis
+          </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Subject Ratings Chart */}
+            <div>
+              <h4 className="text-md font-semibold text-gray-700 mb-4">Average Ratings by Subject</h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart
+                  data={Object.entries(reviewStats.subjectRatings).map(([subject, data]) => ({
+                    subject: subject.length > 15 ? subject.substring(0, 15) + '...' : subject,
+                    fullSubject: subject,
+                    rating: data.average,
+                    count: data.count
+                  }))}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="subject" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    domain={[0, 5]}
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Rating', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${Number(value).toFixed(1)}/5.0 (${props.payload.count} reviews)`, 
+                      'Average Rating'
+                    ]}
+                    labelFormatter={(label, payload) => 
+                      payload && payload[0] ? payload[0].payload.fullSubject : label
+                    }
+                  />
+                  <Bar 
+                    dataKey="rating" 
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {Object.entries(reviewStats.subjectRatings).map((_, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={`hsl(${200 + index * 20}, 70%, ${50 + index * 5}%)`} 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Subject Review Count Chart */}
+            <div>
+              <h4 className="text-md font-semibold text-gray-700 mb-4">Review Volume by Subject</h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <RechartsPieChart>
+                  <Pie
+                    data={Object.entries(reviewStats.subjectRatings).map(([subject, data]) => ({
+                      name: subject,
+                      value: data.count,
+                      percentage: ((data.count / reviewStats.totalReviews) * 100).toFixed(1)
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {Object.entries(reviewStats.subjectRatings).map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `${value} reviews (${props.payload.percentage}%)`, 
+                      'Count'
+                    ]}
+                  />
+                  <Legend />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Performance Trends */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Payment Timeline Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <Activity className="mr-2 text-green-600" size={18} />
+            Recent Payment Trend
+          </h3>
+          {recentPayments && recentPayments.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart
+                  data={recentPayments.slice().reverse().map((payment, index) => ({
+                    index: index + 1,
+                    amount: payment.net_amount,
+                    date: new Date(payment.date).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }),
+                    student: payment.student_name
+                  }))}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `LKR ${value}`}
+                  />
+                  <Tooltip 
+                    formatter={(value, name, props) => [
+                      `LKR ${EarningsService.formatCurrency(Number(value))}`, 
+                      'Net Payment'
+                    ]}
+                    labelFormatter={(label, payload) => 
+                      payload && payload[0] 
+                        ? `${payload[0].payload.date} - ${payload[0].payload.student}`
+                        : label
+                    }
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="amount" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#059669' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              
+              {/* Recent Payment List */}
+              <div className="mt-4 space-y-2 max-h-32 overflow-y-auto">
+                {recentPayments.slice(0, 3).map((payment) => (
+                  <div key={payment.session_id} className="flex items-center justify-between py-1 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-700">{payment.student_name}</span>
+                    </div>
+                    <span className="font-semibold text-green-600">
+                      +LKR {EarningsService.formatCurrency(payment.net_amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <DollarSign className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No recent payments</p>
+            </div>
+          )}
+        </div>
+
+        {/* Enhanced Session Statistics with Mini Charts */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <BarChart3 className="mr-2 text-purple-600" size={18} />
+            Session Performance
+          </h3>
+          {sessionStats && sessionStats.totalSessions > 0 ? (
+            <div className="space-y-4">
+              {/* Mini Donut Chart */}
+              <ResponsiveContainer width="100%" height={150}>
+                <RechartsPieChart>
+                  <Pie
+                    data={[
+                      { name: 'Completed', value: sessionStats.completedSessions, color: '#10b981' },
+                      { name: 'Upcoming', value: sessionStats.upcomingSessions, color: '#3b82f6' },
+                      { name: 'Ongoing', value: sessionStats.ongoingSessions, color: '#f59e0b' },
+                      { name: 'Cancelled', value: sessionStats.cancelledSessions, color: '#ef4444' }
+                    ].filter(item => item.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={60}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {[
+                      { name: 'Completed', value: sessionStats.completedSessions, color: '#10b981' },
+                      { name: 'Upcoming', value: sessionStats.upcomingSessions, color: '#3b82f6' },
+                      { name: 'Ongoing', value: sessionStats.ongoingSessions, color: '#f59e0b' },
+                      { name: 'Cancelled', value: sessionStats.cancelledSessions, color: '#ef4444' }
+                    ].filter(item => item.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value} sessions`, 'Count']} />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <div className="text-sm font-bold text-green-600">{sessionStats.completedSessions}</div>
+                  <div className="text-xs text-green-700">Completed</div>
+                </div>
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <div className="text-sm font-bold text-blue-600">{sessionStats.upcomingSessions}</div>
+                  <div className="text-xs text-blue-700">Upcoming</div>
+                </div>
+                <div className="p-2 bg-orange-50 rounded-lg">
+                  <div className="text-sm font-bold text-orange-600">{sessionStats.ongoingSessions}</div>
+                  <div className="text-xs text-orange-700">Ongoing</div>
+                </div>
+                <div className="p-2 bg-red-50 rounded-lg">
+                  <div className="text-sm font-bold text-red-600">{sessionStats.cancelledSessions}</div>
+                  <div className="text-xs text-red-700">Cancelled</div>
+                </div>
+              </div>
+              
+              {/* Success Rate */}
+              <div className="pt-3 border-t border-gray-200 text-center">
+                <div className="text-2xl font-bold text-gray-900">
+                  {sessionStats.totalSessions > 0 
+                    ? `${Math.round((sessionStats.completedSessions / sessionStats.totalSessions) * 100)}%`
+                    : '0%'}
+                </div>
+                <div className="text-sm text-gray-600">Success Rate</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-500"
+                    style={{ 
+                      width: `${sessionStats.totalSessions > 0 
+                        ? (sessionStats.completedSessions / sessionStats.totalSessions) * 100 
+                        : 0}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No session data available</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Yearly Earnings Overview */}
+      {earningsData?.yearlyEarnings && Object.keys(earningsData.yearlyEarnings).length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <CalendarIcon className="mr-2 text-purple-600" size={20} />
+            Yearly Earnings Overview ({new Date().getFullYear()})
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart
+              data={Object.entries(earningsData.yearlyEarnings).map(([month, earnings]) => ({
+                month,
+                earnings: Number(earnings),
+                netEarnings: Number(earnings) * 0.9, // After 10% commission
+              }))}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <defs>
+                <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => `LKR ${value}`}
+              />
+              <Tooltip 
+                formatter={(value, name) => [
+                  `LKR ${EarningsService.formatCurrency(Number(value))}`, 
+                  name === 'earnings' ? 'Gross Earnings' : 'Net Earnings'
+                ]}
+                labelFormatter={(label) => `Month: ${label}`}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="earnings" 
+                stroke="#8b5cf6" 
+                fillOpacity={1} 
+                fill="url(#earningsGradient)" 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="netEarnings" 
+                stroke="#7c3aed" 
+                strokeWidth={2}
+                dot={{ fill: '#7c3aed' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Enhanced Performance Insights with Visual Indicators */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
+        <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+          <TrendingUp className="mr-2 text-indigo-600" size={18} />
+          Performance Insights & Recommendations
+        </h3>
+        
+        {/* Overall Performance Score */}
+        <div className="mb-6 p-4 bg-white rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-lg font-semibold text-gray-800">Overall Performance Score</span>
+            <div className="flex items-center space-x-2">
+              {(() => {
+                const ratingScore = reviewStats ? (reviewStats.averageRating / 5) * 30 : 0;
+                const sessionScore = sessionStats ? (sessionStats.completedSessions / Math.max(sessionStats.totalSessions, 1)) * 30 : 0;
+                const earningsScore = earningsData && earningsData.thisMonthEarnings > 0 ? Math.min((earningsData.thisMonthEarnings / 5000) * 40, 40) : 0;
+                const totalScore = ratingScore + sessionScore + earningsScore;
+                
+                return (
+                  <>
+                    <span className="text-2xl font-bold text-indigo-600">{Math.round(totalScore)}/100</span>
+                    <div className="w-16 h-2 bg-gray-200 rounded-full">
+                      <div 
+                        className="h-2 bg-gradient-to-r from-indigo-400 to-purple-600 rounded-full transition-all duration-500"
+                        style={{ width: `${totalScore}%` }}
+                      ></div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-yellow-600 font-semibold">
+                {reviewStats ? Math.round((reviewStats.averageRating / 5) * 100) : 0}%
+              </div>
+              <div className="text-gray-600">Rating Score</div>
+            </div>
+            <div className="text-center">
+              <div className="text-blue-600 font-semibold">
+                {sessionStats ? Math.round((sessionStats.completedSessions / Math.max(sessionStats.totalSessions, 1)) * 100) : 0}%
+              </div>
+              <div className="text-gray-600">Completion Rate</div>
+            </div>
+            <div className="text-center">
+              <div className="text-green-600 font-semibold">
+                {earningsData && earningsData.thisMonthEarnings > 0 ? Math.min(Math.round((earningsData.thisMonthEarnings / 5000) * 100), 100) : 0}%
+              </div>
+              <div className="text-gray-600">Earnings Target</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-lg border-l-4 border-yellow-400">
+            <div className="flex items-center space-x-2 mb-3">
+              <Award className="w-5 h-5 text-yellow-500" />
+              <span className="font-medium text-gray-800">Top Strength</span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                {reviewStats && reviewStats.averageRating >= 4.5 
+                  ? "🌟 Excellent student satisfaction ratings"
+                  : reviewStats && reviewStats.averageRating >= 4.0
+                  ? "⭐ Strong teaching performance"
+                  : "📈 Focus on improving student experience"}
+              </p>
+              {reviewStats && reviewStats.averageRating >= 4.0 && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                  <span className="text-xs text-yellow-700 font-medium">
+                    {reviewStats.averageRating.toFixed(1)}/5.0 average rating
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border-l-4 border-blue-400">
+            <div className="flex items-center space-x-2 mb-3">
+              <Target className="w-5 h-5 text-blue-500" />
+              <span className="font-medium text-gray-800">Growth Opportunity</span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                {sessionStats && sessionStats.totalSessions < 10
+                  ? "🎯 Build more teaching experience"
+                  : earningsData && earningsData.thisMonthEarnings < 1000
+                  ? "📈 Increase session frequency"
+                  : "🚀 Expand subject offerings"}
+              </p>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                <span className="text-xs text-blue-700 font-medium">
+                  {sessionStats ? `${sessionStats.totalSessions} total sessions` : 'No sessions yet'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border-l-4 border-green-400">
+            <div className="flex items-center space-x-2 mb-3">
+              <Activity className="w-5 h-5 text-green-500" />
+              <span className="font-medium text-gray-800">Activity Level</span>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">
+                {sessionStats && sessionStats.upcomingSessions > 5
+                  ? "🔥 High activity - great engagement!"
+                  : sessionStats && sessionStats.upcomingSessions > 2
+                  ? "⚡ Moderate activity level"
+                  : "💡 Consider scheduling more sessions"}
+              </p>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                <span className="text-xs text-green-700 font-medium">
+                  {sessionStats ? `${sessionStats.upcomingSessions} upcoming sessions` : 'No upcoming sessions'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Action Recommendations */}
+        <div className="mt-6 p-4 bg-white rounded-lg">
+          <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+            <MessageSquare className="w-4 h-4 mr-2 text-purple-600" />
+            Recommended Actions
+          </h4>
+          <div className="space-y-2 text-sm">
+            {(!reviewStats || reviewStats.averageRating < 4.0) && (
+              <div className="flex items-center space-x-2 text-orange-700">
+                <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                <span>Focus on collecting more positive reviews from students</span>
+              </div>
+            )}
+            {sessionStats && sessionStats.upcomingSessions < 3 && (
+              <div className="flex items-center space-x-2 text-blue-700">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <span>Schedule more sessions to increase your visibility</span>
+              </div>
+            )}
+            {earningsData && earningsData.thisMonthEarnings < 2000 && (
+              <div className="flex items-center space-x-2 text-green-700">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span>Consider raising your hourly rate or offering more sessions</span>
+              </div>
+            )}
+            {(!reviewStats || reviewStats.totalReviews < 10) && (
+              <div className="flex items-center space-x-2 text-purple-700">
+                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                <span>Encourage students to leave reviews after sessions</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

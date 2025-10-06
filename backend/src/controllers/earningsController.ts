@@ -33,7 +33,7 @@ class EarningsController {
   async getRecentPayments(req: Request, res: Response) {
     try {
       const { firebaseUid } = req.params;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 6;
       
       if (!firebaseUid) {
         return res.status(400).json({
@@ -144,7 +144,7 @@ class EarningsController {
       // Get earnings and statistics
       const [earnings, recentPayments, paymentStats] = await Promise.all([
         earningsService.getTutorEarnings(firebaseUid),
-        earningsService.getRecentPayments(firebaseUid, 5),
+        earningsService.getRecentPayments(firebaseUid, 6),
         earningsService.getPaymentStatistics(firebaseUid)
       ]);
 
