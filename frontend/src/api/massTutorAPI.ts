@@ -137,4 +137,99 @@ export const massTutorAPI = {
     });
     return response.data;
   },
+
+  // Get all slots for a class
+  async getClassSlots(classId: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/classes/${classId}/slots`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Create Zoom meeting for a slot
+  async createZoomMeeting(classId: string, data: {
+    slotId: string;
+    topic: string;
+    startTime: string;
+    duration: number;
+  }) {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/mass-tutor/classes/${classId}/zoom`, data, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Upload material
+  async uploadMaterial(file: File) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
+    
+    const token = await user.getIdToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axios.post(`${API_URL}/mass-tutor/upload/material`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  // Upload multiple materials
+  async uploadMaterials(files: File[]) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
+    
+    const token = await user.getIdToken();
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+
+    const response = await axios.post(`${API_URL}/mass-tutor/upload/materials`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  // Upload recording
+  async uploadRecording(file: File) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
+    
+    const token = await user.getIdToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axios.post(`${API_URL}/mass-tutor/upload/recording`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  // Get updated host URL for joining Zoom (via getZak)
+  async getZoomHostUrl(oldHostUrl: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/mass-tutor/zoom/get-zak`, { oldHostUrl }, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get all enrollments for a specific class
+  async getClassEnrollments(classId: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/classes/${classId}/enrollments`, {
+      headers,
+    });
+    return response.data;
+  },
 };

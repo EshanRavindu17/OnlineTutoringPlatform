@@ -309,3 +309,238 @@ export const createWelcomeEmail = (data: {
     text: generatePlainText(templateOptions)
   };
 };
+
+/**
+ * Admin notification: New mass class created
+ */
+export const createNewMassClassNotificationEmail = (data: {
+  tutorName: string;
+  tutorEmail: string;
+  className: string;
+  subject: string;
+  day: string;
+  time: string;
+  description?: string;
+  classId: string;
+  dashboardUrl?: string;
+}): EmailContent => {
+  const { tutorName, tutorEmail, className, subject, day, time, description, classId, dashboardUrl } = data;
+  
+  const templateOptions = {
+    title: 'New Mass Class Created 📚',
+    content: `<p>Dear Admin,</p>
+              <p>A new mass class has been created by tutor <strong>${tutorName}</strong> (${tutorEmail}).</p>
+              <p>Please review the class details below and take any necessary moderation actions.</p>`,
+    
+    alertType: 'info' as const,
+    alertMessage: 'New class pending review',
+    
+    details: [
+      { label: 'Class Name', value: className },
+      { label: 'Subject', value: subject },
+      { label: 'Day', value: day },
+      { label: 'Time', value: time },
+      { label: 'Tutor', value: tutorName },
+      { label: 'Tutor Email', value: tutorEmail },
+      { label: 'Class ID', value: classId },
+      ...(description ? [{ label: 'Description', value: description }] : [])
+    ],
+    
+    ctaButton: dashboardUrl ? {
+      text: 'Review in Dashboard',
+      url: dashboardUrl,
+      color: '#ef4444'
+    } : undefined,
+    
+    footerMessage: 'This is an automated notification from the Tutorly platform'
+  };
+
+  return {
+    subject: `New Class Created: ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
+ * Mass tutor: Class approved notification
+ */
+export const createClassApprovedEmail = (data: {
+  tutorName: string;
+  className: string;
+  subject: string;
+  day: string;
+  time: string;
+  dashboardUrl?: string;
+}): EmailContent => {
+  const { tutorName, className, subject, day, time, dashboardUrl } = data;
+  
+  const templateOptions = {
+    title: 'Class Approved! 🎉',
+    content: `<p>Dear <strong>${tutorName}</strong>,</p>
+              <p>Great news! Your class <strong>${className}</strong> has been approved by our admin team and is now live on the platform.</p>
+              <p>Students can now discover and enroll in your class. Start adding class slots to schedule your sessions!</p>`,
+    
+    alertType: 'success' as const,
+    alertMessage: 'Your class is now live!',
+    
+    details: [
+      { label: 'Class Name', value: className },
+      { label: 'Subject', value: subject },
+      { label: 'Day', value: day },
+      { label: 'Time', value: time }
+    ],
+    
+    ctaButton: dashboardUrl ? {
+      text: 'Manage Your Class',
+      url: dashboardUrl,
+      color: '#10b981'
+    } : undefined,
+    
+    footerMessage: 'Thank you for being part of the Tutorly community'
+  };
+
+  return {
+    subject: `Class Approved: ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
+ * Mass tutor: Class rejected notification
+ */
+export const createClassRejectedEmail = (data: {
+  tutorName: string;
+  className: string;
+  reason: string;
+  dashboardUrl?: string;
+}): EmailContent => {
+  const { tutorName, className, reason, dashboardUrl } = data;
+  
+  const templateOptions = {
+    title: 'Class Review Update ⚠️',
+    content: `<p>Dear <strong>${tutorName}</strong>,</p>
+              <p>We've reviewed your class <strong>${className}</strong>, and unfortunately, it does not meet our platform guidelines at this time.</p>
+              <p><strong>Reason:</strong> ${reason}</p>
+              <p>You can update the class details and resubmit for approval. If you have any questions, please contact our support team.</p>`,
+    
+    alertType: 'warning' as const,
+    alertMessage: 'Class not approved',
+    
+    details: [
+      { label: 'Class Name', value: className },
+      { label: 'Reason', value: reason }
+    ],
+    
+    ctaButton: dashboardUrl ? {
+      text: 'Update Class Details',
+      url: dashboardUrl,
+      color: '#f59e0b'
+    } : undefined,
+    
+    footerMessage: 'We\'re here to help you succeed'
+  };
+
+  return {
+    subject: `Class Review: ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
+ * Student: New enrollment confirmation
+ */
+export const createEnrollmentConfirmationEmail = (data: {
+  studentName: string;
+  className: string;
+  tutorName: string;
+  subject: string;
+  day: string;
+  time: string;
+  amount: number;
+  dashboardUrl?: string;
+}): EmailContent => {
+  const { studentName, className, tutorName, subject, day, time, amount, dashboardUrl } = data;
+  
+  const templateOptions = {
+    title: 'Enrollment Confirmed! 🎓',
+    content: `<p>Dear <strong>${studentName}</strong>,</p>
+              <p>Congratulations! You've successfully enrolled in <strong>${className}</strong> with ${tutorName}.</p>
+              <p>Get ready for an exciting learning journey! You'll receive notifications about upcoming class sessions.</p>`,
+    
+    alertType: 'success' as const,
+    alertMessage: 'Successfully enrolled!',
+    
+    details: [
+      { label: 'Class', value: className },
+      { label: 'Subject', value: subject },
+      { label: 'Tutor', value: tutorName },
+      { label: 'Day', value: day },
+      { label: 'Time', value: time },
+      { label: 'Amount Paid', value: `Rs. ${amount.toLocaleString()}` }
+    ],
+    
+    ctaButton: dashboardUrl ? {
+      text: 'View My Classes',
+      url: dashboardUrl,
+      color: '#8b5cf6'
+    } : undefined,
+    
+    footerMessage: 'Thank you for choosing Tutorly for your learning journey'
+  };
+
+  return {
+    subject: `Enrollment Confirmed: ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};
+
+/**
+ * Mass tutor: New student enrolled notification
+ */
+export const createNewEnrollmentNotificationEmail = (data: {
+  tutorName: string;
+  studentName: string;
+  studentEmail: string;
+  className: string;
+  enrollmentDate: string;
+  totalStudents: number;
+  dashboardUrl?: string;
+}): EmailContent => {
+  const { tutorName, studentName, studentEmail, className, enrollmentDate, totalStudents, dashboardUrl } = data;
+  
+  const templateOptions = {
+    title: 'New Student Enrolled! 🎉',
+    content: `<p>Dear <strong>${tutorName}</strong>,</p>
+              <p>Great news! <strong>${studentName}</strong> has enrolled in your class <strong>${className}</strong>.</p>
+              <p>You now have <strong>${totalStudents}</strong> student${totalStudents !== 1 ? 's' : ''} enrolled in this class.</p>`,
+    
+    alertType: 'success' as const,
+    alertMessage: 'New student enrolled!',
+    
+    details: [
+      { label: 'Student Name', value: studentName },
+      { label: 'Student Email', value: studentEmail },
+      { label: 'Class', value: className },
+      { label: 'Enrollment Date', value: enrollmentDate },
+      { label: 'Total Students', value: totalStudents.toString() }
+    ],
+    
+    ctaButton: dashboardUrl ? {
+      text: 'View Class Details',
+      url: dashboardUrl,
+      color: '#3b82f6'
+    } : undefined,
+    
+    footerMessage: 'Thank you for being part of the Tutorly community'
+  };
+
+  return {
+    subject: `New Enrollment: ${studentName} - ${className}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
+};     

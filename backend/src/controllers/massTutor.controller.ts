@@ -302,3 +302,114 @@ export const getClassStatsController = async (req: Request, res: Response) => {
     return res.status(500).json({ error: error.message || 'Failed to fetch class statistics' });
   }
 };
+
+/**
+ * Get all slots for a specific class
+ */
+export const getClassSlotsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { classId } = req.params;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!classId) {
+      return res.status(400).json({ error: 'Class ID is required' });
+    }
+
+    const slots = await massTutorService.getClassSlotsService(classId, tutorId);
+    return res.status(200).json(slots);
+  } catch (error: any) {
+    console.error('Error in getClassSlotsController:', error);
+    return res.status(error.message === 'Class not found or access denied' ? 404 : 500).json({
+      error: error.message || 'Failed to fetch class slots',
+    });
+  }
+};
+
+/**
+ * Create Zoom meeting for a class slot
+ */
+export const createZoomMeetingController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { classId } = req.params;
+    const { slotId, topic, startTime, duration } = req.body;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!classId || !slotId || !startTime || !duration) {
+      return res.status(400).json({ error: 'Class ID, slot ID, start time, and duration are required' });
+    }
+
+    const result = await massTutorService.createZoomMeetingForSlotService(
+      classId,
+      slotId,
+      tutorId,
+      topic || 'Class Session',
+      startTime,
+      duration
+    );
+
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in createZoomMeetingController:', error);
+    return res.status(500).json({ error: error.message || 'Failed to create Zoom meeting' });
+  }
+};
+
+/**
+ * Get updated Zoom host URL using getZak
+ */
+export const getZoomHostUrlController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { oldHostUrl } = req.body;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!oldHostUrl) {
+      return res.status(400).json({ error: 'Old host URL is required' });
+    }
+
+    const { getZak } = await import('../services/zoom.service');
+    const newHostUrl = await getZak(oldHostUrl);
+
+    return res.status(200).json({ newHostUrl });
+  } catch (error: any) {
+    console.error('Error in getZoomHostUrlController:', error);
+    return res.status(500).json({ error: error.message || 'Failed to get Zoom host URL' });
+  }
+};
+
+/**
+ * Get all enrollments for a specific class
+ */
+export const getClassEnrollmentsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { classId } = req.params;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!classId) {
+      return res.status(400).json({ error: 'Class ID is required' });
+    }
+
+    const result = await massTutorService.getClassEnrollmentsService(classId, tutorId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in getClassEnrollmentsController:', error);
+    return res.status(error.message === 'Class not found or access denied' ? 404 : 500).json({
+      error: error.message || 'Failed to fetch class enrollments',
+    });
+  }
+};

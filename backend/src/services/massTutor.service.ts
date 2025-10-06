@@ -1,4 +1,5 @@
 import prisma from '../prismaClient';
+import { sendNewMassClassNotificationEmail, sendClassApprovedEmail } from './email.service';
 
 /**
  * Get all classes for a specific mass tutor
@@ -196,9 +197,67 @@ export const createClassService = async (
         product_id: data.product_id || null,
         price_id: data.price_id || null,
       },
+      include: {
+        Mass_Tutor: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     console.log('Class created successfully:', newClass.class_id);
+
+    // Send notification email to admin (async - don't block response)
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@tutorly.com';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    // Format time for email (convert Date back to HH:MM format)
+    const timeStr = `${timeDate.getHours().toString().padStart(2, '0')}:${timeDate.getMinutes().toString().padStart(2, '0')}`;
+    
+    sendNewMassClassNotificationEmail(adminEmail, {
+      tutorName: newClass.Mass_Tutor?.User?.name || 'Unknown',
+      tutorEmail: newClass.Mass_Tutor?.User?.email || '',
+      className: newClass.title || '',
+      subject: newClass.subject || '',
+      day: newClass.day || '',
+      time: timeStr,
+      description: newClass.description || undefined,
+      classId: newClass.class_id,
+      dashboardUrl: `${frontendUrl}/admin/classes/${newClass.class_id}`,
+    }).catch((error) => {
+      // Log error but don't fail the class creation
+      console.error('Failed to send admin notification email:', error);
+    });
+
+    // AUTO-APPROVE: Send approval email to tutor after 5 seconds
+    // TODO: Remove this when admin approval system is implemented
+    const tutorEmail = newClass.Mass_Tutor?.User?.email;
+    
+    if (tutorEmail) {
+      console.log(`Auto-approval email scheduled for class: ${newClass.class_id} (will send in 5 seconds)`);
+      
+      setTimeout(() => {
+        sendClassApprovedEmail(tutorEmail, {
+          tutorName: newClass.Mass_Tutor?.User?.name || 'Unknown',
+          className: newClass.title || '',
+          subject: newClass.subject || '',
+          day: newClass.day || '',
+          time: timeStr,
+          dashboardUrl: `${frontendUrl}/mass-tutor/classes`,
+        }).catch((error) => {
+          console.error('Failed to send class approval email:', error);
+        });
+        
+        console.log(`Auto-approval email sent for class: ${newClass.class_id}`);
+      }, 5000); // 5 seconds delay
+    }
+
     return newClass;
   } catch (error) {
     console.error('Error creating class:', error);
@@ -486,5 +545,168 @@ export const getClassStatsService = async (tutorId: string) => {
   } catch (error) {
     console.error('Error fetching class stats:', error);
     throw new Error('Failed to fetch class statistics');
+  }
+};
+
+/**
+ * Get all slots for a specific class
+ */
+export const getClassSlotsService = async (classId: string, tutorId: string) => {
+  try {
+    // Verify class exists and belongs to tutor
+    const classItem = await prisma.class.findFirst({
+      where: {
+        class_id: classId,
+        m_tutor_id: tutorId,
+      },
+    });
+
+    if (!classItem) {
+      throw new Error('Class not found or access denied');
+    }
+
+    // Get all slots for the class
+    const slots = await prisma.classSlot.findMany({
+      where: {
+        class_id: classId,
+      },
+      orderBy: {
+        dateTime: 'desc',
+      },
+    });
+
+    return slots;
+  } catch (error) {
+    console.error('Error fetching class slots:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create Zoom meeting and update class slot
+ */
+export const createZoomMeetingForSlotService = async (
+  classId: string,
+  slotId: string,
+  tutorId: string,
+  topic: string,
+  startTime: string,
+  duration: number
+) => {
+  try {
+    // Verify class exists and belongs to tutor
+    const classItem = await prisma.class.findFirst({
+      where: {
+        class_id: classId,
+        m_tutor_id: tutorId,
+      },
+    });
+
+    if (!classItem) {
+      throw new Error('Class not found or access denied');
+    }
+
+    // Verify slot exists
+    const slot = await prisma.classSlot.findUnique({
+      where: { cslot_id: slotId },
+    });
+
+    if (!slot || slot.class_id !== classId) {
+      throw new Error('Class slot not found');
+    }
+
+    // Create Zoom meeting
+    const { createZoomMeeting } = await import('./zoom.service');
+    const { host_url, join_url } = await createZoomMeeting(topic, startTime, duration);
+
+    // Update slot with meeting URLs
+    const updatedSlot = await prisma.classSlot.update({
+      where: { cslot_id: slotId },
+      data: {
+        meetingURLs: [host_url, join_url], // First is host URL, second is join URL
+      },
+    });
+
+    return {
+      message: 'Zoom meeting created successfully',
+      slot: updatedSlot,
+      host_url,
+      join_url,
+    };
+  } catch (error) {
+    console.error('Error creating Zoom meeting for slot:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all enrollments for a specific class
+ */
+export const getClassEnrollmentsService = async (classId: string, tutorId: string) => {
+  try {
+    // Verify class exists and belongs to tutor
+    const classItem = await prisma.class.findFirst({
+      where: {
+        class_id: classId,
+        m_tutor_id: tutorId,
+      },
+    });
+
+    if (!classItem) {
+      throw new Error('Class not found or access denied');
+    }
+
+    // Get all enrollments with student details
+    const enrollments = await prisma.enrolment.findMany({
+      where: {
+        class_id: classId,
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+                photo_url: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    // Format the response
+    const formattedEnrollments = enrollments.map((enrollment) => ({
+      enrol_id: enrollment.enrol_id,
+      student_id: enrollment.student_id,
+      status: enrollment.status,
+      subscription_id: enrollment.subscription_id,
+      created_at: enrollment.created_at,
+      student: {
+        name: enrollment.Student?.User?.name || 'Unknown',
+        email: enrollment.Student?.User?.email || 'N/A',
+        photo_url: enrollment.Student?.User?.photo_url || null,
+      },
+    }));
+
+    // Calculate stats
+    const paidCount = enrollments.filter((e) => e.status === 'valid').length;
+    const unpaidCount = enrollments.filter((e) => e.status === 'invalid').length;
+
+    return {
+      enrollments: formattedEnrollments,
+      stats: {
+        total: enrollments.length,
+        paid: paidCount,
+        unpaid: unpaidCount,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching class enrollments:', error);
+    throw error;
   }
 };
