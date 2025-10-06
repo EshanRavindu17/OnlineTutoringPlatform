@@ -413,3 +413,206 @@ export const getClassEnrollmentsController = async (req: Request, res: Response)
     });
   }
 };
+
+/**
+ * Send custom email to student
+ */
+export const sendStudentEmailController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { studentEmail, subject, message, className } = req.body;
+
+    if (!tutorId) {
+      return res.status(401).json({ 
+        error: 'Unauthorized or tutor profile not found',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    if (!studentEmail || !subject || !message) {
+      return res.status(400).json({ 
+        error: 'Student email, subject, and message are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    const result = await massTutorService.sendStudentEmailService(tutorId, {
+      studentEmail,
+      subject,
+      message,
+      className,
+    });
+
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in sendStudentEmailController:', error);
+    
+    // Determine status code based on error code
+    let status = 500;
+    if (error.code === 'STUDENT_NOT_FOUND' || error.code === 'NOT_A_STUDENT') {
+      status = 404;
+    } else if (error.code === 'TUTOR_NOT_FOUND') {
+      status = 401;
+    } else if (error.code === 'EMAIL_DELIVERY_FAILED') {
+      status = 503; // Service Unavailable
+    }
+
+    return res.status(status).json({
+      error: error.message || 'Failed to send email',
+      code: error.code || 'UNKNOWN_ERROR',
+      details: error.originalError || undefined,
+    });
+  }
+};
+
+/**
+ * Get tutor profile
+ */
+export const getTutorProfileController = async (req: Request, res: Response) => {
+  try {
+    console.log('🔍 Getting tutor profile...');
+    const tutorId = await getTutorIdFromRequest(req);
+    console.log('📋 Tutor ID:', tutorId);
+
+    if (!tutorId) {
+      console.log('❌ No tutor ID found - user may not be a mass tutor');
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found. You may not be registered as a mass tutor.' });
+    }
+
+    const profile = await massTutorService.getTutorProfileService(tutorId);
+    console.log('✅ Profile fetched successfully');
+    return res.status(200).json({ profile });
+  } catch (error: any) {
+    console.error('❌ Error in getTutorProfileController:', error);
+    return res.status(error.message.includes('not found') ? 404 : 500).json({
+      error: error.message || 'Failed to fetch profile',
+    });
+  }
+};
+
+/**
+ * Update tutor profile
+ */
+export const updateTutorProfileController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const firebaseUid = (req as any).user?.uid;
+
+    if (!tutorId || !firebaseUid) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const { name, dob, bio, subjects, qualifications, description, heading, location, phone_number, prices } = req.body;
+
+    const updatedProfile = await massTutorService.updateTutorProfileService(tutorId, firebaseUid, {
+      name,
+      dob,
+      bio,
+      subjects,
+      qualifications,
+      description,
+      heading,
+      location,
+      phone_number,
+      prices,
+    });
+
+    return res.status(200).json({
+      message: 'Profile updated successfully',
+      profile: updatedProfile,
+    });
+  } catch (error: any) {
+    console.error('Error in updateTutorProfileController:', error);
+    const status = error.message.includes('not found') ? 404 :
+                   error.message.includes('capped by admin') ? 400 : 500;
+    return res.status(status).json({
+      error: error.message || 'Failed to update profile',
+    });
+  }
+};
+
+/**
+ * Get all subjects from database
+ */
+export const getAllSubjectsController = async (req: Request, res: Response) => {
+  try {
+    const subjects = await prisma.subjects.findMany({
+      select: {
+        sub_id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+    return res.status(200).json({ subjects });
+  } catch (error: any) {
+    console.error('Error in getAllSubjectsController:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch subjects',
+    });
+  }
+};
+
+/**
+ * Get tutor earnings data
+ */
+export const getTutorEarningsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const earningsData = await massTutorService.getTutorEarningsService(tutorId);
+    return res.status(200).json(earningsData);
+  } catch (error: any) {
+    console.error('Error in getTutorEarningsController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch earnings data',
+    });
+  }
+};
+
+/**
+ * Get dashboard analytics
+ */
+export const getDashboardAnalyticsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const analyticsData = await massTutorService.getDashboardAnalyticsService(tutorId);
+    return res.status(200).json(analyticsData);
+  } catch (error: any) {
+    console.error('Error in getDashboardAnalyticsController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch dashboard analytics',
+    });
+  }
+};
+
+/**
+ * Get tutor reviews and ratings
+ */
+export const getTutorReviewsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const reviewsData = await massTutorService.getTutorReviewsService(tutorId);
+    return res.status(200).json(reviewsData);
+  } catch (error: any) {
+    console.error('Error in getTutorReviewsController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch reviews data',
+    });
+  }
+};

@@ -1,5 +1,5 @@
 import prisma from '../prismaClient';
-import { sendNewMassClassNotificationEmail, sendClassApprovedEmail } from './email.service';
+import { sendNewMassClassNotificationEmail, sendClassApprovedEmail, sendCustomMessageEmail } from './email.service';
 
 /**
  * Get all classes for a specific mass tutor
@@ -183,6 +183,11 @@ export const createClassService = async (
     const [hours, minutes, seconds] = formattedTime.split(':').map(Number);
     timeDate.setHours(hours, minutes, seconds, 0);
     
+    // Validate the Date object
+    if (isNaN(timeDate.getTime())) {
+      throw new Error('Invalid time format. Please use HH:MM:SS or HH:MM format.');
+    }
+    
     console.log('Creating class with DateTime object:', timeDate.toISOString());
 
     // Create the class
@@ -307,6 +312,11 @@ export const updateClassService = async (
       timeDate = new Date();
       const [hours, minutes, seconds] = formattedTime.split(':').map(Number);
       timeDate.setHours(hours, minutes, seconds, 0);
+      
+      // Validate the Date object
+      if (isNaN(timeDate.getTime())) {
+        throw new Error('Invalid time format. Please use HH:MM:SS or HH:MM format.');
+      }
     }
 
     // Update the class
@@ -707,6 +717,617 @@ export const getClassEnrollmentsService = async (classId: string, tutorId: strin
     };
   } catch (error) {
     console.error('Error fetching class enrollments:', error);
+    throw error;
+  }
+};
+
+/**
+ * Send custom email to student
+ */
+export const sendStudentEmailService = async (
+  tutorId: string,
+  data: {
+    studentEmail: string;
+    subject: string;
+    message: string;
+    className?: string;
+  }
+) => {
+  try {
+    // Get tutor details
+    const tutor = await prisma.mass_Tutor.findUnique({
+      where: { m_tutor_id: tutorId },
+      include: {
+        User: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!tutor) {
+      const error: any = new Error('Tutor profile not found. Please contact support.');
+      error.code = 'TUTOR_NOT_FOUND';
+      throw error;
+    }
+
+    // Get student details - check if user exists with this email
+    const student = await prisma.user.findUnique({
+      where: { email: data.studentEmail },
+      include: {
+        Student: true,
+      },
+    });
+
+    if (!student) {
+      const error: any = new Error(`No student found with email "${data.studentEmail}". The student must be registered on the platform to receive emails.`);
+      error.code = 'STUDENT_NOT_FOUND';
+      throw error;
+    }
+
+    // Check if the user is actually a student
+    if (!student.Student || student.Student.length === 0) {
+      const error: any = new Error(`The email "${data.studentEmail}" belongs to a registered user, but not as a student. Only students can receive tutor messages.`);
+      error.code = 'NOT_A_STUDENT';
+      throw error;
+    }
+
+    const tutorName = tutor.User?.name || 'Your Tutor';
+    const studentName = student.name || 'Student';
+
+    // Send the email
+    try {
+      await sendCustomMessageEmail(data.studentEmail, {
+        tutorName,
+        studentName,
+        studentEmail: data.studentEmail,
+        subject: data.subject,
+        message: data.message,
+        className: data.className,
+      });
+    } catch (emailError: any) {
+      console.error('Email delivery error:', emailError);
+      const error: any = new Error('Failed to send email. Please check your email service configuration or try again later.');
+      error.code = 'EMAIL_DELIVERY_FAILED';
+      error.originalError = emailError.message;
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: `Email sent successfully to ${studentName} (${data.studentEmail})`,
+      studentName,
+    };
+  } catch (error: any) {
+    console.error('Error sending student email:', error);
+    // Re-throw with code if it has one, otherwise create generic error
+    if (error.code) {
+      throw error;
+    }
+    const genericError: any = new Error('An unexpected error occurred while sending the email.');
+    genericError.code = 'UNKNOWN_ERROR';
+    throw genericError;
+  }
+};
+
+/**
+ * Get tutor profile information
+ */
+export const getTutorProfileService = async (tutorId: string) => {
+  try {
+    const tutor = await prisma.mass_Tutor.findUnique({
+      where: { m_tutor_id: tutorId },
+      include: {
+        User: {
+          select: {
+            name: true,
+            email: true,
+            dob: true,
+            bio: true,
+            photo_url: true,
+          },
+        },
+      },
+    });
+
+    if (!tutor) {
+      throw new Error('Tutor profile not found');
+    }
+
+    return {
+      tutorId: tutor.m_tutor_id,
+      name: tutor.User?.name,
+      email: tutor.User?.email,
+      dob: tutor.User?.dob,
+      bio: tutor.User?.bio,
+      photo_url: tutor.User?.photo_url,
+      subjects: tutor.subjects,
+      qualifications: tutor.qualifications,
+      description: tutor.description,
+      heading: tutor.heading,
+      location: tutor.location,
+      phone_number: tutor.phone_number,
+      prices: tutor.prices ? parseFloat(tutor.prices.toString()) : null,
+      rating: tutor.rating ? parseFloat(tutor.rating.toString()) : null,
+      status: tutor.status,
+    };
+  } catch (error) {
+    console.error('Error fetching tutor profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update tutor profile information
+ */
+export const updateTutorProfileService = async (
+  tutorId: string,
+  firebaseUid: string,
+  data: {
+    name?: string;
+    dob?: string;
+    bio?: string;
+    subjects?: string[];
+    qualifications?: string[];
+    description?: string;
+    heading?: string;
+    location?: string;
+    phone_number?: string;
+    prices?: number;
+  }
+) => {
+  try {
+    // Verify tutor exists
+    const tutor = await prisma.mass_Tutor.findUnique({
+      where: { m_tutor_id: tutorId },
+      include: {
+        User: true,
+      },
+    });
+
+    if (!tutor) {
+      throw new Error('Tutor profile not found');
+    }
+
+    // Validate price (max $3/month as per admin rules)
+    if (data.prices !== undefined) {
+      if (data.prices < 0 || data.prices > 3) {
+        throw new Error('Monthly rate must be between $0 and $3 (capped by admin)');
+      }
+    }
+
+    // Update User table if user-related fields are provided
+    if (data.name || data.dob || data.bio) {
+      await prisma.user.update({
+        where: { firebase_uid: firebaseUid },
+        data: {
+          ...(data.name && { name: data.name }),
+          ...(data.dob && { dob: new Date(data.dob) }),
+          ...(data.bio && { bio: data.bio }),
+        },
+      });
+    }
+
+    // Update Mass_Tutor table
+    const updatedTutor = await prisma.mass_Tutor.update({
+      where: { m_tutor_id: tutorId },
+      data: {
+        ...(data.subjects && { subjects: data.subjects }),
+        ...(data.qualifications && { qualifications: data.qualifications }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.heading !== undefined && { heading: data.heading }),
+        ...(data.location !== undefined && { location: data.location }),
+        ...(data.phone_number !== undefined && { phone_number: data.phone_number }),
+        ...(data.prices !== undefined && { prices: data.prices }),
+      },
+      include: {
+        User: {
+          select: {
+            name: true,
+            email: true,
+            dob: true,
+            bio: true,
+            photo_url: true,
+          },
+        },
+      },
+    });
+
+    return {
+      tutorId: updatedTutor.m_tutor_id,
+      name: updatedTutor.User?.name,
+      email: updatedTutor.User?.email,
+      dob: updatedTutor.User?.dob,
+      bio: updatedTutor.User?.bio,
+      photo_url: updatedTutor.User?.photo_url,
+      subjects: updatedTutor.subjects,
+      qualifications: updatedTutor.qualifications,
+      description: updatedTutor.description,
+      heading: updatedTutor.heading,
+      location: updatedTutor.location,
+      phone_number: updatedTutor.phone_number,
+      prices: updatedTutor.prices ? parseFloat(updatedTutor.prices.toString()) : null,
+      rating: updatedTutor.rating ? parseFloat(updatedTutor.rating.toString()) : null,
+      status: updatedTutor.status,
+    };
+  } catch (error) {
+    console.error('Error updating tutor profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get earnings data for mass tutor
+ */
+export const getTutorEarningsService = async (tutorId: string) => {
+  try {
+    // Get the latest commission rate
+    const latestCommission = await prisma.commission.findFirst({
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const commissionRate = latestCommission?.value || 20; // Default 20% if not found
+
+    // Get all classes for this tutor
+    const tutorClasses = await prisma.class.findMany({
+      where: {
+        m_tutor_id: tutorId,
+      },
+      select: {
+        class_id: true,
+      },
+    });
+
+    const classIds = tutorClasses.map((c) => c.class_id);
+
+    if (classIds.length === 0) {
+      return {
+        commissionRate,
+        earnings: [],
+      };
+    }
+
+    // Get all payments for tutor's classes, grouped by month
+    const payments = await prisma.mass_Payments.findMany({
+      where: {
+        class_id: {
+          in: classIds,
+        },
+        status: 'success',
+      },
+      select: {
+        amount: true,
+        paidMonth: true,
+        payment_time: true,
+      },
+      orderBy: {
+        payment_time: 'desc',
+      },
+    });
+
+    // Group payments by month
+    const earningsByMonth = new Map<string, number>();
+
+    payments.forEach((payment) => {
+      const month = payment.paidMonth || 
+                   (payment.payment_time 
+                     ? new Date(payment.payment_time).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+                     : 'Unknown');
+      
+      const currentTotal = earningsByMonth.get(month) || 0;
+      earningsByMonth.set(month, currentTotal + (payment.amount || 0));
+    });
+
+    // Convert to array and calculate commission/payout
+    const earnings = Array.from(earningsByMonth.entries()).map(([month, gross]) => {
+      const commissionAmount = (gross * commissionRate) / 100;
+      const payout = gross - commissionAmount;
+
+      return {
+        month,
+        gross: parseFloat(gross.toFixed(2)),
+        commission: commissionRate,
+        commissionAmount: parseFloat(commissionAmount.toFixed(2)),
+        payout: parseFloat(payout.toFixed(2)),
+      };
+    });
+
+    // Sort by date (most recent first)
+    earnings.sort((a, b) => {
+      const dateA = new Date(a.month);
+      const dateB = new Date(b.month);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return {
+      commissionRate,
+      earnings,
+    };
+  } catch (error) {
+    console.error('Error fetching tutor earnings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get comprehensive dashboard analytics for mass tutor
+ */
+export const getDashboardAnalyticsService = async (tutorId: string) => {
+  try {
+    // Get all classes for this tutor with enrollments and slots
+    const classes = await prisma.class.findMany({
+      where: {
+        m_tutor_id: tutorId,
+      },
+      include: {
+        Enrolment: {
+          where: {
+            status: 'valid',
+          },
+        },
+        ClassSlot: {
+          select: {
+            cslot_id: true,
+            dateTime: true,
+            status: true,
+          },
+        },
+        Rating_N_Review_Class: {
+          select: {
+            rating: true,
+          },
+        },
+      },
+    });
+
+    const classIds = classes.map((c) => c.class_id);
+
+    // Get payment data for revenue analysis
+    const payments = await prisma.mass_Payments.findMany({
+      where: {
+        class_id: {
+          in: classIds,
+        },
+        status: 'success',
+      },
+      select: {
+        amount: true,
+        paidMonth: true,
+        payment_time: true,
+        class_id: true,
+      },
+    });
+
+    // Get commission rate
+    const latestCommission = await prisma.commission.findFirst({
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+    const commissionRate = latestCommission?.value || 20;
+
+    // 1. Revenue per class
+    const revenueByClass = new Map<string, number>();
+    payments.forEach((payment) => {
+      if (payment.class_id) {
+        const current = revenueByClass.get(payment.class_id) || 0;
+        const netRevenue = payment.amount * (1 - commissionRate / 100);
+        revenueByClass.set(payment.class_id, current + netRevenue);
+      }
+    });
+
+    const revenuePerClass = classes.map((c) => ({
+      className: c.title,
+      subject: c.subject,
+      revenue: parseFloat((revenueByClass.get(c.class_id) || 0).toFixed(2)),
+    })).sort((a, b) => b.revenue - a.revenue);
+
+    // 2. Students per class
+    const studentsPerClass = classes.map((c) => ({
+      className: c.title,
+      subject: c.subject,
+      students: c.Enrolment.length,
+    })).sort((a, b) => b.students - a.students);
+
+    // 3. Average rating per class
+    const ratingsPerClass = classes.map((c) => {
+      const ratings = c.Rating_N_Review_Class
+        .filter((r) => r.rating !== null)
+        .map((r) => r.rating as number);
+      const avgRating = ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+        : 0;
+      
+      return {
+        className: c.title,
+        subject: c.subject,
+        rating: parseFloat(avgRating.toFixed(1)),
+        reviewCount: c.Rating_N_Review_Class.length,
+      };
+    }).sort((a, b) => b.rating - a.rating);
+
+    // 4. Revenue by month
+    const revenueByMonth = new Map<string, number>();
+    payments.forEach((payment) => {
+      const month = payment.paidMonth || 
+                   (payment.payment_time 
+                     ? new Date(payment.payment_time).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+                     : 'Unknown');
+      
+      const netRevenue = payment.amount * (1 - commissionRate / 100);
+      const current = revenueByMonth.get(month) || 0;
+      revenueByMonth.set(month, current + netRevenue);
+    });
+
+    const revenueByMonthArray = Array.from(revenueByMonth.entries())
+      .map(([month, revenue]) => ({
+        month,
+        revenue: parseFloat(revenue.toFixed(2)),
+      }))
+      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+
+    // 5. Sessions per class (upcoming and completed)
+    const sessionsPerClass = classes.map((c) => ({
+      className: c.title,
+      subject: c.subject,
+      upcoming: c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length,
+      completed: c.ClassSlot.filter((s) => s.status === 'completed').length,
+      total: c.ClassSlot.length,
+    })).sort((a, b) => b.total - a.total);
+
+    // 6. Overall statistics
+    const totalStudents = classes.reduce((sum, c) => sum + c.Enrolment.length, 0);
+    const totalRevenue = Array.from(revenueByClass.values()).reduce((sum, r) => sum + r, 0);
+    const totalSessions = classes.reduce((sum, c) => sum + c.ClassSlot.length, 0);
+    const upcomingSessions = classes.reduce((sum, c) => 
+      sum + c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length, 0
+    );
+    const avgRating = ratingsPerClass.filter((r) => r.rating > 0).reduce((sum, r, _, arr) => 
+      sum + r.rating / arr.length, 0
+    );
+
+    return {
+      overview: {
+        totalClasses: classes.length,
+        totalStudents,
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+        totalSessions,
+        upcomingSessions,
+        averageRating: parseFloat(avgRating.toFixed(1)),
+        commissionRate,
+      },
+      revenuePerClass,
+      studentsPerClass,
+      ratingsPerClass,
+      revenueByMonth: revenueByMonthArray,
+      sessionsPerClass,
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard analytics:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all reviews and ratings for a mass tutor's classes
+ */
+export const getTutorReviewsService = async (tutorId: string) => {
+  try {
+    // Get all classes for this tutor
+    const tutorClasses = await prisma.class.findMany({
+      where: {
+        m_tutor_id: tutorId,
+      },
+      select: {
+        class_id: true,
+        title: true,
+        subject: true,
+      },
+    });
+
+    if (tutorClasses.length === 0) {
+      return {
+        totalReviews: 0,
+        averageRating: 0,
+        classesByRating: [],
+      };
+    }
+
+    const classIds = tutorClasses.map((c) => c.class_id);
+
+    // Get all reviews for these classes
+    const reviews = await prisma.rating_N_Review_Class.findMany({
+      where: {
+        class_id: {
+          in: classIds,
+        },
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                photo_url: true,
+              },
+            },
+          },
+        },
+        Class: {
+          select: {
+            class_id: true,
+            title: true,
+            subject: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    // Group reviews by class
+    const reviewsByClass = new Map<string, any[]>();
+    
+    reviews.forEach((review) => {
+      const classId = review.class_id;
+      if (!classId) return;
+
+      if (!reviewsByClass.has(classId)) {
+        reviewsByClass.set(classId, []);
+      }
+
+      reviewsByClass.get(classId)?.push({
+        r_id: review.r_id,
+        rating: review.rating,
+        review: review.review,
+        created_at: review.created_at,
+        studentName: review.Student?.User?.name || 'Anonymous',
+        studentPhoto: review.Student?.User?.photo_url || null,
+      });
+    });
+
+    // Calculate statistics for each class
+    const classesByRating = Array.from(reviewsByClass.entries()).map(([classId, classReviews]) => {
+      const classInfo = tutorClasses.find((c) => c.class_id === classId);
+      const ratings = classReviews.filter((r) => r.rating !== null).map((r) => r.rating as number);
+      const avgRating = ratings.length > 0 
+        ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length 
+        : 0;
+
+      return {
+        class_id: classId,
+        className: classInfo?.title || 'Unknown Class',
+        subject: classInfo?.subject || '',
+        reviewCount: classReviews.length,
+        averageRating: parseFloat(avgRating.toFixed(1)),
+        reviews: classReviews.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+      };
+    });
+
+    // Sort classes by average rating (highest first)
+    classesByRating.sort((a, b) => b.averageRating - a.averageRating);
+
+    // Calculate overall statistics
+    const totalReviews = reviews.length;
+    const allRatings = reviews.filter((r) => r.rating !== null).map((r) => r.rating as number);
+    const averageRating = allRatings.length > 0
+      ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length
+      : 0;
+
+    return {
+      totalReviews,
+      averageRating: parseFloat(averageRating.toFixed(1)),
+      classesByRating,
+    };
+  } catch (error) {
+    console.error('Error fetching tutor reviews:', error);
     throw error;
   }
 };

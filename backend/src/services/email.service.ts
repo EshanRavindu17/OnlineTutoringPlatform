@@ -12,7 +12,8 @@ import {
   createClassApprovedEmail,
   createClassRejectedEmail,
   createEnrollmentConfirmationEmail,
-  createNewEnrollmentNotificationEmail
+  createNewEnrollmentNotificationEmail,
+  createCustomMessageEmail
 } from '../templates/emails';
 
 dotenv.config();
@@ -281,5 +282,21 @@ export const sendNewEnrollmentNotificationEmail = async (
     }
 ) => {
     const emailContent = createNewEnrollmentNotificationEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Custom message from tutor to student
+export const sendCustomMessageEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        studentName: string;
+        studentEmail: string;
+        subject: string;
+        message: string;
+        className?: string;
+    }
+) => {
+    const emailContent = createCustomMessageEmail(data);
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };

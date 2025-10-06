@@ -301,6 +301,11 @@ function NavLinkBtn({ to, label, variant }: { to: string; label: string; variant
   );
 }
 
+interface Subject {
+  sub_id: string;
+  name: string;
+}
+
 function CreateClassModal({ 
   onClose, 
   onSuccess, 
@@ -320,6 +325,25 @@ function CreateClassModal({
     price_id: editData?.price_id || '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
+
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  const fetchSubjects = async () => {
+    try {
+      setLoadingSubjects(true);
+      const response = await massTutorAPI.getAllSubjects();
+      setAvailableSubjects(response.subjects || []);
+    } catch (error: any) {
+      console.error('Failed to fetch subjects:', error);
+      toast.error('Failed to load subjects');
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,14 +406,26 @@ function CreateClassModal({
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Subject *
               </label>
-              <input
-                type="text"
-                placeholder="e.g., Mathematics"
-                value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
+              {loadingSubjects ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  <span className="text-sm text-gray-500">Loading subjects...</span>
+                </div>
+              ) : (
+                <select
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+                >
+                  <option value="">Select a subject...</option>
+                  {availableSubjects.map((subject) => (
+                    <option key={subject.sub_id} value={subject.name}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

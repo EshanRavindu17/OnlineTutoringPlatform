@@ -543,4 +543,46 @@ export const createNewEnrollmentNotificationEmail = (data: {
     html: createBaseEmailTemplate(templateOptions),
     text: generatePlainText(templateOptions)
   };
+};
+
+/**
+ * Custom message from tutor to student
+ */
+export const createCustomMessageEmail = (data: {
+  tutorName: string;
+  studentName: string;
+  studentEmail: string;
+  subject: string;
+  message: string;
+  className?: string;
+}): EmailContent => {
+  const { tutorName, studentName, subject: messageSubject, message, className } = data;
+  
+  const templateOptions = {
+    title: messageSubject,
+    content: `<p>Dear <strong>${studentName}</strong>,</p>
+              <p>You have received a message from your tutor <strong>${tutorName}</strong>${className ? ` regarding <strong>${className}</strong>` : ''}:</p>
+              <div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 16px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; white-space: pre-wrap; color: #374151; line-height: 1.6;">${message}</p>
+              </div>
+              <p>If you have any questions or need clarification, please reply to this email or contact your tutor directly.</p>`,
+    
+    alertType: 'info' as const,
+    alertMessage: `Message from ${tutorName}`,
+    
+    details: className ? [
+      { label: 'Class', value: className },
+      { label: 'From', value: tutorName }
+    ] : [
+      { label: 'From', value: tutorName }
+    ],
+    
+    footerMessage: 'Keep up the great work!'
+  };
+
+  return {
+    subject: `Message from ${tutorName}: ${messageSubject}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
 };     

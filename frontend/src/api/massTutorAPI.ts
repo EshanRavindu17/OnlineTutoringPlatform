@@ -232,4 +232,83 @@ export const massTutorAPI = {
     });
     return response.data;
   },
+
+  // Send email to student
+  async sendStudentEmail(data: {
+    studentEmail: string;
+    subject: string;
+    message: string;
+    className?: string;
+  }) {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/mass-tutor/send-student-email`, data, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get tutor profile
+  async getTutorProfile() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/profile`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Update tutor profile
+  async updateTutorProfile(data: {
+    name?: string;
+    dob?: string;
+    bio?: string;
+    subjects?: string[];
+    qualifications?: string[];
+    description?: string;
+    heading?: string;
+    location?: string;
+    phone_number?: string;
+    prices?: number;
+  }) {
+    const headers = await getAuthHeaders();
+    const response = await axios.put(`${API_URL}/mass-tutor/profile`, data, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get all available subjects
+  async getAllSubjects() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/subjects`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get tutor earnings data
+  async getEarnings() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/earnings`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get tutor reviews and ratings
+  async getReviews() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/reviews`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get dashboard analytics
+  async getDashboardAnalytics() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/analytics`, {
+      headers,
+    });
+    return response.data;
+  },
 };

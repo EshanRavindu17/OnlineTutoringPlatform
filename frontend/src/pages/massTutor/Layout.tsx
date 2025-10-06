@@ -3,10 +3,11 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, Calendar, Users2, Megaphone,
   Video, UserCog, DollarSign, FolderOpen, Menu, X, ChevronRight,
-  Sparkles, TrendingUp, Zap, Target, Award, Bell, Search
+  Sparkles, TrendingUp, Zap, Target, Award, Bell, Search, Star
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import { massTutorAPI } from '../../api/massTutorAPI';
 
 const navSections = [
   {
@@ -35,6 +36,7 @@ const navSections = [
     title: 'Account',
     items: [
       { to: '/mass-tutor/earnings', label: 'Earnings', icon: DollarSign, color: 'emerald', description: 'Revenue & payouts', badge: null },
+      { to: '/mass-tutor/reviews', label: 'Reviews', icon: Star, color: 'yellow', description: 'Student feedback', badge: null },
       { to: '/mass-tutor/profile', label: 'Profile', icon: UserCog, color: 'slate', description: 'Account settings', badge: null },
     ]
   }
@@ -49,14 +51,30 @@ const colorClasses: Record<string, { bg: string; text: string; border: string; g
   indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', gradient: 'from-indigo-500 to-indigo-600', hover: 'hover:shadow-indigo-500/20', glow: 'shadow-indigo-500/30' },
   red: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', gradient: 'from-red-500 to-red-600', hover: 'hover:shadow-red-500/20', glow: 'shadow-red-500/30' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', gradient: 'from-emerald-500 to-emerald-600', hover: 'hover:shadow-emerald-500/20', glow: 'shadow-emerald-500/30' },
+  yellow: { bg: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-200', gradient: 'from-yellow-500 to-yellow-600', hover: 'hover:shadow-yellow-500/20', glow: 'shadow-yellow-500/30' },
   slate: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', gradient: 'from-slate-500 to-slate-600', hover: 'hover:shadow-slate-500/20', glow: 'shadow-slate-500/30' },
 };
+
+interface DashboardStats {
+  totalClasses: number;
+  totalStudents: number;
+  upcomingSlots: number;
+  completedSlots: number;
+  monthlyRevenue?: number;
+}
 
 export default function MassTutorLayout() {
   const loc = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalClasses: 0,
+    totalStudents: 0,
+    upcomingSlots: 0,
+    completedSlots: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -65,6 +83,47 @@ export default function MassTutorLayout() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setLoadingStats(true);
+      const [classStats, earningsData] = await Promise.all([
+        massTutorAPI.getClassStats(),
+        massTutorAPI.getEarnings().catch(() => ({ earnings: [] })),
+      ]);
+      
+      // Get earnings for current month
+      // Based on the screenshot, paidMonth is stored as just "October" (month name only)
+      const now = new Date();
+      const currentMonthName = now.toLocaleDateString('en-US', { month: 'long' }); // "October"
+      
+      console.log('🔍 Current month name:', currentMonthName);
+      console.log('📊 All earnings:', JSON.stringify(earningsData.earnings, null, 2));
+      
+      // Find the first earning entry (most recent, since backend sorts by date DESC)
+      // that matches the current month name
+      const monthlyEarning = earningsData.earnings?.find((e: any) => {
+        console.log(`Comparing "${e.month}" with "${currentMonthName}"`);
+        return e.month === currentMonthName || e.month?.startsWith(currentMonthName);
+      });
+      
+      console.log('💰 Found monthly earning:', monthlyEarning);
+      console.log('� Payout value:', monthlyEarning?.payout);
+      
+      setStats({
+        ...classStats,
+        monthlyRevenue: monthlyEarning?.payout || 0,
+      });
+    } catch (error) {
+      console.error('❌ Failed to fetch dashboard stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex flex-col relative">
@@ -127,7 +186,10 @@ export default function MassTutorLayout() {
             
             {/* Enhanced Quick Stats with animations */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-6">
-              <div className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer">
+              <a 
+                href="/mass-tutor/classes"
+                className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-white/80 text-xs font-semibold">
                     <div className="p-1.5 bg-blue-400/20 rounded-lg">
@@ -137,11 +199,20 @@ export default function MassTutorLayout() {
                   </div>
                   <TrendingUp className="w-3 h-3 text-green-300 opacity-0 group-hover/stat:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-3xl font-bold mb-1">—</div>
+                <div className="text-3xl font-bold mb-1">
+                  {loadingStats ? (
+                    <div className="h-9 w-12 bg-white/20 rounded animate-pulse"></div>
+                  ) : (
+                    stats.totalClasses
+                  )}
+                </div>
                 <div className="text-xs text-white/60">Click to view all</div>
-              </div>
+              </a>
               
-              <div className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer">
+              <a 
+                href="/mass-tutor/students"
+                className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-white/80 text-xs font-semibold">
                     <div className="p-1.5 bg-purple-400/20 rounded-lg">
@@ -151,11 +222,20 @@ export default function MassTutorLayout() {
                   </div>
                   <Target className="w-3 h-3 text-purple-300 opacity-0 group-hover/stat:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-3xl font-bold mb-1">—</div>
+                <div className="text-3xl font-bold mb-1">
+                  {loadingStats ? (
+                    <div className="h-9 w-12 bg-white/20 rounded animate-pulse"></div>
+                  ) : (
+                    stats.totalStudents
+                  )}
+                </div>
                 <div className="text-xs text-white/60">Across all classes</div>
-              </div>
+              </a>
               
-              <div className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer">
+              <a 
+                href="/mass-tutor/earnings"
+                className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-white/80 text-xs font-semibold">
                     <div className="p-1.5 bg-green-400/20 rounded-lg">
@@ -165,11 +245,20 @@ export default function MassTutorLayout() {
                   </div>
                   <Award className="w-3 h-3 text-yellow-300 opacity-0 group-hover/stat:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-3xl font-bold mb-1">—</div>
+                <div className="text-3xl font-bold mb-1">
+                  {loadingStats ? (
+                    <div className="h-9 w-20 bg-white/20 rounded animate-pulse"></div>
+                  ) : (
+                    `LKR ${stats.monthlyRevenue?.toLocaleString() || '0'}`
+                  )}
+                </div>
                 <div className="text-xs text-white/60">Revenue earned</div>
-              </div>
+              </a>
               
-              <div className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer">
+              <a 
+                href="/mass-tutor/schedule"
+                className="group/stat bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/15 hover:border-white/30 hover:scale-105 transition-all cursor-pointer"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-white/80 text-xs font-semibold">
                     <div className="p-1.5 bg-orange-400/20 rounded-lg">
@@ -179,9 +268,15 @@ export default function MassTutorLayout() {
                   </div>
                   <Zap className="w-3 h-3 text-orange-300 opacity-0 group-hover/stat:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-3xl font-bold mb-1">—</div>
+                <div className="text-3xl font-bold mb-1">
+                  {loadingStats ? (
+                    <div className="h-9 w-12 bg-white/20 rounded animate-pulse"></div>
+                  ) : (
+                    stats.upcomingSlots
+                  )}
+                </div>
                 <div className="text-xs text-white/60">Sessions scheduled</div>
-              </div>
+              </a>
             </div>
           </div>
         </div>

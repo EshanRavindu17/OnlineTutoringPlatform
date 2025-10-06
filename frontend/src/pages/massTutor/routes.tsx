@@ -11,6 +11,7 @@ import StudentsPage from './Students';
 import EarningsPage from './Earnings';
 import MassTutorProfile from './Profile';
 import SchedulePage from './Schedule';
+import ReviewsRatingsPage from './Reviews&Ratings';
 
 export function massTutorRoutes() {
   return (
@@ -25,6 +26,7 @@ export function massTutorRoutes() {
       <Route path="/mass-tutor/earnings" element={<EarningsPage />} />
       <Route path="/mass-tutor/profile" element={<MassTutorProfile />} />
       <Route path="/mass-tutor/schedule" element={<SchedulePage />} />
+      <Route path="/mass-tutor/reviews" element={<ReviewsRatingsPage />} />
     </Route>
   );
 }
