@@ -73,7 +73,7 @@ export class EarningsService {
   }
 
   // Get recent payments
-  static async getRecentPayments(firebaseUid: string, limit: number = 10): Promise<RecentPayment[]> {
+  static async getRecentPayments(firebaseUid: string, limit: number = 6): Promise<RecentPayment[]> {
     return this.makeRequest<RecentPayment[]>(`/earnings/${firebaseUid}/payments?limit=${limit}`);
   }
 
