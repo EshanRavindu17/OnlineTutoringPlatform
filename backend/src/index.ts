@@ -40,6 +40,8 @@ import zoomRouter from './routes/zoom.routes'
 
 // Import reminder service
 import { startReminderJobs, getReminderJobStatus } from './services/remider.service';
+// Import session cleanup service
+import { sessionCleanupService } from './services/sessionCleanupService';
 import  {DateTime}  from 'luxon';
 
 dotenv.config();
@@ -100,6 +102,24 @@ app.get('/health/reminders', (_req: Request, res: Response) => {
     res.status(500).json({
       status: 'ERROR',
       message: 'Email reminder system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Session cleanup health check endpoint
+app.get('/health/session-cleanup', (_req: Request, res: Response) => {
+  try {
+    const cleanupStatus = sessionCleanupService.getStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Session cleanup system status',
+      ...cleanupStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Session cleanup system error',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -198,6 +218,17 @@ app.listen(PORT, () => {
   } catch (error) {
     console.error('❌ Failed to start reminder jobs:', error);
   }
+
+  // Initialize session cleanup service
+  try {
+    sessionCleanupService.start({
+      expireCheckIntervalMs: 5 * 60 * 1000, // Check every 5 minutes for expired sessions
+      completeCheckIntervalMs: 10 * 60 * 1000, // Check every 10 minutes for long-running sessions
+    });
+    console.log('✅ Session cleanup service started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start session cleanup service:', error);
+  }
 });
 
 // const time = new Date();
@@ -211,12 +242,30 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });

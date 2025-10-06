@@ -16,7 +16,11 @@ import {
   removeEnhancedSessionMaterialController,
   getEnhancedSessionMaterialsController,
   uploadMaterialFileController,
-  batchUploadMaterialsController
+  batchUploadMaterialsController,
+  startSessionController,
+  completeSessionController,
+  autoExpireSessionsController,
+  autoCompleteSessionsController
 } from '../controllers/sessionController';
 import { sessionMaterialsUpload, batchMaterialsUpload } from '../config/multer';
 
@@ -37,6 +41,14 @@ router.delete('/:firebaseUid/session/:sessionId/material', removeSessionMaterial
 router.put('/:firebaseUid/session/:sessionId/status', updateSessionStatusController);
 router.post('/:firebaseUid/session/:sessionId/meeting-url', addSessionMeetingUrlController);
 router.post('/:firebaseUid/session/:sessionId/cancel', requestSessionCancellationController);
+
+// Session lifecycle management routes
+router.post('/:firebaseUid/session/:sessionId/start', startSessionController);
+router.post('/:firebaseUid/session/:sessionId/complete', completeSessionController);
+
+// Cleanup/maintenance routes (typically for admin or cron jobs)
+router.post('/admin/auto-expire', autoExpireSessionsController);
+router.post('/admin/auto-complete', autoCompleteSessionsController);
 
 // Enhanced material management routes
 router.post('/:firebaseUid/session/:sessionId/enhanced-material', addEnhancedSessionMaterialController);

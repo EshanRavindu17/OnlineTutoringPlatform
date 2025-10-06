@@ -482,39 +482,107 @@ class SessionService {
     }
   }
 
-  // Finish an ongoing session
-  async finishSession(firebaseUid: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+  // Start a session (change status from scheduled to ongoing)
+  async startSession(firebaseUid: string, sessionId: string): Promise<SessionWithDetails> {
     try {
-      const response = await fetch(`${this.baseURL}/${firebaseUid}/finish/${sessionId}`, {
-        method: 'PATCH',
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/start`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: 'completed',
-          end_time: new Date().toISOString()
-        })
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        return {
-          success: false,
-          message: data.message || 'Failed to finish session'
-        };
+        throw new Error(`Failed to start session: ${response.statusText}`);
       }
 
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error starting session:', error);
+      throw error;
+    }
+  }
+
+  // Complete a session (change status from ongoing to completed)
+  async completeSession(firebaseUid: string, sessionId: string): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to complete session: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error completing session:', error);
+      throw error;
+    }
+  }
+
+  // Finish an ongoing session (legacy method - now uses completeSession)
+  async finishSession(firebaseUid: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.completeSession(firebaseUid, sessionId);
       return {
         success: true,
-        message: 'Session marked as completed successfully'
+        message: 'Session completed successfully'
       };
     } catch (error) {
       console.error('Error finishing session:', error);
       return {
         success: false,
-        message: 'Network error occurred while finishing session'
+        message: error instanceof Error ? error.message : 'Failed to complete session'
       };
+    }
+  }
+
+  // Admin functions for cleanup (typically called by cron jobs or admin interface)
+  async autoExpireScheduledSessions(): Promise<{ expiredCount: number; sessionIds: string[] }> {
+    try {
+      const response = await fetch(`${this.baseURL}/admin/auto-expire`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to auto-expire sessions: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error auto-expiring sessions:', error);
+      throw error;
+    }
+  }
+
+  async autoCompleteLongRunningSessions(): Promise<{ completedCount: number; sessionIds: string[] }> {
+    try {
+      const response = await fetch(`${this.baseURL}/admin/auto-complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to auto-complete sessions: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error auto-completing sessions:', error);
+      throw error;
     }
   }
 

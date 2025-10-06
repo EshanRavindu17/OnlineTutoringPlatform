@@ -1,6 +1,27 @@
 import prisma from "../prismaClient";
 import { SessionStatus } from "@prisma/client";
-import { sendSessionCancellationEmail } from './email.service';
+import { sendSessionCancellationEmail, sendSessionCompletionEmail, sendAutoCancellationEmail } from './email.service';
+
+// Helper function to get session time range from slots
+const getSessionTimeRange = (slots: (string | Date)[]): string => {
+  if (!slots || slots.length === 0) return 'Time not available';
+  
+  // Sort slots to ensure proper order
+  const sortedSlots = slots.map(slot => new Date(slot)).sort((a, b) => a.getTime() - b.getTime());
+  
+  const extractTime = (slot: Date): string => {
+    return slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+  
+  const startTime = extractTime(sortedSlots[0]);
+  
+  // Calculate end time: start time + number of slots (each slot = 1 hour)
+  const endDate = new Date(sortedSlots[0]);
+  endDate.setHours(endDate.getHours() + slots.length);
+  const endTime = extractTime(endDate);
+  
+  return `${startTime} - ${endTime}`;
+};
 import { v4 as uuidv4 } from 'uuid';
 
 // Enhanced Material interface for backend
@@ -127,7 +148,6 @@ export const getTutorSessions = async (tutorId: string): Promise<SessionWithDeta
 
     return sessions.map(convertPrismaSessionToSessionWithDetails);
   } catch (error) {
-    console.error('Error fetching tutor sessions:', error);
     throw new Error('Failed to fetch tutor sessions');
   }
 };
@@ -138,7 +158,8 @@ export const getTutorSessionsByStatus = async (
   status: SessionStatus
 ): Promise<SessionWithDetails[]> => {
   try {
-    const sessions = await prisma.sessions.findMany({
+    // For canceled sessions, limit to the latest 10 to avoid overwhelming the UI
+    const queryOptions: any = {
       where: {
         i_tutor_id: tutorId,
         status: status
@@ -171,39 +192,90 @@ export const getTutorSessionsByStatus = async (
           start_time: 'asc'
         }
       ]
-    });
+    };
+
+    // Limit canceled sessions to the latest 10 for better UX
+    if (status === 'canceled') {
+      queryOptions.take = 10; // Limit to 10 latest canceled sessions
+      queryOptions.orderBy = [
+        {
+          date: 'desc' // Most recent cancellations first
+        },
+        {
+          created_at: 'desc' // Then by creation time (most recent first)
+        }
+      ];
+    }
+
+    const sessions = await prisma.sessions.findMany(queryOptions);
 
     return sessions.map(convertPrismaSessionToSessionWithDetails);
   } catch (error) {
-    console.error(`Error fetching ${status} sessions:`, error);
     throw new Error(`Failed to fetch ${status} sessions`);
   }
 };
 
-// Get upcoming sessions for a tutor
+// Get recent canceled sessions for a tutor (limited to avoid UI clutter)
+export const getTutorRecentCanceledSessions = async (tutorId: string, limit: number = 10): Promise<SessionWithDetails[]> => {
+  try {
+    const sessions = await prisma.sessions.findMany({
+      where: {
+        i_tutor_id: tutorId,
+        status: 'canceled'
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+                photo_url: true
+              }
+            }
+          }
+        },
+        Rating_N_Review_Session: {
+          select: {
+            r_id: true,
+            rating: true,
+            review: true
+          }
+        }
+      },
+      orderBy: [
+        {
+          date: 'desc' // Most recent cancellations first
+        },
+        {
+          created_at: 'desc' // Then by creation time (most recent first)
+        }
+      ],
+      take: limit // Limit the number of results
+    });
+
+    return sessions.map(convertPrismaSessionToSessionWithDetails);
+  } catch (error) {
+    console.error('Error fetching recent canceled sessions:', error);
+    throw new Error('Failed to fetch recent canceled sessions');
+  }
+};
+
+// Get upcoming sessions for a tutor (scheduled sessions that haven't expired)
 export const getTutorUpcomingSessions = async (tutorId: string): Promise<SessionWithDetails[]> => {
   try {
     const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
     
+    // Get all scheduled sessions from today onwards
     const sessions = await prisma.sessions.findMany({
       where: {
         i_tutor_id: tutorId,
         status: 'scheduled',
-        OR: [
-          {
-            date: {
-              gt: now
-            }
-          },
-          {
-            date: {
-              gte: new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            },
-            start_time: {
-              gt: now
-            }
-          }
-        ]
+        date: {
+          gte: today
+        }
       },
       include: {
         Student: {
@@ -235,9 +307,53 @@ export const getTutorUpcomingSessions = async (tutorId: string): Promise<Session
       ]
     });
 
-    return sessions.map(convertPrismaSessionToSessionWithDetails);
+    // Filter out sessions that have expired (past end time + 15 minute grace period)
+    const currentTime = new Date();
+    const filteredSessions = sessions.filter(session => {
+      if (!session.date || !session.slots || session.slots.length === 0) {
+        return true; // Include sessions without proper time info to be safe
+      }
+      
+      const sessionDate = new Date(session.date);
+      sessionDate.setHours(0, 0, 0, 0);
+      
+      // Calculate session end time with grace period
+      const lastSlot: any = session.slots[session.slots.length - 1];
+      let sessionEndHour: number;
+      let sessionEndMinute: number;
+      
+      if (lastSlot instanceof Date) {
+        sessionEndHour = lastSlot.getUTCHours();
+        sessionEndMinute = lastSlot.getUTCMinutes();
+      } else {
+        const timeStr = String(lastSlot);
+        if (timeStr.includes('T')) {
+          // ISO format like "1970-01-01T12:00:00.000Z"
+          const timePart = timeStr.split('T')[1];
+          const [hours, minutes] = timePart.split(':').map(Number);
+          sessionEndHour = hours;
+          sessionEndMinute = minutes || 0;
+        } else if (timeStr.includes(':')) {
+          // Direct time format like "12:00"
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          sessionEndHour = hours;
+          sessionEndMinute = minutes || 0;
+        } else {
+          // If we can't parse the time, include it to be safe
+          return true;
+        }
+      }
+      
+      // Create session end time (last slot + 1 hour + 15 minute grace period)
+      const sessionEndWithGrace = new Date(sessionDate);
+      sessionEndWithGrace.setHours(sessionEndHour + 1, sessionEndMinute + 15, 0, 0);
+      
+      // Session is upcoming if it hasn't expired yet
+      return currentTime.getTime() < sessionEndWithGrace.getTime();
+    });
+
+    return filteredSessions.map(convertPrismaSessionToSessionWithDetails);
   } catch (error) {
-    console.error('Error fetching upcoming sessions:', error);
     throw new Error('Failed to fetch upcoming sessions');
   }
 };
@@ -263,20 +379,10 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
       }
     });
 
-    // Get upcoming sessions count (scheduled and in future)
-    const upcomingSessions = await prisma.sessions.count({
-      where: {
-        i_tutor_id: tutorId,
-        status: 'scheduled',
-        OR: [
-          { date: { gt: now } },
-          { 
-            date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
-            start_time: { gt: now }
-          }
-        ]
-      }
-    });
+    // Get upcoming sessions count (scheduled and in future) 
+    // We'll use the same logic as getTutorUpcomingSessions to get accurate count
+    const upcomingSessionsResult = await getTutorUpcomingSessions(tutorId);
+    const upcomingSessions = upcomingSessionsResult.length;
 
     // Get earnings data
     const totalEarningsResult = await prisma.sessions.aggregate({
@@ -739,6 +845,464 @@ export const requestSessionCancellation = async (
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error(`Failed to cancel session: ${errorMessage}`);
+  }
+};
+
+// Start a session (change status from scheduled to ongoing)
+export const startSession = async (tutorId: string, sessionId: string): Promise<SessionWithDetails> => {
+  try {
+    // Verify that the session belongs to the tutor and is scheduled
+    const session = await prisma.sessions.findFirst({
+      where: {
+        session_id: sessionId,
+        i_tutor_id: tutorId,
+        status: 'scheduled'
+      }
+    });
+
+    if (!session) {
+      throw new Error('Session not found or not in scheduled status');
+    }
+
+    // Update session status to ongoing and set start_time
+    const updatedSession = await prisma.sessions.update({
+      where: { session_id: sessionId },
+      data: { 
+        status: 'ongoing',
+        start_time: new Date()
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+                photo_url: true
+              }
+            }
+          }
+        },
+        Rating_N_Review_Session: {
+          select: {
+            r_id: true,
+            rating: true,
+            review: true
+          }
+        }
+      }
+    });
+
+    return convertPrismaSessionToSessionWithDetails(updatedSession);
+  } catch (error) {
+    console.error('Error starting session:', error);
+    throw new Error(`Failed to start session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+// Complete a session (change status from ongoing to completed)
+export const completeSession = async (tutorId: string, sessionId: string): Promise<SessionWithDetails> => {
+  try {
+    // Verify that the session belongs to the tutor and is ongoing
+    const session = await prisma.sessions.findFirst({
+      where: {
+        session_id: sessionId,
+        i_tutor_id: tutorId,
+        status: 'ongoing'
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+                photo_url: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new Error('Session not found or not in ongoing status');
+    }
+
+    // Get tutor information for email
+    const tutorInfo = await prisma.individual_Tutor.findUnique({
+      where: { i_tutor_id: tutorId },
+      include: {
+        User: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Update session status to completed and set end_time
+    const updatedSession = await prisma.sessions.update({
+      where: { session_id: sessionId },
+      data: { 
+        status: 'completed',
+        end_time: new Date()
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true,
+                photo_url: true
+              }
+            }
+          }
+        },
+        Rating_N_Review_Session: {
+          select: {
+            r_id: true,
+            rating: true,
+            review: true
+          }
+        }
+      }
+    });
+
+    // Send email notifications to both student and tutor
+    try {
+      const sessionDate = session.date?.toLocaleDateString() || 'Unknown Date';
+      const sessionTime = session.slots && session.slots.length > 0 
+        ? getSessionTimeRange(session.slots)
+        : 'Unknown Time';
+      
+      const studentName = session.Student?.User?.name || 'Student';
+      const tutorName = tutorInfo?.User?.name || 'Tutor';
+
+      // Send email to student
+      if (session.Student?.User?.email) {
+        await sendSessionCompletionEmail(
+          session.Student.User.email,
+          'student',
+          studentName,
+          tutorName,
+          sessionDate,
+          sessionTime,
+          session.subject || undefined,
+          '1 hour', // Default duration
+          session.price ? Number(session.price) : undefined
+        );
+      }
+
+      // Send email to tutor
+      if (tutorInfo?.User?.email) {
+        await sendSessionCompletionEmail(
+          tutorInfo.User.email,
+          'tutor',
+          studentName,
+          tutorName,
+          sessionDate,
+          sessionTime,
+          session.subject || undefined,
+          '1 hour' // Default duration
+        );
+      }
+    } catch (emailError) {
+      console.error('Error sending completion emails:', emailError);
+      // Don't throw error here as the session completion was successful
+    }
+
+    return convertPrismaSessionToSessionWithDetails(updatedSession);
+  } catch (error) {
+    console.error('Error completing session:', error);
+    throw new Error(`Failed to complete session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+// Auto-expire sessions that have passed their grace period
+export const autoExpireScheduledSessions = async (): Promise<{ expiredCount: number; sessionIds: string[] }> => {
+  try {
+    const currentTime = new Date();
+    
+    // Find all scheduled sessions that should be expired
+    const sessionsToExpire = await prisma.sessions.findMany({
+      where: {
+        status: 'scheduled',
+        date: {
+          lte: currentTime // Sessions from today or earlier
+        }
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const expiredSessionIds: string[] = [];
+    const expiredSessionsDetails: any[] = [];
+
+    for (const session of sessionsToExpire) {
+      if (!session.date || !session.slots || session.slots.length === 0) continue;
+
+      const sessionDate = new Date(session.date);
+      sessionDate.setHours(0, 0, 0, 0);
+
+      // Calculate session end time with 15-minute grace period
+      const lastSlot: any = session.slots[session.slots.length - 1];
+      let sessionEndHour: number;
+      let sessionEndMinute: number;
+
+      if (lastSlot instanceof Date) {
+        sessionEndHour = lastSlot.getUTCHours();
+        sessionEndMinute = lastSlot.getUTCMinutes();
+      } else {
+        const timeStr = String(lastSlot);
+        if (timeStr.includes('T')) {
+          const timePart = timeStr.split('T')[1];
+          const [hours, minutes] = timePart.split(':').map(Number);
+          sessionEndHour = hours;
+          sessionEndMinute = minutes || 0;
+        } else if (timeStr.includes(':')) {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          sessionEndHour = hours;
+          sessionEndMinute = minutes || 0;
+        } else {
+          continue; // Skip if can't parse time
+        }
+      }
+
+      // Create session end time with grace period
+      const sessionEndWithGrace = new Date(sessionDate);
+      sessionEndWithGrace.setHours(sessionEndHour + 1, sessionEndMinute + 15, 0, 0);
+
+      // If session has expired, mark it for cancellation
+      if (currentTime.getTime() >= sessionEndWithGrace.getTime()) {
+        expiredSessionIds.push(session.session_id);
+        expiredSessionsDetails.push(session);
+      }
+    }
+
+    // Update expired sessions to canceled status and send notifications
+    if (expiredSessionIds.length > 0) {
+      await prisma.sessions.updateMany({
+        where: {
+          session_id: {
+            in: expiredSessionIds
+          }
+        },
+        data: {
+          status: 'canceled'
+          // Note: We're not adding a reason field here as it doesn't exist in schema
+          // You might want to add a cancellation_reason field to the Sessions table
+        }
+      });
+
+      // Also update any related payments to refund status
+      await prisma.individual_Payments.updateMany({
+        where: {
+          session_id: {
+            in: expiredSessionIds
+          }
+        },
+        data: {
+          status: 'refund'
+        }
+      });
+
+      // Send auto-cancellation emails for each expired session
+      for (const session of expiredSessionsDetails) {
+        try {
+          // Get tutor information
+          const tutorInfo = await prisma.individual_Tutor.findUnique({
+            where: { i_tutor_id: session.i_tutor_id },
+            include: {
+              User: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          });
+
+          // Get payment information for refund amount
+          const paymentInfo = await prisma.individual_Payments.findFirst({
+            where: { session_id: session.session_id },
+            select: { amount: true }
+          });
+
+          const sessionDate = session.date?.toLocaleDateString() || 'Unknown Date';
+          const sessionTime = session.slots && session.slots.length > 0 
+            ? getSessionTimeRange(session.slots)
+            : 'Unknown Time';
+          
+          const studentName = session.Student?.User?.name || 'Student';
+          const tutorName = tutorInfo?.User?.name || 'Tutor';
+          const refundAmount = paymentInfo?.amount || session.price;
+
+          // Send email to student
+          if (session.Student?.User?.email) {
+            await sendAutoCancellationEmail(
+              session.Student.User.email,
+              'student',
+              studentName,
+              tutorName,
+              sessionDate,
+              sessionTime,
+              session.subject || undefined,
+              refundAmount ? Number(refundAmount) : undefined
+            );
+          }
+
+          // Send email to tutor
+          if (tutorInfo?.User?.email) {
+            await sendAutoCancellationEmail(
+              tutorInfo.User.email,
+              'tutor',
+              studentName,
+              tutorName,
+              sessionDate,
+              sessionTime,
+              session.subject || undefined
+            );
+          }
+        } catch (emailError) {
+          console.error(`Error sending auto-cancellation email for session ${session.session_id}:`, emailError);
+          // Continue with other sessions even if email fails
+        }
+      }
+    }
+
+    return {
+      expiredCount: expiredSessionIds.length,
+      sessionIds: expiredSessionIds
+    };
+  } catch (error) {
+    console.error('Error auto-expiring sessions:', error);
+    throw new Error('Failed to auto-expire sessions');
+  }
+};
+
+// Auto-complete sessions that have been ongoing for too long (1 hour)
+export const autoCompleteLongRunningSessions = async (): Promise<{ completedCount: number; sessionIds: string[] }> => {
+  try {
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+    // Find ongoing sessions that started more than 1 hour ago
+    const longRunningSessions = await prisma.sessions.findMany({
+      where: {
+        status: 'ongoing',
+        start_time: {
+          lte: oneHourAgo
+        }
+      },
+      include: {
+        Student: {
+          include: {
+            User: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const sessionIdsToComplete = longRunningSessions.map(s => s.session_id);
+
+    // Update them to completed status
+    if (sessionIdsToComplete.length > 0) {
+      await prisma.sessions.updateMany({
+        where: {
+          session_id: {
+            in: sessionIdsToComplete
+          }
+        },
+        data: {
+          status: 'completed',
+          end_time: new Date()
+        }
+      });
+
+      // Send auto-completion emails for each session
+      for (const session of longRunningSessions) {
+        try {
+          // Get tutor information
+          const tutorInfo = await prisma.individual_Tutor.findUnique({
+            where: { i_tutor_id: session.i_tutor_id },
+            include: {
+              User: {
+                select: {
+                  name: true,
+                  email: true
+                }
+              }
+            }
+          });
+
+          const sessionDate = session.date?.toLocaleDateString() || 'Unknown Date';
+          const sessionTime = session.slots && session.slots.length > 0 
+            ? getSessionTimeRange(session.slots)
+            : session.start_time?.toLocaleTimeString() || 'Unknown Time';
+          
+          const studentName = session.Student?.User?.name || 'Student';
+          const tutorName = tutorInfo?.User?.name || 'Tutor';
+
+          // Send email to student
+          if (session.Student?.User?.email) {
+            await sendSessionCompletionEmail(
+              session.Student.User.email,
+              'student',
+              studentName,
+              tutorName,
+              sessionDate,
+              sessionTime,
+              session.subject || undefined,
+              '1 hour',
+              session.price ? Number(session.price) : undefined
+            );
+          }
+
+          // Send email to tutor
+          if (tutorInfo?.User?.email) {
+            await sendSessionCompletionEmail(
+              tutorInfo.User.email,
+              'tutor',
+              studentName,
+              tutorName,
+              sessionDate,
+              sessionTime,
+              session.subject || undefined,
+              '1 hour'
+            );
+          }
+        } catch (emailError) {
+          console.error(`Error sending auto-completion email for session ${session.session_id}:`, emailError);
+          // Continue with other sessions even if email fails
+        }
+      }
+    }
+
+    return {
+      completedCount: sessionIdsToComplete.length,
+      sessionIds: sessionIdsToComplete
+    };
+  } catch (error) {
+    console.error('Error auto-completing long running sessions:', error);
+    throw new Error('Failed to auto-complete long running sessions');
   }
 };
 
