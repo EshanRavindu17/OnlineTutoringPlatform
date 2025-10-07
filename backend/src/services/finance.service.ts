@@ -1,6 +1,170 @@
 import prisma from '../prismaClient';
 
 /**
+ * Get active payment rates (individual_hourly and mass_monthly)
+ */
+export async function getPaymentRatesService() {
+  try {
+    const rates: any[] = await (prisma as any).paymentrates.findMany({
+      where: {
+        status: 'active',
+        type: {
+          in: ['individual_hourly', 'mass_monthly']
+        }
+      },
+      include: {
+        Admin: {
+          select: {
+            name: true,
+          }
+        }
+      },
+      orderBy: {
+        type: 'asc'
+      }
+    });
+
+    return rates.map((rate) => ({
+      id: rate.id,
+      type: rate.type,
+      value: parseFloat(rate.value.toString()),
+      status: rate.status,
+      description: rate.description,
+      created_at: rate.created_at,
+      created_by: rate.created_by,
+      created_by_name: rate.Admin?.name || 'Unknown',
+    }));
+  } catch (error) {
+    console.error('Error fetching payment rates:', error);
+    throw new Error('Failed to fetch payment rates');
+  }
+}
+
+/**
+ * Create initial payment rate (when none exists)
+ */
+export async function createPaymentRateService(
+  type: 'individual_hourly' | 'mass_monthly',
+  value: number,
+  adminId: string,
+  description?: string
+) {
+  try {
+    if (value <= 0) {
+      throw new Error('Rate must be greater than 0');
+    }
+
+    // Check if active rate already exists
+    const existing: any = await (prisma as any).paymentrates.findFirst({
+      where: {
+        type,
+        status: 'active'
+      }
+    });
+
+    if (existing) {
+      throw new Error(`Active ${type} rate already exists. Use update instead.`);
+    }
+
+    // Create new rate
+    const newRate: any = await (prisma as any).paymentrates.create({
+      data: {
+        type,
+        value,
+        status: 'active',
+        description: description || null,
+        created_by: adminId,
+      },
+      include: {
+        Admin: {
+          select: {
+            name: true,
+          }
+        }
+      }
+    });
+
+    return {
+      id: newRate.id,
+      type: newRate.type,
+      value: parseFloat(newRate.value.toString()),
+      status: newRate.status,
+      description: newRate.description,
+      created_at: newRate.created_at,
+      created_by: newRate.created_by,
+      created_by_name: newRate.Admin?.name || 'Unknown',
+    };
+  } catch (error: any) {
+    console.error('Error creating payment rate:', error);
+    throw new Error(error.message || 'Failed to create payment rate');
+  }
+}
+
+/**
+ * Update payment rate (creates new active record and deactivates old one)
+ */
+export async function updatePaymentRateService(
+  type: 'individual_hourly' | 'mass_monthly',
+  newValue: number,
+  adminId: string,
+  description?: string
+) {
+  try {
+    if (newValue <= 0) {
+      throw new Error('Rate must be greater than 0');
+    }
+
+    // Use transaction to ensure atomicity
+    const result: any = await prisma.$transaction(async (tx: any) => {
+      // Deactivate old active rate for this type
+      await tx.paymentrates.updateMany({
+        where: {
+          type,
+          status: 'active'
+        },
+        data: {
+          status: 'deactivated'
+        }
+      });
+
+      // Create new active rate
+      const newRate = await tx.paymentrates.create({
+        data: {
+          type,
+          value: newValue,
+          status: 'active',
+          description: description || null,
+          created_by: adminId,
+        },
+        include: {
+          Admin: {
+            select: {
+              name: true,
+            }
+          }
+        }
+      });
+
+      return newRate;
+    });
+
+    return {
+      id: result.id,
+      type: result.type,
+      value: parseFloat(result.value.toString()),
+      status: result.status,
+      description: result.description,
+      created_at: result.created_at,
+      created_by: result.created_by,
+      created_by_name: result.Admin?.name || 'Unknown',
+    };
+  } catch (error: any) {
+    console.error('Error updating payment rate:', error);
+    throw new Error(error.message || 'Failed to update payment rate');
+  }
+}
+
+/**
  * Get current commission rate
  */
 export async function getCommissionService() {

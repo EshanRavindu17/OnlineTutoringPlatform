@@ -2,12 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from './api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+interface PaymentRate {
+  id: string;
+  type: 'individual_hourly' | 'mass_monthly';
+  value: number;
+  status: 'active' | 'inactive';
+  description: string | null;
+  created_at: string;
+  created_by: string;
+  created_by_name: string;
+}
+
 interface FinanceData {
   commission: {
     rate: number;
     created_at: string | null;
     updated_by_name: string | null;
   };
+  paymentRates?: PaymentRate[];
   summary: {
     totalRevenue: number;
     platformRevenue: number;
@@ -44,13 +56,19 @@ export default function Finance() {
   const [editingCommission, setEditingCommission] = useState(false);
   const [newRate, setNewRate] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [editingRate, setEditingRate] = useState<'individual_hourly' | 'mass_monthly' | null>(null);
+  const [newPaymentRate, setNewPaymentRate] = useState('');
+  const [paymentRateDescription, setPaymentRateDescription] = useState('');
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError('');
-      const analytics = await adminApi.getFinanceAnalytics();
-      setData(analytics);
+      const [analytics, ratesResponse] = await Promise.all([
+        adminApi.getFinanceAnalytics(),
+        adminApi.getPaymentRates()
+      ]);
+      setData({ ...analytics, paymentRates: ratesResponse.rates });
     } catch (e: any) {
       setError(e.message || 'Failed to load finance data');
       console.error('Error loading finance data:', e);
@@ -79,6 +97,50 @@ export default function Finance() {
       setNewRate('');
     } catch (e: any) {
       setError(e.message || 'Failed to update commission');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCreatePaymentRate = async (type: 'individual_hourly' | 'mass_monthly') => {
+    const value = parseFloat(newPaymentRate);
+    if (isNaN(value) || value <= 0) {
+      setError('Rate must be a positive number');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setError('');
+      await adminApi.createPaymentRate(type, value, paymentRateDescription || undefined);
+      await loadData();
+      setEditingRate(null);
+      setNewPaymentRate('');
+      setPaymentRateDescription('');
+    } catch (e: any) {
+      setError(e.message || 'Failed to create payment rate');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleUpdatePaymentRate = async (type: 'individual_hourly' | 'mass_monthly') => {
+    const value = parseFloat(newPaymentRate);
+    if (isNaN(value) || value <= 0) {
+      setError('Rate must be a positive number');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setError('');
+      await adminApi.updatePaymentRate(type, value, paymentRateDescription || undefined);
+      await loadData();
+      setEditingRate(null);
+      setNewPaymentRate('');
+      setPaymentRateDescription('');
+    } catch (e: any) {
+      setError(e.message || 'Failed to update payment rate');
     } finally {
       setUpdating(false);
     }
@@ -205,6 +267,309 @@ export default function Finance() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Payment Rates Management */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Individual Hourly Rate */}
+        {data.paymentRates?.find(r => r.type === 'individual_hourly') ? (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-sm border border-green-200 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Individual Hourly Rate 💼</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Payment threshold for individual tutoring sessions (per hour)
+                </p>
+                {editingRate !== 'individual_hourly' ? (
+                  <div>
+                    <div className="text-4xl font-bold text-green-600 mb-2">
+                      LKR {data.paymentRates.find(r => r.type === 'individual_hourly')?.value.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Last updated by {data.paymentRates.find(r => r.type === 'individual_hourly')?.created_by_name}
+                    </p>
+                    {data.paymentRates.find(r => r.type === 'individual_hourly')?.description && (
+                      <p className="text-xs text-gray-600 mt-1 italic">
+                        "{data.paymentRates.find(r => r.type === 'individual_hourly')?.description}"
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3 mt-2">
+                    <input
+                      type="number"
+                      value={newPaymentRate}
+                      onChange={(e) => setNewPaymentRate(e.target.value)}
+                      placeholder="Enter new rate (LKR)"
+                      min="0"
+                      step="100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <input
+                      type="text"
+                      value={paymentRateDescription}
+                      onChange={(e) => setPaymentRateDescription(e.target.value)}
+                      placeholder="Description (optional)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleUpdatePaymentRate('individual_hourly')}
+                        disabled={updating}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {updating ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingRate(null);
+                          setNewPaymentRate('');
+                          setPaymentRateDescription('');
+                          setError('');
+                        }}
+                        disabled={updating}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {editingRate !== 'individual_hourly' && (
+                <button
+                  onClick={() => {
+                    setEditingRate('individual_hourly');
+                    const currentRate = data.paymentRates?.find(r => r.type === 'individual_hourly');
+                    setNewPaymentRate(currentRate?.value.toString() || '');
+                    setPaymentRateDescription('');
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                >
+                  Edit Rate
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-sm border border-green-200 p-6">
+            {editingRate !== 'individual_hourly' ? (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">💼</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Individual Hourly Rate Not Set</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  No payment threshold configured for individual tutoring sessions
+                </p>
+                <button
+                  onClick={() => {
+                    setEditingRate('individual_hourly');
+                    setNewPaymentRate('3000');
+                    setPaymentRateDescription('Initial hourly rate for individual tutoring sessions');
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                >
+                  Set Initial Rate
+                </button>
+              </div>
+            ) : (
+              <div className="py-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Individual Hourly Rate 💼</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Payment threshold for individual tutoring sessions (per hour)
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="number"
+                    value={newPaymentRate}
+                    onChange={(e) => setNewPaymentRate(e.target.value)}
+                    placeholder="Enter rate (LKR)"
+                    min="0"
+                    step="100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                  <input
+                    type="text"
+                    value={paymentRateDescription}
+                    onChange={(e) => setPaymentRateDescription(e.target.value)}
+                    placeholder="Description (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleCreatePaymentRate('individual_hourly')}
+                      disabled={updating}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                    >
+                      {updating ? 'Creating...' : 'Create Rate'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRate(null);
+                        setNewPaymentRate('');
+                        setPaymentRateDescription('');
+                        setError('');
+                      }}
+                      disabled={updating}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mass Monthly Rate */}
+        {data.paymentRates?.find(r => r.type === 'mass_monthly') ? (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl shadow-sm border border-orange-200 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Mass Monthly Rate 👥</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Payment threshold for mass class subscriptions (per month)
+                </p>
+                {editingRate !== 'mass_monthly' ? (
+                  <div>
+                    <div className="text-4xl font-bold text-orange-600 mb-2">
+                      LKR {data.paymentRates.find(r => r.type === 'mass_monthly')?.value.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Last updated by {data.paymentRates.find(r => r.type === 'mass_monthly')?.created_by_name}
+                    </p>
+                    {data.paymentRates.find(r => r.type === 'mass_monthly')?.description && (
+                      <p className="text-xs text-gray-600 mt-1 italic">
+                        "{data.paymentRates.find(r => r.type === 'mass_monthly')?.description}"
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3 mt-2">
+                    <input
+                      type="number"
+                      value={newPaymentRate}
+                      onChange={(e) => setNewPaymentRate(e.target.value)}
+                      placeholder="Enter new rate (LKR)"
+                      min="0"
+                      step="100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <input
+                      type="text"
+                      value={paymentRateDescription}
+                      onChange={(e) => setPaymentRateDescription(e.target.value)}
+                      placeholder="Description (optional)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleUpdatePaymentRate('mass_monthly')}
+                        disabled={updating}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {updating ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingRate(null);
+                          setNewPaymentRate('');
+                          setPaymentRateDescription('');
+                          setError('');
+                        }}
+                        disabled={updating}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {editingRate !== 'mass_monthly' && (
+                <button
+                  onClick={() => {
+                    setEditingRate('mass_monthly');
+                    const currentRate = data.paymentRates?.find(r => r.type === 'mass_monthly');
+                    setNewPaymentRate(currentRate?.value.toString() || '');
+                    setPaymentRateDescription('');
+                  }}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+                >
+                  Edit Rate
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl shadow-sm border border-orange-200 p-6">
+            {editingRate !== 'mass_monthly' ? (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">👥</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Mass Monthly Rate Not Set</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  No payment threshold configured for mass class subscriptions
+                </p>
+                <button
+                  onClick={() => {
+                    setEditingRate('mass_monthly');
+                    setNewPaymentRate('8000');
+                    setPaymentRateDescription('Initial monthly rate for mass class subscriptions');
+                  }}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+                >
+                  Set Initial Rate
+                </button>
+              </div>
+            ) : (
+              <div className="py-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Mass Monthly Rate 👥</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Payment threshold for mass class subscriptions (per month)
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="number"
+                    value={newPaymentRate}
+                    onChange={(e) => setNewPaymentRate(e.target.value)}
+                    placeholder="Enter rate (LKR)"
+                    min="0"
+                    step="100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                  <input
+                    type="text"
+                    value={paymentRateDescription}
+                    onChange={(e) => setPaymentRateDescription(e.target.value)}
+                    placeholder="Description (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleCreatePaymentRate('mass_monthly')}
+                      disabled={updating}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+                    >
+                      {updating ? 'Creating...' : 'Create Rate'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRate(null);
+                        setNewPaymentRate('');
+                        setPaymentRateDescription('');
+                        setError('');
+                      }}
+                      disabled={updating}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Revenue Summary Stats */}

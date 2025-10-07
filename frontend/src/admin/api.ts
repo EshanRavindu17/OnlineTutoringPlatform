@@ -159,6 +159,27 @@ export const adminApi = {
   async getFinanceAnalytics() {
     return request('/finance/analytics');
   },
+
+  // Get active payment rates
+  async getPaymentRates() {
+    return request('/finance/payment-rates');
+  },
+
+  // Create initial payment rate
+  async createPaymentRate(type: 'individual_hourly' | 'mass_monthly', value: number, description?: string) {
+    return request(`/finance/payment-rates/${type}`, {
+      method: 'POST',
+      body: JSON.stringify({ value, description }),
+    });
+  },
+
+  // Update payment rate
+  async updatePaymentRate(type: 'individual_hourly' | 'mass_monthly', value: number, description?: string) {
+    return request(`/finance/payment-rates/${type}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, description }),
+    });
+  },
 };
 
 // Tutor application moderation endpoints

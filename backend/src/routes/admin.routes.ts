@@ -29,6 +29,9 @@ import {
   getCommissionController,
   updateCommissionController,
   getFinanceAnalyticsController,
+  getPaymentRatesController,
+  createPaymentRateController,
+  updatePaymentRateController,
 } from '../controllers/finance.controller';
 
 const r = Router();
@@ -63,6 +66,9 @@ r.put('/reports/:id/toggle-status', requireAdminJWT, toggleReportStatusControlle
 // Finance — secured
 r.get('/finance/commission', requireAdminJWT, getCommissionController);
 r.put('/finance/commission', requireAdminJWT, updateCommissionController);
+r.get('/finance/payment-rates', requireAdminJWT, getPaymentRatesController);
+r.post('/finance/payment-rates/:type', requireAdminJWT, createPaymentRateController);
+r.put('/finance/payment-rates/:type', requireAdminJWT, updatePaymentRateController);
 r.get('/finance/analytics', requireAdminJWT, getFinanceAnalyticsController);
 
 export default r;

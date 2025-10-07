@@ -8,16 +8,16 @@ datasource db {
 }
 
 model Admin {
-  admin_id      String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String?        @db.VarChar
-  email         String         @unique @db.VarChar(255)
+  admin_id      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String?         @db.VarChar
+  email         String          @unique @db.VarChar(255)
   password_hash String
-  token_version Int            @default(0)
-  created_at    DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime       @default(now()) @db.Timestamptz(6)
-  last_login_at DateTime?      @db.Timestamptz(6)
+  token_version Int             @default(0)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  last_login_at DateTime?       @db.Timestamptz(6)
   Commission    Commission[]
-  PaymentRates  PaymentRates[]
+  paymentrates paymentrates[]
   Policies      Policies[]
   Reports       Reports[]
 }
@@ -305,7 +305,7 @@ model Commission {
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model PaymentRates {
+model paymentrates {
   id          String       @id(map: "paymentrates_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type        payment_type
   value       Decimal      @db.Decimal(10, 2)
@@ -313,7 +313,9 @@ model PaymentRates {
   description String?
   created_at  DateTime?    @default(now()) @db.Timestamptz(6)
   created_by  String       @db.Uuid
-  Admin       Admin        @relation(fields: [created_by], references: [admin_id], onDelete: SetNull)
+  Admin       Admin        @relation(fields: [created_by], references: [admin_id], onDelete: SetNull, map: "PaymentRates_created_by_fkey")
+
+  @@map("paymentrates")
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
