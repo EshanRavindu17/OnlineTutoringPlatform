@@ -11,7 +11,6 @@ import {User,Calendar,DollarSign,Star,BookOpen,Clock,TrendingUp,Award,Users,Edit
   Video,
   Settings,
   Bell,
-  Activity,
   BarChart3,
   PieChart,
   Target,
@@ -25,7 +24,8 @@ import {User,Calendar,DollarSign,Star,BookOpen,Clock,TrendingUp,Award,Users,Edit
   Upload,
   VideoIcon,
   Camera,
-  Search
+  Search,
+  Activity
 } from 'lucide-react';
 import {
   BarChart,
@@ -45,6 +45,7 @@ import {
   AreaChart
 } from 'recharts';
 import Navbar from '../../components/Navbar';
+import LoadingState from '../../components/dashboard/LoadingState';
 import { useAuth } from '../../context/authContext';
 import { Subject, Title, tutorService } from '../../api/TutorService';
 import { ScheduleService } from '../../api/ScheduleService';
@@ -387,7 +388,7 @@ const MaterialAddModal: React.FC<MaterialAddModalProps> = ({ sessionId, onClose,
 };
 
 const TutorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
   const [showImageEditModal, setShowImageEditModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -404,57 +405,6 @@ const TutorDashboard: React.FC = () => {
   const [activeSessionTab, setActiveSessionTab] = useState('upcoming');
   const [sessionFilter, setSessionFilter] = useState('');
 
-  // Notifications state
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      type: 'booking',
-      title: 'New Session Booked',
-      message: 'John Doe has booked a Mathematics session for tomorrow at 2:00 PM',
-      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      isRead: false,
-      sessionId: 123,
-      studentName: 'John Doe'
-    },
-    {
-      id: 2,
-      type: 'payment',
-      title: 'Payment Received',
-      message: 'Payment of LKR 65 received for your session with Jane Smith',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      isRead: false,
-      studentName: 'Jane Smith'
-    },
-    {
-      id: 3,
-      type: 'review',
-      title: 'New Review',
-      message: 'Mike Johnson left a 5-star review for your Physics session',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      isRead: true,
-      studentName: 'Mike Johnson'
-    },
-    {
-      id: 4,
-      type: 'reschedule',
-      title: 'Reschedule Request',
-      message: 'Sarah Wilson wants to reschedule tomorrow\'s session to Friday',
-      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-      isRead: false,
-      sessionId: 124,
-      studentName: 'Sarah Wilson'
-    },
-    {
-      id: 5,
-      type: 'cancellation',
-      title: 'Session Cancelled',
-      message: 'Tom Brown has cancelled the Real Analysis session scheduled for today',
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-      isRead: false,
-      sessionId: 125,
-      studentName: 'Tom Brown'
-    }
-  ]);
 
   const { currentUser, userProfile } = useAuth();
 
@@ -897,32 +847,32 @@ const TutorDashboard: React.FC = () => {
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Reviews and Ratings (keep old for backward compatibility)
-  const [reviews, setReviews] = useState<Review[]>([
-    {
-      id: 1,
-      studentName: 'Emily R.',
-      rating: 5,
-      date: '2025-08-20',
-      comment: 'Dr. Martinez helped me improve my calculus grade from a C to an A! Her explanations are clear and she\'s incredibly patient. Highly recommend!',
-      subject: 'Mathematics'
-    },
-    {
-      id: 2,
-      studentName: 'Michael T.',
-      rating: 5,
-      date: '2025-08-18',
-      comment: 'Amazing tutor! She made physics concepts that seemed impossible actually make sense. My test scores have improved dramatically.',
-      subject: 'Physics'
-    },
-    {
-      id: 3,
-      studentName: 'Jessica L.',
-      rating: 4,
-      date: '2025-08-15',
-      comment: 'Dr. Martinez is fantastic! She helped me prepare for the SAT math section and I scored a 780. Her teaching methods are excellent.',
-      subject: 'Mathematics'
-    }
-  ]);
+  // const [reviews, setReviews] = useState<Review[]>([
+  //   {
+  //     id: 1,
+  //     studentName: 'Emily R.',
+  //     rating: 5,
+  //     date: '2025-08-20',
+  //     comment: 'Dr. Martinez helped me improve my calculus grade from a C to an A! Her explanations are clear and she\'s incredibly patient. Highly recommend!',
+  //     subject: 'Mathematics'
+  //   },
+  //   {
+  //     id: 2,
+  //     studentName: 'Michael T.',
+  //     rating: 5,
+  //     date: '2025-08-18',
+  //     comment: 'Amazing tutor! She made physics concepts that seemed impossible actually make sense. My test scores have improved dramatically.',
+  //     subject: 'Physics'
+  //   },
+  //   {
+  //     id: 3,
+  //     studentName: 'Jessica L.',
+  //     rating: 4,
+  //     date: '2025-08-15',
+  //     comment: 'Dr. Martinez is fantastic! She helped me prepare for the SAT math section and I scored a 780. Her teaching methods are excellent.',
+  //     subject: 'Mathematics'
+  //   }
+  // ]);
 
   const [newMaterial, setNewMaterial] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -1473,29 +1423,6 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  // Notification handlers
-  const handleMarkAsRead = (notificationId: number) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
-  };
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, isRead: true }))
-    );
-  };
-
-  const handleDeleteNotification = (notificationId: number) => {
-    setNotifications(prev => 
-      prev.filter(notification => notification.id !== notificationId)
-    );
-  };
-
   // Image handling functions
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1811,14 +1738,7 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'sessions', label: 'Sessions', icon: BookOpen },
-    { id: 'earnings', label: 'Earnings', icon: DollarSign },
-    { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 }
-  ];
+
 
   const EditButton = ({ section, className = "" }: { section: keyof typeof editMode, className?: string }) => (
     <button
@@ -1859,223 +1779,10 @@ const TutorDashboard: React.FC = () => {
     </button>
   );
 
-  // Overview Dashboard Component
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {userProfile?.name || 'Tutor'}!</h1>
-            <p className="text-blue-100 text-lg">Here's what's happening with your tutoring business today</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">{new Date().toLocaleDateString()}</div>
-            <div className="text-blue-200">
-              {stats.upcomingSessions} sessions today
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Earnings</p>
-              <p className="text-3xl font-bold text-green-600">
-                LKR {EarningsService.formatCurrency(earningsData?.totalEarnings || stats.monthlyEarnings)}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">This month</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Book Slots</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.bookedSlots}</p>
-              <p className="text-xs text-gray-500 mt-1">Currently enrolled</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Available Slots</p>
-              <p className="text-3xl font-bold text-orange-600">{stats.availableSlots}</p>
-              <p className="text-xs text-gray-500 mt-1">Open for booking</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Clock className="h-6 w-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Rating</p>
-              <p className="text-3xl font-bold text-yellow-600">{tutorProfile.rating}</p>
-              <p className="text-xs text-gray-500 mt-1">Average rating</p>
-            </div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Star className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <Target className="mr-2 text-blue-600" size={20} />
-            Performance Metrics
-          </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Response Rate</span>
-              <div className="flex items-center">
-                <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full" 
-                    style={{width: `${stats.responseRate}%`}}
-                  ></div>
-                </div>
-                <span className="font-semibold text-green-600">{stats.responseRate}%</span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">On-Time Rate</span>
-              <div className="flex items-center">
-                <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full" 
-                    style={{width: `${stats.onTimeRate}%`}}
-                  ></div>
-                </div>
-                <span className="font-semibold text-blue-600">{stats.onTimeRate}%</span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Session Completion</span>
-              <div className="flex items-center">
-                <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                  <div 
-                    className="bg-purple-500 h-2 rounded-full" 
-                    style={{width: '92%'}}
-                  ></div>
-                </div>
-                <span className="font-semibold text-purple-600">92%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <TrendingUp className="mr-2 text-green-600" size={20} />
-            Recent Activity
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-              <CheckCircle className="text-green-600" size={16} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">Session completed with John D.</p>
-                <p className="text-xs text-gray-600">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-              <CalendarIcon className="text-blue-600" size={16} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">New booking from Sarah M.</p>
-                <p className="text-xs text-gray-600">4 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg">
-              <Star className="text-yellow-600" size={16} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">Received 5-star review</p>
-                <p className="text-xs text-gray-600">1 day ago</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <Settings className="mr-2 text-gray-600" size={20} />
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button 
-            onClick={() => setActiveTab('schedule')}
-            className="p-4 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-left group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-blue-600 mb-1 flex items-center">
-                  <Calendar className="mr-2" size={16} />
-                  Manage Schedule
-                </div>
-                <div className="text-sm text-gray-600">Add or update availability</div>
-              </div>
-              <ChevronRight className="text-gray-400 group-hover:text-blue-600" size={16} />
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className="p-4 border border-green-200 rounded-lg hover:bg-green-50 transition-colors text-left group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-green-600 mb-1 flex items-center">
-                  <User className="mr-2" size={16} />
-                  Update Profile
-                </div>
-                <div className="text-sm text-gray-600">Edit your information</div>
-              </div>
-              <ChevronRight className="text-gray-400 group-hover:text-green-600" size={16} />
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('earnings')}
-            className="p-4 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors text-left group"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-purple-600 mb-1 flex items-center">
-                  <BarChart3 className="mr-2" size={16} />
-                  View Analytics
-                </div>
-                <div className="text-sm text-gray-600">Check your performance</div>
-              </div>
-              <ChevronRight className="text-gray-400 group-hover:text-purple-600" size={16} />
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderProfile = () => (
     <div className="space-y-6">
       {/* Profile Header */}
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center">
@@ -2179,7 +1886,7 @@ const TutorDashboard: React.FC = () => {
       </div>
 
       {/* Educational Qualifications */}
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center">
@@ -2334,7 +2041,7 @@ const TutorDashboard: React.FC = () => {
       </div>
 
       {/* Subjects and Titles */}
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center">
@@ -2663,7 +2370,7 @@ const TutorDashboard: React.FC = () => {
       </div>
 
       {/* Hourly Rate */}
-      <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Hourly Rate</h2>
           <EditButton section="pricing" />
@@ -2747,11 +2454,14 @@ const TutorDashboard: React.FC = () => {
     return (
       <div className="space-y-6">
         {/* Sessions Header with Stats */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-2xl shadow-lg">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Session Management</h1>
-              <p className="text-blue-100 text-lg">Manage your tutoring sessions and materials</p>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                <BookOpen className="mr-3 text-blue-600" size={24} />
+                Session Management
+              </h2>
+              <p className="text-gray-600 mt-1">Manage your tutoring sessions and materials</p>
             </div>
             {/* <div className="grid grid-cols-2 gap-4 text-center">
               <div className="bg-white bg-opacity-20 rounded-lg p-4">
@@ -2766,7 +2476,7 @@ const TutorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Enhanced Tabs Navigation */}
+        {/* Sessions Tabs and Content */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="border-b border-gray-200">
             <nav className="flex">
@@ -3196,8 +2906,17 @@ const TutorDashboard: React.FC = () => {
 
   const renderEarnings = () => (
     <div className="space-y-6">
+      {/* Earnings Header */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          <DollarSign className="mr-3 text-green-600" size={24} />
+          Earnings Dashboard
+        </h2>
+        <p className="text-gray-600 mt-1">Track your earnings and financial performance</p>
+      </div>
+
       {earningsLoading && (
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm">
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
             <p className="text-sm text-blue-700">Loading earnings data...</p>
@@ -3384,7 +3103,7 @@ const TutorDashboard: React.FC = () => {
   const renderReviews = () => (
     <div className="space-y-6">
       {reviewsLoading && (
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm">
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
             <p className="text-sm text-blue-700">Loading reviews data...</p>
@@ -3576,8 +3295,6 @@ const TutorDashboard: React.FC = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return renderOverview();
       case 'profile':
         return renderProfile();
       case 'schedule':
@@ -3592,7 +3309,7 @@ const TutorDashboard: React.FC = () => {
       case 'analytics':
         return renderAnalytics();
       default:
-        return renderOverview();
+        return renderProfile();
     }
   };
 
@@ -4332,108 +4049,99 @@ const TutorDashboard: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Navbar />
       
-      {/* Enhanced Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="relative group">
-                <img 
-                  src={tutorProfile.photo_url || '/default-profile.png'} 
-                  alt={tutorProfile.name}
-                  className="w-20 h-20 rounded-full border-4 border-white shadow-lg"
-                />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white"></div>
-                
-                {/* Image Edit Button */}
-                <button
-                  onClick={() => setShowImageEditModal(true)}
-                  className="absolute inset-0 w-20 h-20 rounded-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                >
-                  <Camera className="w-6 h-6 text-white" />
-                </button>
+      {/* Enhanced Professional Header */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-xl p-8 mb-8 text-white">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+            <div className="relative flex-shrink-0">
+              <img 
+                src={tutorProfile.photo_url || '/default-profile.png'} 
+                alt={tutorProfile.name}
+                className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+              />
+              <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold">{tutorProfile.name}</h1>
-                <p className="text-blue-100 text-lg mb-2">Individual Tutor</p>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <Star className="w-5 h-5 text-yellow-300 mr-1" />
-                    <span className="font-semibold">{tutorProfile.rating}</span>
-                    <span className="text-blue-200 ml-1">({tutorProfile.totalReviews} reviews)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <DollarSign className="w-5 h-5 text-green-300 mr-1" />
-                    <span className="font-semibold">LKR {tutorProfile.hourlyRate}/hour</span>
-                  </div>
+              {/* Image Edit Button */}
+              <button
+                onClick={() => setShowImageEditModal(true)}
+                className="absolute inset-0 w-32 h-32 rounded-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200"
+              >
+                <Camera className="w-8 h-8 text-white" />
+              </button>
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-4xl font-bold mb-2">{tutorProfile.name}</h1>
+              <p className="text-blue-100 text-lg mb-3">Individual Tutor • Expert Educator</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start space-y-2 sm:space-y-0 sm:space-x-4">
+                <div className="flex items-center bg-white bg-opacity-90 backdrop-blur-sm px-4 py-2 rounded-full border border-white border-opacity-30">
+                  <Star className="w-5 h-5 text-yellow-500 mr-2" />
+                  <span className="font-semibold text-gray-800">{tutorProfile.rating}</span>
+                  <span className="text-gray-600 ml-1">({tutorProfile.totalReviews} reviews)</span>
+                </div>
+                <div className="flex items-center bg-white bg-opacity-90 backdrop-blur-sm px-4 py-2 rounded-full border border-white border-opacity-30">
+                  <DollarSign className="w-5 h-5 text-green-600 mr-2" />
+                  <span className="font-semibold text-gray-800">LKR {tutorProfile.hourlyRate}/hour</span>
                 </div>
               </div>
             </div>
-            
-            <div className="text-right space-y-2">
-              <div className="flex items-center space-x-4">
-                <NotificationCenter
-                  notifications={notifications}
-                  onMarkAsRead={handleMarkAsRead}
-                  onMarkAllAsRead={handleMarkAllAsRead}
-                  onDeleteNotification={handleDeleteNotification}
-                  buttonClassName="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center relative"
-                  iconColor="text-white"
-                />
-                {/* <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors flex items-center">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </button> */}
-              </div>
-              <div className="text-sm text-blue-200">
-                Last login: {new Date().toLocaleDateString()}
+            <div className="w-full sm:w-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-1 gap-4">
+                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl p-4 text-center border border-white border-opacity-30">
+                  <div className="text-2xl font-bold text-gray-800">{sessionStats?.completedSessions || 0}</div>
+                  <div className="text-gray-600 text-sm font-bold">Sessions Completed</div>
+                </div>
+                <div className="bg-white bg-opacity-90 backdrop-blur-sm rounded-xl p-4 text-center border border-white border-opacity-30">
+                  <div className="text-2xl font-bold text-gray-800">LKR {earningsData ? (earningsData.netEarnings / 1000).toFixed(1) : '0'}K</div>
+                  <div className="text-gray-600 text-sm font-bold">Total Earnings</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex space-x-0 overflow-x-auto">
-            {tabs.map((tab) => {
+        {/* Professional Navigation Tabs */}
+        <div className="bg-white rounded-xl shadow-lg mb-8">
+          <div className="flex border-b border-gray-200 overflow-x-auto">
+            {[
+              { id: 'profile', label: 'Profile', icon: User },
+              { id: 'sessions', label: 'Sessions', icon: BookOpen },
+              { id: 'earnings', label: 'Earnings', icon: DollarSign },
+              { id: 'reviews', label: 'Reviews', icon: Star },
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+            ].map((tab) => {
               const IconComponent = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-3 py-4 px-6 border-b-2 whitespace-nowrap transition-all duration-200 ${
+                  className={`px-8 py-4 font-semibold text-lg transition-all duration-300 whitespace-nowrap flex items-center ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                      ? 'border-b-4 border-blue-600 text-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <IconComponent size={20} />
-                  <span className="font-medium">{tab.label}</span>
+                  <IconComponent className="w-5 h-5 mr-2" />
+                  {tab.label}
                 </button>
               );
             })}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <h3 className="text-lg font-semibold text-gray-700">Loading Dashboard...</h3>
-              <p className="text-gray-500">Please wait while we fetch your data</p>
+        {/* Content with Professional Spacing */}
+        <div className="min-h-[600px]">
+          {loading ? (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <LoadingState />
             </div>
-          </div>
-        ) : (
-          renderTabContent()
-        )}
+          ) : (
+            renderTabContent()
+          )}
+        </div>
       </div>
 
       {/* Image Edit Modal */}

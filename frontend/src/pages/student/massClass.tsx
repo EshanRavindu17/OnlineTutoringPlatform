@@ -811,7 +811,7 @@ function MassClassPage() {
                   </div>
                 </div>
 
-                <button
+                {/* <button
                   onClick={toggleSaveClass}
                   className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
                     isClassSaved
@@ -821,7 +821,7 @@ function MassClassPage() {
                 >
                   <Bookmark className={`w-4 h-4 mr-2 ${isClassSaved ? 'fill-current' : ''}`} />
                   {isClassSaved ? 'Saved' : 'Save Class'}
-                </button>
+                </button> */}
               </div>
 
               {/* Progress Bar */}
