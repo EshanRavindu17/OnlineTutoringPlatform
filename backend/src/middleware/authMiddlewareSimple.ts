@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import prisma from '../prismaClient';
 
 interface AuthRequest extends Request {
   user?: {
     uid: string;
     email?: string;
+    role?: string;
   };
 }
 
@@ -58,6 +60,17 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
       };
       
       console.log('✅ Token verified for user:', userId);
+
+      // Find user role from database
+      const userRole = await prisma.user.findUnique({
+        where: { firebase_uid: userId },
+        select: { role: true }
+      });
+
+      if (userRole) {
+        (req.user as any).role = userRole.role;
+        console.log('🔍 User role:', userRole.role);
+      }
       next();
     } catch (tokenError) {
       console.error('❌ Token verification failed:', tokenError.message);

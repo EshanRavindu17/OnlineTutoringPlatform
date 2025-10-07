@@ -191,6 +191,11 @@ export default function FindTutorsPage() {
   const [totalTutors, setTotalTutors] = useState(0);
   const [tutorsPerPage] = useState(6); // Fixed number of tutors per page
   
+  // Mass classes pagination states
+  const [currentMassPage, setCurrentMassPage] = useState(1);
+  const [totalMassClasses, setTotalMassClasses] = useState(0);
+  const [classesPerPage] = useState(6); // Fixed number of classes per page
+  
   // Data from API
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [titles, setTitles] = useState<TitleWithSubject[]>([]);
@@ -250,8 +255,8 @@ export default function FindTutorsPage() {
         
         const massClasses = await getAllMassClasses(
           selectedSubjectNames,
-          currentPage,
-          tutorsPerPage,
+          currentMassPage,
+          classesPerPage,
           getSortParam(massSortBy),
           massRating > 0 ? massRating : undefined,
           monthlyPriceRange[0],
@@ -263,7 +268,13 @@ export default function FindTutorsPage() {
         
         setRealMassClasses(massClasses);
         setTutors([]); // Clear individual tutors when showing group classes
-        setTotalTutors(massClasses.length);
+        
+        // Handle pagination for mass classes
+        if (massClasses.length < classesPerPage) {
+          setTotalMassClasses((currentMassPage - 1) * classesPerPage + massClasses.length);
+        } else {
+          setTotalMassClasses(currentMassPage * classesPerPage + 1); // +1 to indicate there might be more
+        }
       } catch (err) {
         setError('Failed to fetch group classes. Please try again.');
         console.error('Error fetching group classes:', err);
@@ -389,12 +400,15 @@ export default function FindTutorsPage() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch, searchTerm, individualTutorName]);
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage, currentMassPage, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch, searchTerm, individualTutorName]);
 
   // Effect to reset to page 1 when filters change (excluding currentPage itself)
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
+    }
+    if (currentMassPage !== 1) {
+      setCurrentMassPage(1);
     }
   }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch]);
 
@@ -922,9 +936,10 @@ export default function FindTutorsPage() {
                   <p className="text-gray-500">Try adjusting your search terms to see more results</p>
                 </div>
               ) : (
-                <div className="grid gap-6">
-                  {realMassClasses.map(massClass => (
-                    <div key={massClass.class_id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-l-4 border-purple-500">
+                <>
+                  <div className="grid gap-6">
+                    {realMassClasses.map(massClass => (
+                      <div key={massClass.class_id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-l-4 border-purple-500">
                       <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
                         {/* Tutor Profile Picture */}
                         <div className="flex-shrink-0">
@@ -1012,6 +1027,89 @@ export default function FindTutorsPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Mass Classes Pagination Controls */}
+                <div className="mt-8 flex justify-center">
+                  <div className="flex items-center space-x-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentMassPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentMassPage === 1}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        currentMassPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                      }`}
+                    >
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    {(() => {
+                      const maxPages = Math.ceil(totalMassClasses / classesPerPage);
+                      const pages = [];
+                      const startPage = Math.max(1, currentMassPage - 2);
+                      const endPage = Math.min(maxPages, startPage + 4);
+
+                      // Show first page if not in range
+                      if (startPage > 1) {
+                        pages.push(1);
+                        if (startPage > 2) {
+                          pages.push('...');
+                        }
+                      }
+
+                      // Show page numbers in range
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(i);
+                      }
+
+                      // Show last page if not in range
+                      if (endPage < maxPages) {
+                        if (endPage < maxPages - 1) {
+                          pages.push('...');
+                        }
+                        pages.push(maxPages);
+                      }
+
+                      return pages.map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => typeof page === 'number' && setCurrentMassPage(page)}
+                          disabled={page === '...' || page === currentMassPage}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                            page === currentMassPage
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : page === '...'
+                              ? 'bg-transparent text-gray-400 cursor-default'
+                              : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentMassPage(prev => prev + 1)}
+                      disabled={realMassClasses.length < classesPerPage}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        realMassClasses.length < classesPerPage
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mass Classes Results Info */}
+                <div className="mt-6 text-center text-sm text-gray-600">
+                  Showing {((currentMassPage - 1) * classesPerPage) + 1} to {Math.min(currentMassPage * classesPerPage, totalMassClasses)} of {totalMassClasses}+ classes
+                </div>
+                </>
               )
             ) : (
               // Individual Tutors Grid

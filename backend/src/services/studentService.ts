@@ -728,235 +728,6 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
 
 
 // export const getAllMassClasses = async (
-//   subjects: string[],
-//   min_month_rate: number,
-//   max_month_rate: number,
-//   rating: number,
-//   sort: string,
-//   page: number = 1,
-//   limit: number = 10
-// ) => {
-
-//   console.log("Fetching all mass classes with filters:", {
-//     subjects,
-//     min_month_rate,
-//     max_month_rate,
-//     rating,
-//     sort,
-//     page,
-//     limit
-//   });
-
-//   const classes = await prisma.class.findMany({
-//     where: {
-//       ...(subjects && subjects.length > 0 && { subject: { in: subjects } }),
-//       ...(rating ? { Mass_Tutor: { rating: { gte: rating } } } : {}),
-//       ...(min_month_rate || max_month_rate
-//         ? {
-//             Mass_Tutor: {
-//               prices: {
-//                 ...(min_month_rate ? { gte: min_month_rate } : {}),
-//                 ...(max_month_rate ? { lte: max_month_rate } : {}),
-//               },
-//             },
-//           }
-//         : {}),
-//     },
-//     include: {
-//       Mass_Tutor: {
-//         select: {
-//           rating: true,
-//           prices: true, // ✅ monthly_rate from tutor table
-//           User: {
-//             select: {
-//               name: true,
-//               photo_url: true,
-//             },
-//           },
-//         },
-//       },
-//       _count: {
-//         select: { Enrolment: true }, // ✅ enrollment count
-//       },
-//     },
-//     orderBy:
-//       sort === "popular"
-//         ? { Enrolment: { _count: "desc" } } // most enrolled
-//         : sort === "high-rated"
-//         ? { Mass_Tutor: { rating: "desc" } }
-//         : sort === "low-priced"
-//         ? { Mass_Tutor: { prices: "asc" } }
-//         : sort === "high-priced"
-//         ? { Mass_Tutor: { prices: "desc" } }
-//         : { Mass_Tutor: { rating: "desc" } },
-//     skip: (page - 1) * limit,
-//     take: limit,
-//   });
-
-//   return classes.map((cls) => ({
-//     ...cls,
-//     enrollmentCount: cls._count.Enrolment, // flatten count
-//     tutorName: cls.Mass_Tutor.User.name,
-//     tutorPhoto: cls.Mass_Tutor.User.photo_url,
-//     tutorRating: cls.Mass_Tutor.rating,
-//     monthlyRate: cls.Mass_Tutor.prices,
-//   }));
-// };
-
-
-// export const getAllMassClasses = async (
-//   subjects?: string[],
-//   minMonthRate?: number,
-//   maxMonthRate?: number,
-//   rating?: number,
-//   sort: string = "high-rated",
-//   page: number = 1,
-//   limit: number = 10
-// ) => {
-//   const where: any = {};
-
-//   if (subjects && subjects.length > 0 && subjects[0] !== "") {
-//     where.subject = { in: subjects };
-//   }
-
-//   if (rating || minMonthRate || maxMonthRate) {
-//     where.Mass_Tutor = {
-//       is: {
-//         ...(rating ? { rating: { gte: rating } } : {}),
-//         ...(minMonthRate || maxMonthRate
-//           ? {
-//               prices: {
-//                 ...(minMonthRate ? { gte: minMonthRate } : {}),
-//                 ...(maxMonthRate ? { lte: maxMonthRate } : {}),
-//               },
-//             }
-//           : {}),
-//       },
-//     };
-//   }
-
-//   const classes = await prisma.class.findMany({
-//     where,
-//     include: {
-//       Mass_Tutor: {
-//         select: {
-//           rating: true,
-//           prices: true,
-//           User: { select: { name: true, photo_url: true } },
-//         },
-//       },
-//       _count: { select: { Enrolment: true } },
-//     },
-//     orderBy:
-//       sort === "popular"
-//         ? { Enrolment: { _count: "desc" } }
-//         : sort === "high-rated"
-//         ? { Mass_Tutor: { rating: "desc" } }
-//         : sort === "low-priced"
-//         ? { Mass_Tutor: { prices: "asc" } }
-//         : sort === "high-priced"
-//         ? { Mass_Tutor: { prices: "desc" } }
-//         : undefined,
-//     skip: (page - 1) * limit,
-//     take: limit,
-//   });
-
-//   return classes.map((cls) => ({
-//     ...cls,
-//     enrollmentCount: cls._count.Enrolment,
-//     tutorName: cls.Mass_Tutor.User.name,
-//     tutorPhoto: cls.Mass_Tutor.User.photo_url,
-//     tutorRating: cls.Mass_Tutor.rating,
-//     monthlyRate: cls.Mass_Tutor.prices,
-//   }));
-// };
-
-
-// export const getAllMassClasses = async (
-//   subjects?: string[],
-//   minMonthRate?: number,
-//   maxMonthRate?: number,
-//   rating?: number,
-//   tutorName?: string,
-//   classTitle?: string,
-//   sort: string = "high-rated",
-//   page: number = 1,
-//   limit: number = 10
-// ) => {
-//   const where: any = {};
-
-//   // Subject filter
-//   if (subjects && subjects.length > 0 && subjects[0] !== "") {
-//     where.subject = { in: subjects };
-//   }
-
-//   // Class title filter (case-insensitive)
-//   if (classTitle && classTitle.trim() !== "") {
-//     where.title = { contains: classTitle.trim(), mode: "insensitive" };
-//   }
-
-//   // Mass_Tutor filters
-//   if (rating || minMonthRate || maxMonthRate || tutorName) {
-//     where.Mass_Tutor = {
-//       is: {
-//         ...(rating ? { rating: { gte: rating } } : {}),
-//         ...(minMonthRate || maxMonthRate
-//           ? {
-//               prices: {
-//                 ...(minMonthRate ? { gte: minMonthRate } : {}),
-//                 ...(maxMonthRate ? { lte: maxMonthRate } : {}),
-//               },
-//             }
-//           : {}),
-//         ...(tutorName
-//           ? { User: { name: { contains: tutorName.trim(), mode: "insensitive" } } }
-//           : {}),
-//       },
-//     };
-//   }
-
-//   // Fetch classes
-//   const classes = await prisma.class.findMany({
-//     where,
-//     include: {
-//       Mass_Tutor: {
-//         select: {
-//           rating: true,
-//           prices: true,
-//           User: { select: { name: true, photo_url: true } },
-//         },
-//       },
-//       _count: { select: { Enrolment: true } },
-//     },
-//     orderBy:
-//       sort === "popular"
-//         ? { Enrolment: { _count: "desc" } }
-//         : sort === "high-rated"
-//         ? { Mass_Tutor: { rating: "desc" } }
-//         : sort === "low-priced"
-//         ? { Mass_Tutor: { prices: "asc" } }
-//         : sort === "high-priced"
-//         ? { Mass_Tutor: { prices: "desc" } }
-//         : undefined,
-//     skip: (page - 1) * limit,
-//     take: limit,
-//   });
-
-//   // Flatten for frontend
-//   return classes.map((cls) => ({
-//     ...cls,
-//     enrollmentCount: cls._count.Enrolment,
-//     tutorName: cls.Mass_Tutor.User.name,
-//     tutorPhoto: cls.Mass_Tutor.User.photo_url,
-//     tutorRating: cls.Mass_Tutor.rating,
-//     monthlyRate: cls.Mass_Tutor.prices,
-//   }));
-// };
-
-
-
-
-// export const getAllMassClasses = async (
 //   subjects?: string[],
 //   minMonthRate?: number,
 //   maxMonthRate?: number,
@@ -973,23 +744,21 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
 //     where.subject = { in: subjects };
 //   }
 
-//   // Mass_Tutor filters
-//   if (rating || minMonthRate || maxMonthRate || searchTerm) {
-//     where.Mass_Tutor = {
-//       is: {
-//         status: "active", // 🔹 Only active tutors
-//         ...(rating ? { rating: { gte: rating } } : {}),
-//         ...(minMonthRate || maxMonthRate
-//           ? {
-//               prices: {
-//                 ...(minMonthRate ? { gte: minMonthRate } : {}),
-//                 ...(maxMonthRate ? { lte: maxMonthRate } : {}),
-//               },
-//             }
-//           : {}),
-//       },
-//     };
-//   }
+//   // Mass_Tutor filters (rating, price, and status)
+//   where.Mass_Tutor = {
+//     is: {
+//       status: "active", // 🔹 Only active tutors
+//       ...(rating ? { rating: { gte: rating } } : {}),
+//       ...(minMonthRate || maxMonthRate
+//         ? {
+//             prices: {
+//               ...(minMonthRate ? { gte: minMonthRate } : {}),
+//               ...(maxMonthRate ? { lte: maxMonthRate } : {}),
+//             },
+//           }
+//         : {}),
+//     },
+//   };
 
 //   // 🔹 Search across class title OR tutor name
 //   if (searchTerm && searchTerm.trim() !== "") {
@@ -998,7 +767,7 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
 //       {
 //         Mass_Tutor: {
 //           is: {
-//             status: "active", // 🔹 Only active tutors
+//             status: "active", // ensure search still respects active tutors
 //             User: {
 //               name: { contains: searchTerm.trim(), mode: "insensitive" },
 //             },
@@ -1012,8 +781,9 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
 //   const classes = await prisma.class.findMany({
 //     where,
 //     include: {
-//       Mass_Tutor: { 
+//       Mass_Tutor: {
 //         select: {
+//           status: true,
 //           rating: true,
 //           prices: true,
 //           User: { select: { name: true, photo_url: true } },
@@ -1048,7 +818,6 @@ export const getTutorNameAndTypeById = async (tutor_id: string) => {
 //   }));
 // };
 
-
 export const getAllMassClasses = async (
   subjects?: string[],
   minMonthRate?: number,
@@ -1061,15 +830,15 @@ export const getAllMassClasses = async (
 ) => {
   const where: any = {};
 
-  // Subject filter
+  // 🔹 Subject filter
   if (subjects && subjects.length > 0 && subjects[0] !== "") {
     where.subject = { in: subjects };
   }
 
-  // Mass_Tutor filters (rating, price, and status)
+  // 🔹 Mass_Tutor filters (rating, price, and status)
   where.Mass_Tutor = {
     is: {
-      status: "active", // 🔹 Only active tutors
+      status: "active",
       ...(rating ? { rating: { gte: rating } } : {}),
       ...(minMonthRate || maxMonthRate
         ? {
@@ -1089,7 +858,7 @@ export const getAllMassClasses = async (
       {
         Mass_Tutor: {
           is: {
-            status: "active", // ensure search still respects active tutors
+            status: "active",
             User: {
               name: { contains: searchTerm.trim(), mode: "insensitive" },
             },
@@ -1099,8 +868,8 @@ export const getAllMassClasses = async (
     ];
   }
 
-  // Fetch classes
-  const classes = await prisma.class.findMany({
+  // 🔹 Build base Prisma query
+  const queryOptions: any = {
     where,
     include: {
       Mass_Tutor: {
@@ -1123,14 +892,21 @@ export const getAllMassClasses = async (
         : sort === "high-priced"
         ? { Mass_Tutor: { prices: "desc" } }
         : undefined,
-    skip: (page - 1) * limit,
-    take: limit,
-  });
+  };
 
-  console.log("Fetched classes:", classes);
+  // 🔹 Disable pagination if searching
+  if (!searchTerm || searchTerm.trim() === "") {
+    queryOptions.skip = (page - 1) * limit;
+    queryOptions.take = limit;
+  }
+
+  // Fetch classes
+  const classes = await prisma.class.findMany(queryOptions);
+
+  console.log("Fetched classes:", classes.length);
 
   // Flatten for frontend
-  return classes.map((cls) => ({
+  return classes.map((cls:any) => ({
     ...cls,
     enrollmentCount: cls._count.Enrolment,
     tutorName: cls.Mass_Tutor.User.name,

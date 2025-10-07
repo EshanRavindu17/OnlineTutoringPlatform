@@ -194,6 +194,30 @@ const baseUrl = 'http://localhost:5000/api';
 const baseUrl2 = 'http://localhost:5000/student';
 
 
+
+export const getToken = async (): Promise<string | null> => {
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated');
+
+        let idToken = await user.getIdToken(false);
+
+        // Check if token is about to expire (within 5 minutes)
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        const currentTime = Date.now() / 1000;
+        if (payload.exp <= (currentTime + 300)) {
+            console.log('🔄 Token expiring soon, refreshing...');
+            idToken = await user.getIdToken(true);
+        } else {
+            console.log('✅ Using valid cached token');
+        }
+        return idToken;
+    } catch (error) {
+        console.error('Error getting token:', error);
+        return null;
+    }
+};
+
 export const addStudent = async (studentData: Student): Promise<Student> => {
     console.log('Adding new student...', studentData);
 
@@ -342,9 +366,16 @@ export const getFreeTimeSlotsByTutorId = async (tutorId: string) => {
 
 export const getAllSessionsByStudentId = async (studentId: string) => {
     console.log('Fetching all sessions for student ID:', studentId);
+    const idToken = await getToken();
+
     try {
         const response = await axios.get<Session[]>(
-            `${baseUrl2}/getAllSessionsByStudentId/${studentId}`
+            `${baseUrl2}/getAllSessionsByStudentId/${studentId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            }
         );
         console.log('All sessions fetched:', response.data);
         return response.data;
@@ -356,9 +387,17 @@ export const getAllSessionsByStudentId = async (studentId: string) => {
 
 export const getEnrolledClassesByStudentId = async (studentId: string) => {
     console.log('Fetching enrolled classes for student ID:', studentId);
+
+    const idToken = await getToken();
+
     try {
         const response = await axios.get<EnrolledClass[]>(
-            `${baseUrl2}/getEnrolledClassesByStudentId/${studentId}`
+            `${baseUrl2}/getEnrolledClassesByStudentId/${studentId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            }
         );
         console.log('Enrolled classes fetched:', response.data);
         return response.data;
@@ -520,9 +559,17 @@ export const updateAccessTimeinFreeSlots = async (slot_id: string, last_access_t
 
 // for cancelling a session
 export const cancelSession = async (session_id: string) => {
+
+    const idToken = await getToken();
+
     try {
         const response = await axios.post<Session>(
-            `${baseUrl2}/cancelSession/${session_id}`
+            `${baseUrl2}/cancelSession/${session_id}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            }
         );
         return response.data;
     } catch (error: any) {
@@ -533,9 +580,17 @@ export const cancelSession = async (session_id: string) => {
 
 export const getTutorsByStudentId = async (studentId: string) => {
     console.log('Fetching tutors for student ID:', studentId);
+
+    const idToken = await getToken();
+
     try {
         const response = await axios.get<IndividualTutorDashboard[]>(
-            `${baseUrl2}/getTutorsByStudentId/${studentId}`
+            `${baseUrl2}/getTutorsByStudentId/${studentId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            }
         );
         console.log('Tutors fetched:', response.data);
         return response.data;
@@ -549,8 +604,16 @@ export const getTutorsByStudentId = async (studentId: string) => {
 
 export const getPaymentSummaryByStudentId = async (studentId: string) => {
     console.log('Fetching payment summary for student ID:', studentId);
+
+    const idToken = await getToken();
+    
+
     try {
-        const response = await axios.get<IndividualPaymentHistoryData>(`${baseUrl2}/getPaymentHistory/${studentId}`);
+        const response = await axios.get<IndividualPaymentHistoryData>(`${baseUrl2}/getPaymentHistory/${studentId}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
         console.log('Payment summary fetched:', response.data);
         return response.data;
     } catch (error: any) {
@@ -562,8 +625,15 @@ export const getPaymentSummaryByStudentId = async (studentId: string) => {
 // for getting mass class payment history by student id
 export const getMassPaymentHistoryByStudentId = async (studentId: string) => {
     console.log('Fetching mass payment history for student ID:', studentId);
+
+    const idToken = await getToken();
+
     try {
-        const response = await axios.get<MassPaymentHistoryData>(`${baseUrl2}/getMassPaymentHistory/${studentId}`);
+        const response = await axios.get<MassPaymentHistoryData>(`${baseUrl2}/getMassPaymentHistory/${studentId}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
         console.log('Mass payment history fetched:', response.data);
         return response.data;
     } catch (error: any) {
@@ -651,12 +721,17 @@ const getMockMassPaymentData = (): MassPaymentHistoryData => {
 
 
 export const createAndReview = async (student_id: string, session_id: string, rating: number, review: string) => {
+    const idToken = await getToken();
     try {
         const response = await axios.post(`${baseUrl2}/rate-and-review`, {
             student_id,
             session_id,
             rating,
             review
+        }, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
         });
         return response.data;
     } catch (error: any) {
@@ -679,6 +754,7 @@ export const getReviewsByIndividualTutorId = async (tutorId: string) => {
 
 
 export const generateReport = async (student_id: string, tutor_id: string, tutor_type: string, description: string, reason: string) => {
+    const idToken = await getToken();
     try {
         const response = await axios.post(`${baseUrl2}/report-tutor`, {
             student_id,
@@ -686,6 +762,10 @@ export const generateReport = async (student_id: string, tutor_id: string, tutor
             tutor_type,
             description,
             reason
+        }, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
         });
         return response.data;
     } catch (error: any) {
@@ -695,9 +775,14 @@ export const generateReport = async (student_id: string, tutor_id: string, tutor
 };
 
 export const getReportsByStudentId = async (studentId: string) => {
+    const idToken = await getToken();
     try {
         const response = await axios.get(
-            `${baseUrl2}/get-reports/${studentId}`
+            `${baseUrl2}/get-reports/${studentId}`, {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            }
         );
         return response.data;
     }
@@ -918,9 +1003,14 @@ export const getClassSlotsByClassId = async (classId: string, month: number): Pr
 }
 
 export const getMassClassesByStudentId = async (studentId: string): Promise<MassClassForStudentProfile[]> => {
+    const idToken = await getToken();
     console.log('Fetching mass classes for student ID:', studentId);
     try {
-        const response = await axios.get<MassClassForStudentProfile[]>(`${baseUrl2}/getClassByStudentId/${studentId}`);
+        const response = await axios.get<MassClassForStudentProfile[]>(`${baseUrl2}/getClassByStudentId/${studentId}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
         console.log('Mass classes fetched:', response.data);
         return response.data;
     }
@@ -932,8 +1022,13 @@ export const getMassClassesByStudentId = async (studentId: string): Promise<Mass
 
 export const getMassTutorsByStudentId = async (studentId: string): Promise<MassTutor[]> => {
     console.log('Fetching mass tutors for student ID:', studentId);
+    const idToken = await getToken();
     try {
-        const response = await axios.get<MassTutor[]>(`${baseUrl2}/getMassTutorsByStudentId/${studentId}`);
+        const response = await axios.get<MassTutor[]>(`${baseUrl2}/getMassTutorsByStudentId/${studentId}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
         console.log('Mass tutors fetched:', response.data);
         return response.data;
     }
@@ -999,8 +1094,13 @@ export const getReviewByClassID=async(class_id:string):Promise<Review[]>=>{
 }
 
 export const getMassPayment=async(student_id:string):Promise<Payment[]>=>{
+    const idToken = await getToken();
     try{
-        const response = await axios.get<Payment[]>(`${baseUrl2}/getMassPaymentByStudentId/${student_id}`)
+        const response = await axios.get<Payment[]>(`${baseUrl2}/getMassPaymentByStudentId/${student_id}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
         console.log('Mass payments fetched:', response.data);
         return response.data;
     }
@@ -1012,13 +1112,20 @@ export const getMassPayment=async(student_id:string):Promise<Payment[]>=>{
 }
 
 export const rateAndReviewClass=async(student_id:string,class_id:string,review:string,rating:number)=>{
+    console.log('Rating and reviewing class...', { student_id, class_id, review, rating });
+    const idToken = await getToken();
     try{
         const response = await axios.post(`${baseUrl2}/rateAreviewMassClass`, {
             student_id,
             class_id,
             review,
             rating
+        }, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
         });
+    
         console.log('Class rated and reviewed:', response.data);
         return response.data;
     }
