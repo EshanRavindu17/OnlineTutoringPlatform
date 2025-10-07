@@ -57,6 +57,7 @@ import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
 import Sessions from './admin/Sessions';
+import Meetings from './admin/Meetings';
 
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
@@ -144,6 +145,7 @@ const App = () => {
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
             <Route path="sessions" element={<Sessions />} />
+            <Route path="meetings" element={<Meetings />} />
           </Route>
         </Route>
 

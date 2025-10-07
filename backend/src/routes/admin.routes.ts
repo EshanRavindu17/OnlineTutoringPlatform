@@ -33,6 +33,25 @@ import {
   createPaymentRateController,
   updatePaymentRateController,
 } from '../controllers/finance.controller';
+import {
+  getIndividualSessionsController,
+  getMassClassSlotsController,
+  getSessionStatsController,
+  updateIndividualSessionStatusController,
+  updateMassSlotStatusController,
+  getZakTokenController,
+  getAdminHostUrlController,
+  getSessionDetailsController,
+  getClassSlotDetailsController,
+} from '../controllers/adminSession.controller';
+import {
+  getAllUsersController,
+  createAdminMeetingController,
+  getAdminSessionsController,
+  sendMeetingEmailController,
+  deleteAdminSessionController,
+  updateAdminSessionStatusController,
+} from '../controllers/adminMeeting.controller';
 
 const r = Router();
 
@@ -70,5 +89,24 @@ r.get('/finance/payment-rates', requireAdminJWT, getPaymentRatesController);
 r.post('/finance/payment-rates/:type', requireAdminJWT, createPaymentRateController);
 r.put('/finance/payment-rates/:type', requireAdminJWT, updatePaymentRateController);
 r.get('/finance/analytics', requireAdminJWT, getFinanceAnalyticsController);
+
+// Session Management — secured
+r.get('/sessions/individual', requireAdminJWT, getIndividualSessionsController);
+r.get('/sessions/mass', requireAdminJWT, getMassClassSlotsController);
+r.get('/sessions/stats', requireAdminJWT, getSessionStatsController);
+r.get('/sessions/individual/:sessionId', requireAdminJWT, getSessionDetailsController);
+r.get('/sessions/mass/:slotId', requireAdminJWT, getClassSlotDetailsController);
+r.put('/sessions/individual/:sessionId/status', requireAdminJWT, updateIndividualSessionStatusController);
+r.put('/sessions/mass/:slotId/status', requireAdminJWT, updateMassSlotStatusController);
+r.get('/sessions/zoom/zak', requireAdminJWT, getZakTokenController);
+r.post('/sessions/zoom/host-url', requireAdminJWT, getAdminHostUrlController);
+
+// Admin Meeting Creation & Email — secured
+r.get('/meetings/users', requireAdminJWT, getAllUsersController);
+r.post('/meetings/create', requireAdminJWT, createAdminMeetingController);
+r.get('/meetings/sessions', requireAdminJWT, getAdminSessionsController);
+r.post('/meetings/send-email', requireAdminJWT, sendMeetingEmailController);
+r.delete('/meetings/sessions/:sessionId', requireAdminJWT, deleteAdminSessionController);
+r.put('/meetings/sessions/:sessionId/status', requireAdminJWT, updateAdminSessionStatusController);
 
 export default r;

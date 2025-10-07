@@ -15,7 +15,8 @@ import {
   createClassRejectedEmail,
   createEnrollmentConfirmationEmail,
   createNewEnrollmentNotificationEmail,
-  createCustomMessageEmail
+  createCustomMessageEmail,
+  createAdminMeetingInvitationEmail
 } from '../templates/emails';
 
 dotenv.config();
@@ -300,6 +301,21 @@ export const sendCustomMessageEmail = async (
     }
 ) => {
     const emailContent = createCustomMessageEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Admin meeting invitation email
+export const sendAdminMeetingInvitationEmail = async (
+    to: string,
+    data: {
+        recipientName: string;
+        adminName: string;
+        subject: string;
+        message: string;
+        meetingUrl: string;
+    }
+) => {
+    const emailContent = createAdminMeetingInvitationEmail(data);
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };
 

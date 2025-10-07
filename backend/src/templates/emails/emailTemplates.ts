@@ -687,4 +687,50 @@ export const createCustomMessageEmail = (data: {
     html: createBaseEmailTemplate(templateOptions),
     text: generatePlainText(templateOptions)
   };
+};
+
+/**
+ * Admin meeting invitation email template
+ */
+export const createAdminMeetingInvitationEmail = (data: {
+  recipientName: string;
+  adminName: string;
+  subject: string;
+  message: string;
+  meetingUrl: string;
+}): EmailContent => {
+  const { recipientName, adminName, subject: meetingSubject, message, meetingUrl } = data;
+  
+  const templateOptions = {
+    title: '📅 Meeting Invitation',
+    content: `<p>Dear <strong>${recipientName}</strong>,</p>
+              <p>You've been invited to a meeting by <strong>${adminName}</strong> (Admin).</p>
+              <div style="background: #f9fafb; border-left: 4px solid #667eea; padding: 16px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; white-space: pre-wrap; color: #374151; line-height: 1.6;">${message}</p>
+              </div>
+              <p>Click the button below to join the meeting at the scheduled time.</p>`,
+    
+    alertType: 'info' as const,
+    alertMessage: 'Meeting invitation from Admin',
+    
+    details: [
+      { label: 'Subject', value: meetingSubject },
+      { label: 'Organized by', value: `${adminName} (Admin)` },
+      { label: 'Platform', value: 'Zoom' }
+    ],
+    
+    ctaButton: {
+      text: '🎥 Join Meeting',
+      url: meetingUrl,
+      color: '#667eea'
+    },
+    
+    footerMessage: 'This is an automated email from SmartTutor Admin Panel'
+  };
+
+  return {
+    subject: `Meeting Invitation: ${meetingSubject}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
 };     

@@ -27,6 +27,12 @@ const nav = [
     icon: BookOpen,
     description: 'Manage tutoring sessions'
   },
+  {
+    to: '/admin/meetings',
+    label: 'Create Meetings',
+    icon: VideoIcon,
+    description: 'Create and send meeting invitations'
+  },
   { 
     to: '/admin/analytics', 
     label: 'Analytics', 
@@ -263,6 +269,14 @@ function BookOpen({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="currentColor">
       <path d="M2 4a2 2 0 012-2h5v16H4a2 2 0 01-2-2V4zm12-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-5V2h5z" />
+    </svg>
+  );
+}
+
+function VideoIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
     </svg>
   );
 }

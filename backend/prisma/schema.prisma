@@ -8,18 +8,19 @@ datasource db {
 }
 
 model Admin {
-  admin_id      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String?         @db.VarChar
-  email         String          @unique @db.VarChar(255)
-  password_hash String
-  token_version Int             @default(0)
-  created_at    DateTime        @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
-  last_login_at DateTime?       @db.Timestamptz(6)
-  Commission    Commission[]
-  paymentrates paymentrates[]
-  Policies      Policies[]
-  Reports       Reports[]
+  admin_id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?          @db.VarChar
+  email          String           @unique @db.VarChar(255)
+  password_hash  String
+  token_version  Int              @default(0)
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  last_login_at  DateTime?        @db.Timestamptz(6)
+  Commission     Commission[]
+  Policies       Policies[]
+  Reports        Reports[]
+  admin_sessions admin_sessions[]
+  paymentrates   paymentrates[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -209,6 +210,7 @@ model User {
   Mass_Tutor       Mass_Tutor[]
   Notifications    Notifications[]
   Student          Student[]
+  admin_sessions   admin_sessions[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -306,7 +308,7 @@ model Commission {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model paymentrates {
-  id          String       @id(map: "paymentrates_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   type        payment_type
   value       Decimal      @db.Decimal(10, 2)
   status      status_type  @default(active)
@@ -316,6 +318,20 @@ model paymentrates {
   Admin       Admin        @relation(fields: [created_by], references: [admin_id], onDelete: SetNull, map: "PaymentRates_created_by_fkey")
 
   @@map("paymentrates")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model admin_sessions {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  urls           String[]
+  description    String?
+  created_by     String         @db.Uuid
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  receiver_email String?        @db.VarChar
+  status         SessionStatus? @default(scheduled)
+  Admin          Admin          @relation(fields: [created_by], references: [admin_id], onDelete: SetNull)
+  User           User?          @relation(fields: [receiver_email], references: [email])
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

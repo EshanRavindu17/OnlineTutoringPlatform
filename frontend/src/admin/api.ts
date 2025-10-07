@@ -180,6 +180,131 @@ export const adminApi = {
       body: JSON.stringify({ value, description }),
     });
   },
+
+  // ============== Session Management ==============
+  
+  // Get all individual sessions with filters
+  async getIndividualSessions(params?: { status?: string; startDate?: string; endDate?: string; search?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.startDate) qs.set('startDate', params.startDate);
+    if (params?.endDate) qs.set('endDate', params.endDate);
+    if (params?.search) qs.set('search', params.search);
+    const q = qs.toString();
+    return request(`/sessions/individual${q ? `?${q}` : ''}`);
+  },
+
+  // Get all mass class slots with filters
+  async getMassClassSlots(params?: { status?: string; startDate?: string; endDate?: string; search?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.startDate) qs.set('startDate', params.startDate);
+    if (params?.endDate) qs.set('endDate', params.endDate);
+    if (params?.search) qs.set('search', params.search);
+    const q = qs.toString();
+    return request(`/sessions/mass${q ? `?${q}` : ''}`);
+  },
+
+  // Get session statistics
+  async getSessionStats() {
+    return request('/sessions/stats');
+  },
+
+  // Get individual session details
+  async getSessionDetails(sessionId: string) {
+    return request(`/sessions/individual/${sessionId}`);
+  },
+
+  // Get mass class slot details
+  async getClassSlotDetails(slotId: string) {
+    return request(`/sessions/mass/${slotId}`);
+  },
+
+  // Update individual session status
+  async updateSessionStatus(sessionId: string, status: 'scheduled' | 'ongoing' | 'completed' | 'canceled') {
+    return request(`/sessions/individual/${sessionId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Update mass class slot status
+  async updateClassSlotStatus(slotId: string, status: 'upcoming' | 'completed') {
+    return request(`/sessions/mass/${slotId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Get Zoom ZAK token for admin
+  async getZakToken() {
+    return request('/sessions/zoom/zak');
+  },
+
+  // Get admin host URL for joining a meeting
+  async getAdminHostUrl(meetingUrl: string) {
+    return request('/sessions/zoom/host-url', {
+      method: 'POST',
+      body: JSON.stringify({ meetingUrl }),
+    });
+  },
+
+  // ============== Admin Meeting Creation ==============
+  
+  // Get all users for selecting email recipients
+  async getAllUsers() {
+    return request('/meetings/users');
+  },
+
+  // Create a new admin meeting (Zoom)
+  async createAdminMeeting(data: {
+    name: string;
+    description?: string;
+    topic: string;
+    startTime: string;
+    duration: number;
+  }) {
+    return request('/meetings/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get all admin-created sessions
+  async getAdminSessions(mineOnly?: boolean) {
+    const q = mineOnly ? '?mine=true' : '';
+    return request(`/meetings/sessions${q}`);
+  },
+
+  // Send meeting email to user
+  async sendMeetingEmail(data: {
+    sessionId: string;
+    recipientEmail: string;
+    recipientName: string;
+    subject: string;
+    message: string;
+    meetingUrl: string;
+  }) {
+    return request('/meetings/send-email', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete admin session
+  async deleteAdminSession(sessionId: string) {
+    return request(`/meetings/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Update admin session status
+  async updateAdminSessionStatus(sessionId: string, status: 'scheduled' | 'ongoing' | 'completed' | 'canceled') {
+    return request(`/meetings/sessions/${sessionId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
 };
 
 // Tutor application moderation endpoints
