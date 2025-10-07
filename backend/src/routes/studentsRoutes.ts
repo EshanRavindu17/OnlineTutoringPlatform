@@ -28,6 +28,8 @@ import { addStudentController,
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
+import { verifyFirebaseTokenSimple } from '../middleware/authMiddlewareSimple';
+import { verifyRole } from '../middleware/verifyRole';
 
 
 const router = express.Router();
@@ -43,7 +45,7 @@ router.get('/getIndividualTutorById/:tutorId', getIndividualTutorByIdController)
 
 router.get('/getSlotsOfIndividualTutorById/:tutorId', getSlotsOfIndividualTutorByIdController);
 
-router.get('/getAllSessionsByStudentId/:studentId', getAllSessionsByStudentIdController);
+router.get('/getAllSessionsByStudentId/:studentId', verifyFirebaseTokenSimple, verifyRole('student'), getAllSessionsByStudentIdController);
 
 router.post('/createASession', createASessionController);
 
@@ -64,23 +66,23 @@ router.get('/getTutorNameAndTypeById/:tutorId', getTutorNameAndTypeByIdControlle
 // helper route to test zoom integration
 router.post('/test-zoom',  testZoomController);
 
-router.post('/cancelSession/:session_id',  cancelSessionController);
+router.post('/cancelSession/:session_id', verifyFirebaseTokenSimple,verifyRole('student'), cancelSessionController);
 
-router.get('/getTutorsByStudentId/:studentId', getTutorsByStudentIdController);
+router.get('/getTutorsByStudentId/:studentId', verifyFirebaseTokenSimple , verifyRole('student'), getTutorsByStudentIdController);
 
-router.get('/getPaymentHistory/:studentId', getPaymentHistoryController);
+router.get('/getPaymentHistory/:studentId', verifyFirebaseTokenSimple , verifyRole('student'), getPaymentHistoryController);
 
 
 //Individual Tutor Rating and Review routes will be in rateAndReviewRoutes.ts
 
-router.post('/rate-and-review', rateAndReviewIndividualController ); // to be implemented in rateAndReviewRoutes.ts
+router.post('/rate-and-review', verifyFirebaseTokenSimple , verifyRole('student'), rateAndReviewIndividualController ); // to be implemented in rateAndReviewRoutes.ts
 router.get('/get-reviews/:tutorId', getReviewsByIndividualTutorIdController);
 
 
 // Report Tutors route  
 
-router.post('/report-tutor', generateReportController);
-router.get('/get-reports/:studentId', getReportsByStudentIdController);
+router.post('/report-tutor', verifyFirebaseTokenSimple , verifyRole('student'), generateReportController);
+router.get('/get-reports/:studentId',  verifyFirebaseTokenSimple , verifyRole('student'), getReportsByStudentIdController);
 
 
 
@@ -90,11 +92,11 @@ router.get('/getAllMassClasses', getAllMassClassesController);
 router.get('/getMassTutorById/:tutorId', getMassTutorProfileByIdController);
 router.get('/getClassSlotsByClassIdAndStudentId/:classId/:studentId', getClassSlotsByClassIdAndStudentIdController);
 router.get('/getClassSlotsByClassID/:classId/:month', getClassSlotsByClassIdController);
-router.get('/getClassByStudentId/:student_id', getClassesByStudentIdController);
-router.get('/getMassTutorsByStudentId/:studentId', getMassTutorsByStudentIdController);
-router.get('/getMassPaymentByStudentId/:studentId',getMassPaymentsByStudentIdController);
+router.get('/getClassByStudentId/:student_id', verifyFirebaseTokenSimple , verifyRole('student'), getClassesByStudentIdController);
+router.get('/getMassTutorsByStudentId/:studentId', verifyFirebaseTokenSimple , verifyRole('student'), getMassTutorsByStudentIdController);
+router.get('/getMassPaymentByStudentId/:studentId', verifyFirebaseTokenSimple , verifyRole('student'), getMassPaymentsByStudentIdController);
 router.get('/getClassReviewsByClassId/:class_id',getClassReviewsByClassIdController)
-router.post('/rateAreviewMassClass',rateMassClassesController)
+router.post('/rateAreviewMassClass', verifyFirebaseTokenSimple , verifyRole('student'), rateMassClassesController)
 
 
 router.post('/send-test-email', sendEmailController);

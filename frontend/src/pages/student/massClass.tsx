@@ -1084,11 +1084,11 @@ function MassClassPage() {
                                   <div className="flex items-center gap-3">
                                     <FileText className="w-4 h-4 text-gray-400" />
                                     <div>
-                                      <div className="font-medium text-gray-900">Material {index + 1}</div>
+                                      <div className="font-medium text-gray-900">{JSON.parse(materialUrl).name}</div>
                                     </div>
                                   </div>
                                   <button 
-                                    onClick={() => window.open(materialUrl, '_blank')}
+                                    onClick={() => window.open(JSON.parse(materialUrl).url, '_blank')}
                                     className="text-purple-600 hover:text-purple-700"
                                   >
                                     <Download className="w-4 h-4" />

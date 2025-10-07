@@ -219,7 +219,7 @@ export default function PaymentHistoryPage() {
           createdAt: new Date(transaction.payment_time).toISOString(),
           paidMonth: transaction.paidMonth,
           paymentDate: new Date(transaction.payment_time).toISOString().split('T')[0],
-          className: transaction.Class?.title || `Class ${transaction.class_id.substring(0, 8)}`,
+          className: transaction.Class?.title || `Class ${transaction.class_id?.substring(0, 8)}`,
           subject: 'Mass Class', // Will be updated when we get the actual subject from API
           tutorName: transaction.Class?.Mass_Tutor?.User?.name || 'Mass Tutor',
           tutorPhoto: transaction.Class?.Mass_Tutor?.User?.photo_url || 

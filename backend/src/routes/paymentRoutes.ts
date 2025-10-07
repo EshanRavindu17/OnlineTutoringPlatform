@@ -7,6 +7,8 @@ import { Status } from "@prisma/client";
 import { createPaymentRecord } from "../services/paymentService";
 import { UUID } from "crypto";
 import { conformSessionBookingEmail, sendPaymentConfirmationEmail } from "../services/email.service";
+import { verifyFirebaseTokenSimple } from "../middleware/authMiddlewareSimple";
+import { verifyRole } from "../middleware/verifyRole";
 
 const router = express.Router();
 
@@ -31,7 +33,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion:
 // });
 
 // Create payment intent
-router.post('/create-payment-intent', async (req: Request, res: Response) => {
+router.post('/create-payment-intent', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
   try {
     const {
       amount,
@@ -105,7 +107,7 @@ router.post('/create-payment-intent', async (req: Request, res: Response) => {
 });
 
 // Confirm payment and create session booking This is only for individual Session booking 
-router.post('/confirm-payment', async (req: Request, res: Response) => {
+router.post('/confirm-payment', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
 
 console.log('Confirm payment request received:', req.body);
   try {
@@ -351,7 +353,7 @@ console.log('Confirm payment request received:', req.body);
 });
 
 // Get payment history for a student
-router.get('/payment-history/:studentId', async (req: Request, res: Response) => {
+router.get('/payment-history/:studentId', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -455,7 +457,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: R
 });
 
 // Process refund
-router.post('/refund', async (req: Request, res: Response) => {
+router.post('/refund', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amount, reason = 'requested_by_customer' } = req.body;
 
@@ -489,7 +491,7 @@ router.post('/refund', async (req: Request, res: Response) => {
 // Mass Tutor Subscription Payment routes 
 
 
-router.post('/create-payment-intent-mass', async (req: Request, res: Response) => {
+router.post('/create-payment-intent-mass', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
   try {
     const { studentId, classId, amount } = req.body;
     console.log('Creating payment intent for mass class with data:', { studentId, classId, amount });
@@ -535,7 +537,7 @@ router.post('/create-payment-intent-mass', async (req: Request, res: Response) =
 
 
 
-router.post('/confirm-payment-mass', async (req: Request, res: Response) => {
+router.post('/confirm-payment-mass', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, studentId, classId, amount } = req.body;
     
