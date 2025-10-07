@@ -77,7 +77,7 @@ class EarningsService {
       // Calculate basic statistics
       const totalPayments = successfulPayments.length;
       const totalGross = successfulPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      const commissionRate = 0.10; // 10% commission
+      const commissionRate = process.env.COMMISSION_RATE ? parseFloat(process.env.COMMISSION_RATE) : 0.10; // Commission rate from config or default 10%
       const totalCommission = totalGross * commissionRate;
       const totalNet = totalGross - totalCommission;
 
