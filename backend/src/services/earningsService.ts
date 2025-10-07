@@ -44,21 +44,27 @@ class EarningsService {
       // Get tutor ID first
       const tutorId = await getTutorIdByFirebaseUid(userId);
       
-      // Get all completed sessions for the tutor
-      const completedSessions = await prisma.sessions.findMany({
+      // Get all successful payments for the tutor's sessions
+      const successfulPayments = await prisma.individual_Payments.findMany({
         where: {
-          i_tutor_id: tutorId,
-          status: 'completed'
+          status: 'success',
+          Sessions: {
+            i_tutor_id: tutorId
+          }
         },
         include: {
-          Student: {
+          Sessions: {
             include: {
-              User: true
+              Student: {
+                include: {
+                  User: true
+                }
+              }
             }
           }
         },
         orderBy: {
-          date: 'desc'
+          payment_date_time: 'desc'
         }
       });
 
@@ -69,23 +75,23 @@ class EarningsService {
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       // Calculate basic statistics
-      const totalSessions = completedSessions.length;
-      const totalGross = completedSessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+      const totalPayments = successfulPayments.length;
+      const totalGross = successfulPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const commissionRate = 0.10; // 10% commission
       const totalCommission = totalGross * commissionRate;
       const totalNet = totalGross - totalCommission;
 
       // Calculate time-based earnings
-      const thisMonthSessions = completedSessions.filter(s => s.date && new Date(s.date) >= startOfMonth);
-      const thisMonthEarnings = thisMonthSessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+      const thisMonthPayments = successfulPayments.filter(p => p.payment_date_time && new Date(p.payment_date_time) >= startOfMonth);
+      const thisMonthEarnings = thisMonthPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
-      const thisWeekSessions = completedSessions.filter(s => s.date && new Date(s.date) >= startOfWeek);
-      const thisWeekEarnings = thisWeekSessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+      const thisWeekPayments = successfulPayments.filter(p => p.payment_date_time && new Date(p.payment_date_time) >= startOfWeek);
+      const thisWeekEarnings = thisWeekPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
-      const todaySessions = completedSessions.filter(s => s.date && new Date(s.date) >= startOfToday);
-      const todayEarnings = todaySessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+      const todayPayments = successfulPayments.filter(p => p.payment_date_time && new Date(p.payment_date_time) >= startOfToday);
+      const todayEarnings = todayPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
-      // Get all sessions (including pending) for payment status
+      // Get all sessions (including pending) for session status
       const allSessions = await prisma.sessions.findMany({
         where: {
           i_tutor_id: tutorId,
@@ -102,12 +108,12 @@ class EarningsService {
       
       for (let month = 0; month < 12; month++) {
         const monthName = new Date(currentYear, month).toLocaleString('default', { month: 'short' });
-        const monthSessions = completedSessions.filter(s => {
-          if (!s.date) return false;
-          const sessionDate = new Date(s.date);
-          return sessionDate.getFullYear() === currentYear && sessionDate.getMonth() === month;
+        const monthPayments = successfulPayments.filter(p => {
+          if (!p.payment_date_time) return false;
+          const paymentDate = new Date(p.payment_date_time);
+          return paymentDate.getFullYear() === currentYear && paymentDate.getMonth() === month;
         });
-        yearlyEarnings[monthName] = monthSessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+        yearlyEarnings[monthName] = monthPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       }
 
       // Calculate monthly breakdown for last 12 months
@@ -118,19 +124,19 @@ class EarningsService {
         const month = date.toLocaleString('default', { month: 'long' });
         const year = date.getFullYear();
         
-        const monthSessions = completedSessions.filter(s => {
-          if (!s.date) return false;
-          const sessionDate = new Date(s.date);
-          return sessionDate.getFullYear() === year && sessionDate.getMonth() === date.getMonth();
+        const monthPayments = successfulPayments.filter(p => {
+          if (!p.payment_date_time) return false;
+          const paymentDate = new Date(p.payment_date_time);
+          return paymentDate.getFullYear() === year && paymentDate.getMonth() === date.getMonth();
         });
         
-        const grossEarnings = monthSessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+        const grossEarnings = monthPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
         const commission = grossEarnings * commissionRate;
         
         monthlyBreakdown.push({
           month,
           year,
-          sessions: monthSessions.length,
+          sessions: monthPayments.length,
           grossEarnings,
           commission,
           netEarnings: grossEarnings - commission
@@ -143,12 +149,12 @@ class EarningsService {
         netEarnings: totalNet,
         totalSessions: allSessions.length,
         completedSessions: completedSessionsCount,
-        averageSessionValue: totalSessions > 0 ? totalGross / totalSessions : 0,
+        averageSessionValue: totalPayments > 0 ? totalGross / totalPayments : 0,
         thisMonthEarnings: thisMonthEarnings - (thisMonthEarnings * commissionRate),
         thisWeekEarnings: thisWeekEarnings - (thisWeekEarnings * commissionRate),
         todayEarnings: todayEarnings - (todayEarnings * commissionRate),
         pendingPayments: pendingSessionsCount,
-        paidPayments: completedSessionsCount,
+        paidPayments: totalPayments, // Use successful payments count instead of completed sessions
         yearlyEarnings,
         monthlyBreakdown
       };
@@ -159,39 +165,45 @@ class EarningsService {
   }
 
   // Get recent payments for a tutor
-  async getRecentPayments(userId: string, limit: number = 10): Promise<RecentPayment[]> {
+  async getRecentPayments(userId: string, limit: number = 6): Promise<RecentPayment[]> {
     try {
       const tutorId = await getTutorIdByFirebaseUid(userId);
       
-      const payments = await prisma.sessions.findMany({
+      const payments = await prisma.individual_Payments.findMany({
         where: {
-          i_tutor_id: tutorId,
-          status: 'completed'
+          status: 'success',
+          Sessions: {
+            i_tutor_id: tutorId
+          }
         },
         include: {
-          Student: {
+          Sessions: {
             include: {
-              User: true
+              Student: {
+                include: {
+                  User: true
+                }
+              }
             }
           }
         },
         orderBy: {
-          date: 'desc'
+          payment_date_time: 'desc'
         },
         take: limit
       });
 
       const commissionRate = 0.10;
 
-      return payments.map(session => ({
-        session_id: session.session_id,
-        student_name: session.Student?.User?.name || 'Unknown Student',
-        subject: session.title || 'No Subject',
-        amount: Number(session.price || 0),
-        commission: Number(session.price || 0) * commissionRate,
-        net_amount: Number(session.price || 0) * (1 - commissionRate),
-        date: session.date || new Date(),
-        payment_status: 'completed'
+      return payments.map(payment => ({
+        session_id: payment.session_id || 'N/A',
+        student_name: payment.Sessions?.Student?.User?.name || 'Unknown Student',
+        subject: payment.Sessions?.title || 'No Subject',
+        amount: Number(payment.amount || 0),
+        commission: Number(payment.amount || 0) * commissionRate,
+        net_amount: Number(payment.amount || 0) * (1 - commissionRate),
+        date: payment.payment_date_time || new Date(),
+        payment_status: payment.status || 'success'
       }));
     } catch (error) {
       console.error('Error getting recent payments:', error);
@@ -204,25 +216,31 @@ class EarningsService {
     try {
       const tutorId = await getTutorIdByFirebaseUid(userId);
       
-      const sessions = await prisma.sessions.findMany({
+      const payments = await prisma.individual_Payments.findMany({
         where: {
-          i_tutor_id: tutorId,
-          status: 'completed',
-          date: {
+          status: 'success',
+          Sessions: {
+            i_tutor_id: tutorId
+          },
+          payment_date_time: {
             gte: startDate,
             lte: endDate
           }
         },
         include: {
-          Student: {
+          Sessions: {
             include: {
-              User: true
+              Student: {
+                include: {
+                  User: true
+                }
+              }
             }
           }
         }
       });
 
-      const totalGross = sessions.reduce((sum, session) => sum + Number(session.price || 0), 0);
+      const totalGross = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const commissionRate = 0.10;
       const totalCommission = totalGross * commissionRate;
       const totalNet = totalGross - totalCommission;
@@ -231,14 +249,14 @@ class EarningsService {
         totalEarnings: totalGross,
         adminCommission: totalCommission,
         netEarnings: totalNet,
-        totalSessions: sessions.length,
-        completedSessions: sessions.length,
-        averageSessionValue: sessions.length > 0 ? totalGross / sessions.length : 0,
+        totalSessions: payments.length,
+        completedSessions: payments.length,
+        averageSessionValue: payments.length > 0 ? totalGross / payments.length : 0,
         thisMonthEarnings: 0,
         thisWeekEarnings: 0,
         todayEarnings: 0,
         pendingPayments: 0,
-        paidPayments: sessions.length,
+        paidPayments: payments.length,
         yearlyEarnings: {},
         monthlyBreakdown: []
       };

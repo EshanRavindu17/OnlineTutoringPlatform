@@ -1,10 +1,10 @@
-import { SessionStatus } from "../types/session";
+import { SessionStatus, Material } from "../types/session";
 
 export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: string[];
+  materials: (string | Material)[]; // Support both formats for backward compatibility
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -12,6 +12,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
+  subject: string | null;  // Added subject column from Sessions table
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -243,6 +244,175 @@ class SessionService {
     }
   }
 
+  // Enhanced Material Management Methods
+
+  // Add enhanced material to session
+  async addEnhancedSessionMaterial(
+    firebaseUid: string, 
+    sessionId: string, 
+    materialData: Omit<Material, 'id' | 'uploadDate'>
+  ): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(materialData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add enhanced material: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error adding enhanced session material:', error);
+      throw error;
+    }
+  }
+
+  // Remove enhanced material from session
+  async removeEnhancedSessionMaterial(
+    firebaseUid: string, 
+    sessionId: string, 
+    materialIndex: number
+  ): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material/${materialIndex}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to remove enhanced material: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error removing enhanced session material:', error);
+      throw error;
+    }
+  }
+
+  // Get enhanced session materials
+  async getEnhancedSessionMaterials(
+    firebaseUid: string, 
+    sessionId: string
+  ): Promise<Material[]> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-materials`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get enhanced materials: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error getting enhanced session materials:', error);
+      throw error;
+    }
+  }
+
+  // Upload file for materials (with real file upload to server/cloud)
+  async uploadMaterialFile(
+    firebaseUid: string,
+    sessionId: string,
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{ url: string; fileId: string; mimeType: string; size: number }> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sessionId', sessionId);
+      
+      // Create XMLHttpRequest for progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Track upload progress
+        if (onProgress) {
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const progress = Math.round((e.loaded / e.total) * 100);
+              onProgress(progress);
+            }
+          });
+        }
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status === 200) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              if (result.success) {
+                resolve({
+                  url: result.data.url,
+                  fileId: result.data.fileId,
+                  mimeType: file.type,
+                  size: file.size
+                });
+              } else {
+                reject(new Error(result.message || 'Upload failed'));
+              }
+            } catch (error) {
+              reject(new Error('Invalid response from server'));
+            }
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+        
+        xhr.open('POST', `${this.baseURL}/${firebaseUid}/session/${sessionId}/upload-file`);
+        xhr.send(formData);
+      });
+    } catch (error) {
+      console.error('Error uploading material file:', error);
+      throw error;
+    }
+  }
+
+  // Batch upload multiple materials
+  async batchUploadMaterials(
+    firebaseUid: string,
+    sessionId: string,
+    materials: Array<Omit<Material, 'id' | 'uploadDate'>>,
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<SessionWithDetails> {
+    try {
+      const results = [];
+      
+      for (let i = 0; i < materials.length; i++) {
+        const material = materials[i];
+        const result = await this.addEnhancedSessionMaterial(firebaseUid, sessionId, material);
+        results.push(result);
+        
+        if (onProgress) {
+          onProgress(i + 1, materials.length);
+        }
+      }
+      
+      // Return the last result which should have all materials
+      return results[results.length - 1];
+    } catch (error) {
+      console.error('Error in batch upload:', error);
+      throw error;
+    }
+  }
+
   // Update session status
   async updateSessionStatus(firebaseUid: string, sessionId: string, status: SessionStatus): Promise<SessionWithDetails> {
     try {
@@ -312,27 +482,131 @@ class SessionService {
     }
   }
 
-  // Helper method to format session data for display
-  formatSessionForDisplay(session: SessionWithDetails) {
-    return {
-      id: session.session_id,
-      studentName: session.Student?.User.name || 'Unknown Student',
-      studentEmail: session.Student?.User.email || '',
-      studentPhoto: session.Student?.User.photo_url || null,
-      subject: session.title || 'No Subject',
-      title: session.title || 'No Title',
-      date: session.date ? new Date(session.date).toISOString().split('T')[0] : '',
-      time: session.start_time && session.end_time 
-        ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
-        : 'Time not set',
-      amount: session.price || 0,
-      status: session.status || 'scheduled',
-      materials: session.materials || [],
-      meetingUrls: session.meeting_urls || [],
-      rating: session.Rating_N_Review_Session?.[0]?.rating || null,
-      review: session.Rating_N_Review_Session?.[0]?.review || null,
-    };
+  // Start a session (change status from scheduled to ongoing)
+  async startSession(firebaseUid: string, sessionId: string): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to start session: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error starting session:', error);
+      throw error;
+    }
   }
+
+  // Complete a session (change status from ongoing to completed)
+  async completeSession(firebaseUid: string, sessionId: string): Promise<SessionWithDetails> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to complete session: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error completing session:', error);
+      throw error;
+    }
+  }
+
+  // Finish an ongoing session (legacy method - now uses completeSession)
+  async finishSession(firebaseUid: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.completeSession(firebaseUid, sessionId);
+      return {
+        success: true,
+        message: 'Session completed successfully'
+      };
+    } catch (error) {
+      console.error('Error finishing session:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to complete session'
+      };
+    }
+  }
+
+  // Admin functions for cleanup (typically called by cron jobs or admin interface)
+  async autoExpireScheduledSessions(): Promise<{ expiredCount: number; sessionIds: string[] }> {
+    try {
+      const response = await fetch(`${this.baseURL}/admin/auto-expire`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to auto-expire sessions: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error auto-expiring sessions:', error);
+      throw error;
+    }
+  }
+
+  async autoCompleteLongRunningSessions(): Promise<{ completedCount: number; sessionIds: string[] }> {
+    try {
+      const response = await fetch(`${this.baseURL}/admin/auto-complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to auto-complete sessions: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error auto-completing sessions:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to format session data for display
+  // formatSessionForDisplay(session: SessionWithDetails) {
+  //   return {
+  //     id: session.session_id,
+  //     studentName: session.Student?.User.name || 'Unknown Student',
+  //     studentEmail: session.Student?.User.email || '',
+  //     studentPhoto: session.Student?.User.photo_url || null,
+  //     subject: session.title || 'No Subject',
+  //     title: session.title || 'No Title',
+  //     date: session.date ? new Date(session.date).toISOString().split('T')[0] : '',
+  //     time: session.start_time && session.end_time 
+  //       ? `${new Date(session.start_time).toLocaleTimeString()} - ${new Date(session.end_time).toLocaleTimeString()}`
+  //       : 'Time not set',
+  //     amount: session.price || 0,
+  //     status: session.status || 'scheduled',
+  //     materials: session.materials || [],
+  //     meetingUrls: session.meeting_urls || [],
+  //     rating: session.Rating_N_Review_Session?.[0]?.rating || null,
+  //     review: session.Rating_N_Review_Session?.[0]?.review || null,
+  //   };
+  // }
 }
 
 export const sessionService = new SessionService();

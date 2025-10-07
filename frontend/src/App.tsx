@@ -17,7 +17,7 @@ import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
 import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './pages/individualTutor/tutorProfile';
-import StartZoom from './pages/individualTutor/startZoom';
+// import StartZoom from './pages/individualTutor/startZoom';
 import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
@@ -119,7 +119,7 @@ const App = () => {
         {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          <Route path="/startzoom" element={<StartZoom />} />
+          {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
         </Route>

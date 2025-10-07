@@ -6,6 +6,8 @@ import {
   createSessionReminderEmail,
   createPaymentConfirmationEmail,
   createWelcomeEmail,
+  createSessionCompletionEmail,
+  createAutoCancellationEmail,
   EmailContent,
   createClassReminderEmail,
   createNewMassClassNotificationEmail,
@@ -298,5 +300,55 @@ export const sendCustomMessageEmail = async (
     }
 ) => {
     const emailContent = createCustomMessageEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Session completion email
+export const sendSessionCompletionEmail = async (
+    to: string,
+    type: 'student' | 'tutor',
+    studentName: string,
+    tutorName: string,
+    sessionDate: string,
+    sessionTime: string,
+    sessionSubject?: string,
+    sessionDuration?: string,
+    amount?: number
+) => {
+    const emailContent = createSessionCompletionEmail({
+        type,
+        studentName,
+        tutorName,
+        sessionDate,
+        sessionTime,
+        sessionSubject,
+        sessionDuration,
+        amount
+    });
+
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Auto-cancellation email (for sessions not started by tutor)
+export const sendAutoCancellationEmail = async (
+    to: string,
+    type: 'student' | 'tutor',
+    studentName: string,
+    tutorName: string,
+    sessionDate: string,
+    sessionTime: string,
+    sessionSubject?: string,
+    refundAmount?: number
+) => {
+    const emailContent = createAutoCancellationEmail({
+        type,
+        studentName,
+        tutorName,
+        sessionDate,
+        sessionTime,
+        sessionSubject,
+        refundAmount
+    });
+
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };

@@ -3,9 +3,9 @@ import axios from 'axios';
 
 
 export async function createZoomMeeting(topic: string, startTime: string, duration: number) {
-    const clientId = process.env.YOUR_CLIENT_ID;
-    const clientSecret = process.env.YOUR_CLIENT_SECRET;
-    const accountId = process.env.YOUR_ACCOUNT_ID;
+    const clientId = process.env.ZOOM_CLIENT_ID;
+    const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+    const accountId = process.env.ZOOM_ACCOUNT_ID;
 
     if (!clientId || !clientSecret || !accountId) {
         throw new Error('Zoom credentials are not set in environment variables');
