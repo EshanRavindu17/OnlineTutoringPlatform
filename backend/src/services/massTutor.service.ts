@@ -891,10 +891,23 @@ export const updateTutorProfileService = async (
       throw new Error('Tutor profile not found');
     }
 
-    // Validate price (max $3/month as per admin rules)
+    // Validate price against admin threshold
     if (data.prices !== undefined) {
-      if (data.prices < 0 || data.prices > 3) {
-        throw new Error('Monthly rate must be between $0 and $3 (capped by admin)');
+      // Fetch the active mass_monthly rate threshold
+      const rateThreshold: any = await (prisma as any).paymentrates.findFirst({
+        where: {
+          type: 'mass_monthly',
+          status: 'active',
+        },
+        select: {
+          value: true,
+        },
+      });
+
+      const maxRate = rateThreshold ? parseFloat(rateThreshold.value.toString()) : 10000;
+
+      if (data.prices < 0 || data.prices > maxRate) {
+        throw new Error(`Monthly rate must be between LKR 0 and LKR ${maxRate.toLocaleString()} (capped by admin)`);
       }
     }
 

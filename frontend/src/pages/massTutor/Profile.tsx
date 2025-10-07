@@ -33,6 +33,10 @@ export default function MassTutorProfile() {
   // Available subjects from database
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('');
+  
+  // Monthly rate threshold set by admin
+  const [monthlyRateThreshold, setMonthlyRateThreshold] = useState<number | null>(null);
+  const [thresholdDescription, setThresholdDescription] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -55,6 +59,7 @@ export default function MassTutorProfile() {
   useEffect(() => {
     fetchProfile();
     fetchSubjects();
+    fetchMonthlyRateThreshold();
   }, []);
 
   const fetchProfile = async () => {
@@ -93,6 +98,17 @@ export default function MassTutorProfile() {
     } catch (error: any) {
       console.error('Failed to fetch subjects:', error);
       toast.error('Failed to load available subjects');
+    }
+  };
+
+  const fetchMonthlyRateThreshold = async () => {
+    try {
+      const response = await massTutorAPI.getMonthlyRateThreshold();
+      setMonthlyRateThreshold(response.threshold);
+      setThresholdDescription(response.description);
+    } catch (error: any) {
+      console.error('Failed to fetch monthly rate threshold:', error);
+      // Don't show error toast as it's not critical
     }
   };
 
@@ -144,8 +160,10 @@ export default function MassTutorProfile() {
       return;
     }
 
-    if (formData.prices < 0 || formData.prices > 3) {
-      toast.error('Monthly rate must be between $0 and $3 (admin cap)');
+    // Validate against admin threshold
+    const maxRate = monthlyRateThreshold || 10000; // Default high value if no threshold
+    if (formData.prices < 0 || formData.prices > maxRate) {
+      toast.error(`Monthly rate must be between LKR 0 and LKR ${maxRate.toLocaleString()} (admin threshold)`);
       return;
     }
 
@@ -262,7 +280,7 @@ export default function MassTutorProfile() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Monthly Rate</p>
-                <p className="text-lg font-semibold text-gray-900">${profile.prices.toFixed(2)}</p>
+                <p className="text-lg font-semibold text-gray-900">LKR {profile.prices.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -550,13 +568,25 @@ export default function MassTutorProfile() {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   min="0"
-                  max="3"
+                  max={monthlyRateThreshold || 10000}
                   step="0.01"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
                   required
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Maximum rate is capped at $3.00/month by admin</p>
+              {monthlyRateThreshold ? (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs font-medium text-blue-800 flex items-center gap-1">
+                    <span className="text-blue-600">💰</span>
+                    Admin Threshold: LKR {monthlyRateThreshold.toLocaleString()}/month
+                  </p>
+                  {thresholdDescription && (
+                    <p className="text-xs text-blue-600 mt-1">{thresholdDescription}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">Loading threshold information...</p>
+              )}
             </div>
           </div>
 

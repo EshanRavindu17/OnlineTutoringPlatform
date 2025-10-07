@@ -311,4 +311,13 @@ export const massTutorAPI = {
     });
     return response.data;
   },
+
+  // Get monthly rate threshold set by admin
+  async getMonthlyRateThreshold() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/monthly-rate-threshold`, {
+      headers,
+    });
+    return response.data;
+  },
 };

@@ -56,6 +56,7 @@ import Complaints from './admin/Complaints';
 import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import Sessions from './admin/Sessions';
 
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
@@ -142,6 +143,7 @@ const App = () => {
             <Route path="finance" element={<Finance />} />
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="sessions" element={<Sessions />} />
           </Route>
         </Route>
 

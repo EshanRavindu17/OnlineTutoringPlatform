@@ -21,6 +21,12 @@ const nav = [
     icon: PauseIcon,
     description: 'Suspend or manage tutors'
   },
+  {
+    to : '/admin/sessions',
+    label: 'Session Management',
+    icon: BookOpen,
+    description: 'Manage tutoring sessions'
+  },
   { 
     to: '/admin/analytics', 
     label: 'Analytics', 
@@ -251,4 +257,12 @@ function NotificationIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 function LogoutIcon({ className = "w-4 h-4" }: { className?: string }) {
   return <svg className={className} viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h6a1 1 0 1 0 0-2H4V5h5a1 1 0 0 0 0-2H3zm10.293 4.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-3 3a1 1 0 0 1-1.414-1.414L14.586 12H9a1 1 0 1 1 0-2h5.586l-1.293-1.293a1 1 0 0 1 0-1.414z"/></svg>;
+}
+
+function BookOpen({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 4a2 2 0 012-2h5v16H4a2 2 0 01-2-2V4zm12-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-5V2h5z" />
+    </svg>
+  );
 }

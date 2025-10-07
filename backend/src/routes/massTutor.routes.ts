@@ -45,6 +45,9 @@ router.get('/reviews', massTutorController.getTutorReviewsController);
 // Dashboard analytics route
 router.get('/analytics', massTutorController.getDashboardAnalyticsController);
 
+// Monthly rate threshold route
+router.get('/monthly-rate-threshold', massTutorController.getMonthlyRateThresholdController);
+
 // Zoom meeting creation
 router.post('/classes/:classId/zoom', massTutorController.createZoomMeetingController);
 router.post('/zoom/get-zak', massTutorController.getZoomHostUrlController);

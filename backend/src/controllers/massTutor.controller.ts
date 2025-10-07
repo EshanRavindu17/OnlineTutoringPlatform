@@ -616,3 +616,47 @@ export const getTutorReviewsController = async (req: Request, res: Response) => 
     });
   }
 };
+
+/**
+ * Get mass monthly payment rate threshold set by admin
+ */
+export const getMonthlyRateThresholdController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    // Get the active mass_monthly rate from payment rates
+    const rate: any = await (prisma as any).paymentrates.findFirst({
+      where: {
+        type: 'mass_monthly',
+        status: 'active',
+      },
+      select: {
+        value: true,
+        description: true,
+        created_at: true,
+      },
+    });
+
+    if (!rate) {
+      return res.status(200).json({
+        threshold: null,
+        message: 'No monthly rate threshold set by admin',
+      });
+    }
+
+    return res.status(200).json({
+      threshold: parseFloat(rate.value.toString()),
+      description: rate.description,
+      updated_at: rate.created_at,
+    });
+  } catch (error: any) {
+    console.error('Error in getMonthlyRateThresholdController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch monthly rate threshold',
+    });
+  }
+};
