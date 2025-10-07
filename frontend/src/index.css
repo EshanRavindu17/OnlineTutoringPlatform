@@ -1,1 +1,210 @@
+
 @import "tailwindcss";
+
+/* === Admin theme tokens & utilities === */
+:root{
+  --brand-50:#eef4ff;
+  --brand-100:#d9e3ff;
+  --brand-200:#b9ccff;
+  --brand-300:#8fb2ff;
+  --brand-400:#5e93ff;
+  --brand-500:#2d74ff;
+  --brand-600:#1f5cf0;
+  --brand-700:#1a49c4;
+  --ink-900:#0b1220;
+}
+
+.admin-hero {
+  background: radial-gradient(1200px 400px at 65% -10%, rgba(255,255,255,.12), transparent 50%),
+              linear-gradient(180deg, var(--brand-500), var(--brand-600));
+}
+
+.admin-card { @apply bg-white rounded-2xl shadow-sm ring-1 ring-gray-200; }
+
+.admin-btn { @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition; }
+.admin-btn-primary { background: var(--brand-500); color:#fff; }
+.admin-btn-primary:hover { background: var(--brand-600); }
+.admin-btn-ghost  { @apply border border-gray-200 bg-white; }
+.admin-btn-ghost:hover { @apply bg-gray-50; }
+
+.admin-badge { @apply px-2 py-0.5 rounded-full text-xs font-semibold; }
+.badge-green { @apply bg-green-100 text-green-700; }
+.badge-red   { @apply bg-red-100 text-red-600; }
+.badge-gray  { @apply bg-gray-100 text-gray-700; }
+
+/* Custom Scrollbar Styles */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Toast Animation */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Mass Tutor Layout Custom Animations */
+@keyframes blob {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(20px, -50px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  75% {
+    transform: translate(50px, 50px) scale(1.05);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes bounce-horizontal {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.animate-bounce-horizontal {
+  animation: bounce-horizontal 1s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.animation-delay-500 {
+  animation-delay: 0.5s;
+}
+
+.animation-delay-1500 {
+  animation-delay: 1.5s;
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}

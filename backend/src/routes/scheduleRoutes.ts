@@ -3,7 +3,7 @@ import {
   getTutorIdController,
   getTutorTimeSlotsController,
   createTimeSlotController,
-  updateTimeSlotController,
+  // updateTimeSlotController,
   deleteTimeSlotController,
   getAvailableTimeSlotsController
 } from '../controllers/scheduleController';
@@ -16,7 +16,7 @@ router.get('/tutor-id/:firebaseUid', getTutorIdController);
 // Routes for tutors to manage their time slots
 router.get('/tutor/:tutorId/slots', getTutorTimeSlotsController);
 router.post('/tutor/:tutorId/slots', createTimeSlotController);
-router.put('/slots/:slotId', updateTimeSlotController);
+// router.put('/slots/:slotId', updateTimeSlotController);
 router.delete('/slots/:slotId', deleteTimeSlotController);
 
 // Routes for getting available slots (for students to view)

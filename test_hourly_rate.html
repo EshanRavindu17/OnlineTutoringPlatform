@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Hourly Rate Update</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input {
+            width: 300px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Hourly Rate Update API</h1>
+    
+    <div class="form-group">
+        <label for="firebaseUid">Firebase UID:</label>
+        <input type="text" id="firebaseUid" placeholder="Enter Firebase UID" value="test-firebase-uid">
+    </div>
+    
+    <div class="form-group">
+        <label for="hourlyRate">Hourly Rate ($):</label>
+        <input type="number" id="hourlyRate" placeholder="Enter hourly rate" min="0" max="300" step="0.01" value="75">
+    </div>
+    
+    <button onclick="updateHourlyRate()">Update Hourly Rate</button>
+    <button onclick="testHealthEndpoint()">Test Health Endpoint</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function updateHourlyRate() {
+            const firebaseUid = document.getElementById('firebaseUid').value;
+            const hourlyRate = parseFloat(document.getElementById('hourlyRate').value);
+            const resultDiv = document.getElementById('result');
+            
+            if (!firebaseUid) {
+                showResult('Please enter a Firebase UID', 'error');
+                return;
+            }
+            
+            if (isNaN(hourlyRate)) {
+                showResult('Please enter a valid hourly rate', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:5000/individual-tutor/hourly-rate/${firebaseUid}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ hourlyRate })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`Success: ${data.message}`, 'success');
+                } else {
+                    showResult(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Network Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHealthEndpoint() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const response = await fetch('http://localhost:5000/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`Health Check: ${data.message} - Status: ${data.status}`, 'success');
+                } else {
+                    showResult(`Health Check Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Network Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = `result ${type}`;
+        }
+    </script>
+</body>
+</html>

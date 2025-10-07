@@ -13,11 +13,13 @@ import {
   User,
   X,
   Check,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Eye
 } from 'lucide-react';
 import NavBar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { tutorService, IndividualTutor, Subject, Title, TitleWithSubject } from '../api/TutorService';
+import { tutorService,TutorProfile, Subject, Title, TitleWithSubject } from '../api/TutorService';
+import { getAllMassClasses, MassClass } from '../api/Student';
 
 import { useAuth } from '../context/authContext';
 
@@ -37,6 +39,24 @@ interface Tutor {
   classSize?: number;
 }
 
+interface GroupClass {
+  id: string;
+  name: string;
+  subject: string;
+  date: string;
+  tutor: {
+    id: string;
+    name: string;
+    profilePicture: string;
+    rating: number;
+  };
+  description: string;
+  price: number;
+  duration: string;
+  studentsEnrolled: number;
+  verified: boolean;
+}
+
 export default function FindTutorsPage() {
   const navigate = useNavigate();
 
@@ -49,6 +69,18 @@ export default function FindTutorsPage() {
   const [hourlyRateRange, setHourlyRateRange] = useState<[number, number]>([1000, 8000]);
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<'rating' | 'hourly_rate_asc' | 'hourly_rate_desc'>('rating');
+
+  //Individual specific filter 
+
+  const [individualTutorName,setIndividualTutorName] = useState<string>('');
+  
+  // Mass classes specific filters
+  const [massSortBy, setMassSortBy] = useState<'high-rated' | 'popular' | 'low-priced' | 'high-priced'>('high-rated');
+  const [massRating, setMassRating] = useState<number>(0);
+  const [monthlyPriceRange, setMonthlyPriceRange] = useState<[number, number]>([5000, 20000]);
+  const [tutorNameSearch, setTutorNameSearch] = useState('');
+  const [classTitleSearch, setClassTitleSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
   // UI states
   const [showFilters, setShowFilters] = useState(false);
@@ -57,13 +89,112 @@ export default function FindTutorsPage() {
   
   // API states
   const [tutors, setTutors] = useState<Tutor[]>([]);
+  const [groupClasses, setGroupClasses] = useState<GroupClass[]>([]);
+  const [realMassClasses, setRealMassClasses] = useState<MassClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Search states for group classes
+  const [classNameSearch, setClassNameSearch] = useState('');
+
+  // Mock data for group classes (temporary until backend is built)
+  const mockGroupClasses: GroupClass[] = [
+    {
+      id: "class-1",
+      name: "Advanced Mathematics Masterclass",
+      subject: "Mathematics",
+      date: "2025-09-15",
+      tutor: {
+        id: "tutor-1",
+        name: "Dr. Sarah Johnson",
+        profilePicture: "https://images.unsplash.com/photo-1494790108755-2616c18b3d9d?w=150&h=150&fit=crop&crop=center",
+        rating: 4.8
+      },
+      description: "Comprehensive calculus and algebra preparation for advanced students",
+      price: 12000,
+      duration: "2 hours",
+      studentsEnrolled: 18,
+      verified: true
+    },
+    {
+      id: "class-2",
+      name: "Physics Fundamentals Workshop",
+      subject: "Physics",
+      date: "2025-09-18",
+      tutor: {
+        id: "tutor-2",
+        name: "Prof. Michael Chen",
+        profilePicture: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=center",
+        rating: 4.6
+      },
+      description: "Interactive physics workshop covering mechanics and thermodynamics",
+      price: 10000,
+      duration: "1.5 hours",
+      studentsEnrolled: 22,
+      verified: true
+    },
+    {
+      id: "class-3",
+      name: "Chemistry Lab Experience",
+      subject: "Chemistry",
+      date: "2025-09-20",
+      tutor: {
+        id: "tutor-3",
+        name: "Dr. Emily Rodriguez",
+        profilePicture: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=center",
+        rating: 4.7
+      },
+      description: "Hands-on chemistry experiments and theoretical concepts",
+      price: 15000,
+      duration: "2.5 hours",
+      studentsEnrolled: 15,
+      verified: true
+    },
+    {
+      id: "class-4",
+      name: "English Literature Circle",
+      subject: "English",
+      date: "2025-09-22",
+      tutor: {
+        id: "tutor-4",
+        name: "Ms. Amanda Williams",
+        profilePicture: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=center",
+        rating: 4.9
+      },
+      description: "Explore classic and modern literature with interactive discussions",
+      price: 8000,
+      duration: "1.5 hours",
+      studentsEnrolled: 12,
+      verified: true
+    },
+    {
+      id: "class-5",
+      name: "Biology Deep Dive",
+      subject: "Biology",
+      date: "2025-09-25",
+      tutor: {
+        id: "tutor-5",
+        name: "Dr. Robert Kumar",
+        profilePicture: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=center",
+        rating: 4.5
+      },
+      description: "Comprehensive biology concepts from cellular to ecosystem level",
+      price: 11000,
+      duration: "2 hours",
+      studentsEnrolled: 20,
+      verified: true
+    }
+  ];
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalTutors, setTotalTutors] = useState(0);
   const [tutorsPerPage] = useState(6); // Fixed number of tutors per page
+  
+  // Mass classes pagination states
+  const [currentMassPage, setCurrentMassPage] = useState(1);
+  const [totalMassClasses, setTotalMassClasses] = useState(0);
+  const [classesPerPage] = useState(6); // Fixed number of classes per page
   
   // Data from API
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -77,7 +208,7 @@ export default function FindTutorsPage() {
   };
 
   // Function to convert backend data to frontend format
-  const convertBackendToFrontend = (backendTutors: IndividualTutor[]): Tutor[] => {
+  const convertBackendToFrontend = (backendTutors: TutorProfile[]): Tutor[] => {
     return backendTutors.map(tutor => ({
       id: tutor.i_tutor_id,
       name: tutor.User?.name || 'Unknown Tutor',
@@ -95,43 +226,66 @@ export default function FindTutorsPage() {
 
   // Fetch tutors from API
   const fetchTutors = async () => {
-    if (tutorType !== 'Individual') {
-      // For Mass tutors, we'll use mock data for now since the endpoint is only for Individual tutors
-      setTutors([
-        {
-          id: "mass-1",
-          name: "Engineering Academy",
-          subjects: ["Mathematics", "Physics"],
-          titles: ["Calculus", "Mechanics", "Thermodynamics"],
-          rating: 4.5,
-          reviewsCount: 200,
-          hourlyRate: 2000,
-          profilePicture: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=150&h=150&fit=crop&crop=center",
-          type: "Mass",
-          description: "Professional engineering preparation classes.",
-          verified: true,
-          totalStudents: 150,
-          classSize: 25
-        },
-        {
-          id: "mass-2",
-          name: "Science Learning Center",
-          subjects: ["Chemistry", "Biology", "Physics"],
-          titles: ["Organic Chemistry", "Cell Biology", "Optics"],
-          rating: 4.3,
-          reviewsCount: 180,
-          hourlyRate: 1800,
-          profilePicture: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=150&h=150&fit=crop&crop=center",
-          type: "Mass",
-          description: "Comprehensive science education for all levels.",
-          verified: true,
-          totalStudents: 200,
-          classSize: 30
+    if (tutorType === 'Mass') {
+      // For Mass tutors/group classes, use real API
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Map massSortBy to API sort parameter
+        const getSortParam = (sortType: string) => {
+          switch (sortType) {
+            case 'popular': return 'popular';
+            case 'high-rated': return 'rating_desc';
+            case 'low-priced': return 'price_asc';
+            case 'high-priced': return 'price_desc';
+            default: return 'rating_desc';
+          }
+        };
+        
+        // Convert selected subject IDs to subject names and format with commas
+        const selectedSubjectNames = selectedSubjects.length > 0 
+          ? subjects
+              .filter(subject => selectedSubjects.includes(subject.sub_id))
+              .map(subject => subject.name)
+              .join(',')
+          : '';
+        
+        console.log('Selected subjects for Mass classes:', selectedSubjectNames);
+        
+        const massClasses = await getAllMassClasses(
+          selectedSubjectNames,
+          currentMassPage,
+          classesPerPage,
+          getSortParam(massSortBy),
+          massRating > 0 ? massRating : undefined,
+          monthlyPriceRange[0],
+          monthlyPriceRange[1],
+          // tutorNameSearch.trim() || undefined,
+          // classTitleSearch.trim() || undefined
+          searchTerm.trim() || undefined
+        );
+        
+        setRealMassClasses(massClasses);
+        setTutors([]); // Clear individual tutors when showing group classes
+        
+        // Handle pagination for mass classes
+        if (massClasses.length < classesPerPage) {
+          setTotalMassClasses((currentMassPage - 1) * classesPerPage + massClasses.length);
+        } else {
+          setTotalMassClasses(currentMassPage * classesPerPage + 1); // +1 to indicate there might be more
         }
-      ]);
+      } catch (err) {
+        setError('Failed to fetch group classes. Please try again.');
+        console.error('Error fetching group classes:', err);
+        setRealMassClasses([]);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
+    // Handle Individual tutors
     setLoading(true);
     setError(null);
     
@@ -149,6 +303,7 @@ export default function FindTutorsPage() {
       console.log('Selected title names:', selectedTitles);
       
       const filters = {
+        name: individualTutorName.trim() || undefined,
         subjects: selectedSubjectNames,
         titles: selectedTitles.length > 0 ? selectedTitles.join(',') : undefined,
         min_hourly_rate: hourlyRateRange[0],
@@ -245,14 +400,17 @@ export default function FindTutorsPage() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage]);
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, currentPage, currentMassPage, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch, searchTerm, individualTutorName]);
 
   // Effect to reset to page 1 when filters change (excluding currentPage itself)
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy]);
+    if (currentMassPage !== 1) {
+      setCurrentMassPage(1);
+    }
+  }, [tutorType, selectedSubjects, selectedTitles, hourlyRateRange, minRating, sortBy, classNameSearch, massSortBy, massRating, monthlyPriceRange, tutorNameSearch, classTitleSearch]);
 
   // Effect to fetch subjects on component mount
   useEffect(() => {
@@ -313,6 +471,7 @@ export default function FindTutorsPage() {
     setMinRating(0);
     setSortBy('rating');
     setSearchQuery('');
+    setClassNameSearch('');
     setCurrentPage(1);
   };
 
@@ -421,16 +580,36 @@ export default function FindTutorsPage() {
               {/* Search */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Search tutors, subjects, or titles..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                {tutorType === 'Mass' ? (
+                  // Group Classes Search - By class name and tutor name
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Search by class title or tutor name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                ) : (
+                  // Individual Tutors Search
+                  <>
+                  {/* <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label> */}
+                  <div className="relative">
+        
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Search by tutor name..."
+                      value={individualTutorName}
+                      // onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => setIndividualTutorName(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  </>
+                )}
               </div>
 
               {/* Subjects */}
@@ -448,7 +627,11 @@ export default function FindTutorsPage() {
                           type="checkbox"
                           checked={selectedSubjects.includes(subject.sub_id)}
                           onChange={() => handleSubjectToggle(subject.sub_id)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className={`w-4 h-4 border-gray-300 rounded focus:ring-2 ${
+                            tutorType === 'Mass' 
+                              ? 'text-purple-600 focus:ring-purple-500' 
+                              : 'text-blue-600 focus:ring-blue-500'
+                          }`}
                         />
                         <span className="ml-3 text-gray-700">{subject.name}</span>
                       </label>
@@ -457,8 +640,8 @@ export default function FindTutorsPage() {
                 </div>
               </div>
 
-              {/* Titles */}
-              {titles.length > 0 && (
+              {/* Titles - Only show for Individual tutors */}
+              {tutorType === 'Individual' && titles.length > 0 && (
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
                     Titles ({selectedTitles.length} selected)
@@ -497,84 +680,203 @@ export default function FindTutorsPage() {
                 </div>
               )}
 
-              {/* Hourly Rate Range */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Hourly Rate (Rs. {hourlyRateRange[0]} - Rs. {hourlyRateRange[1]})
-                </label>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Minimum Rate</label>
-                    <input
-                      type="range"
-                      min={500}
-                      max={8000}
-                      step={100}
-                      value={hourlyRateRange[0]}
-                      onChange={(e) => setHourlyRateRange([parseInt(e.target.value), hourlyRateRange[1]])}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Maximum Rate</label>
-                    <input
-                      type="range"
-                      min={500}
-                      max={8000}
-                      step={100}
-                      value={hourlyRateRange[1]}
-                      onChange={(e) => setHourlyRateRange([hourlyRateRange[0], parseInt(e.target.value)])}
-                      className="w-full accent-blue-600"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Minimum Rating */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Minimum Rating
-                </label>
-                <div className="space-y-2">
-                  {[0, 3, 4, 4.5].map(rating => (
-                    <label key={rating} className="flex items-center cursor-pointer">
+              {/* Hourly Rate Range - Only show for Individual tutors */}
+              {tutorType === 'Individual' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Hourly Rate (Rs. {hourlyRateRange[0]} - Rs. {hourlyRateRange[1]})
+                  </label>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Minimum Rate</label>
                       <input
-                        type="radio"
-                        name="rating"
-                        checked={minRating === rating}
-                        onChange={() => setMinRating(rating)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        type="range"
+                        min={500}
+                        max={8000}
+                        step={100}
+                        value={hourlyRateRange[0]}
+                        onChange={(e) => setHourlyRateRange([parseInt(e.target.value), hourlyRateRange[1]])}
+                        className="w-full accent-blue-600"
                       />
-                      <div className="ml-3 flex items-center">
-                        {rating === 0 ? (
-                          <span className="text-gray-700">Any Rating</span>
-                        ) : (
-                          <>
-                            <div className="flex mr-2">
-                              {renderStars(rating)}
-                            </div>
-                            <span className="text-gray-700">{rating}+ Stars</span>
-                          </>
-                        )}
-                      </div>
-                    </label>
-                  ))}
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Maximum Rate</label>
+                      <input
+                        type="range"
+                        min={500}
+                        max={8000}
+                        step={100}
+                        value={hourlyRateRange[1]}
+                        onChange={(e) => setHourlyRateRange([hourlyRateRange[0], parseInt(e.target.value)])}
+                        className="w-full accent-blue-600"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Sort By */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="rating">Highest Rating</option>
-                  <option value="hourly_rate_asc">Price: Low to High</option>
-                  <option value="hourly_rate_desc">Price: High to Low</option>
-                </select>
-              </div>
+              {/* Minimum Rating - Only show for Individual tutors */}
+              {tutorType === 'Individual' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Minimum Rating
+                  </label>
+                  <div className="space-y-2">
+                    {[0, 3, 4, 4.5].map(rating => (
+                      <label key={rating} className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="rating"
+                          checked={minRating === rating}
+                          onChange={() => setMinRating(rating)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <div className="ml-3 flex items-center">
+                          {rating === 0 ? (
+                            <span className="text-gray-700">Any Rating</span>
+                          ) : (
+                            <>
+                              <div className="flex mr-2">
+                                {renderStars(rating)}
+                              </div>
+                              <span className="text-gray-700">{rating}+ Stars</span>
+                            </>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sort By - Only show for Individual tutors */}
+              {tutorType === 'Individual' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="rating">Highest Rating</option>
+                    <option value="hourly_rate_asc">Price: Low to High</option>
+                    <option value="hourly_rate_desc">Price: High to Low</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Mass Classes Filters */}
+              {tutorType === 'Mass' && (
+                <>
+                  {/* Tutor Name Search */}
+                  {/* <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Search by Tutor Name
+                    </label>
+                    <input
+                      type="text"
+                      value={tutorNameSearch}
+                      onChange={(e) => setTutorNameSearch(e.target.value)}
+                      placeholder="Enter tutor name..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div> */}
+
+                  {/* Class Title Search */}
+                  {/* <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Search by Class Title
+                    </label>
+                    <input
+                      type="text"
+                      value={classTitleSearch}
+                      onChange={(e) => setClassTitleSearch(e.target.value)}
+                      placeholder="Enter class title..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div> */}
+
+                  {/* Monthly Price Range */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Monthly Price (Rs. {monthlyPriceRange[0]} - Rs. {monthlyPriceRange[1]})
+                    </label>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Minimum Price</label>
+                        <input
+                          type="range"
+                          min={2000}
+                          max={50000}
+                          step={1000}
+                          value={monthlyPriceRange[0]}
+                          onChange={(e) => setMonthlyPriceRange([parseInt(e.target.value), monthlyPriceRange[1]])}
+                          className="w-full accent-blue-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Maximum Price</label>
+                        <input
+                          type="range"
+                          min={2000}
+                          max={50000}
+                          step={1000}
+                          value={monthlyPriceRange[1]}
+                          onChange={(e) => setMonthlyPriceRange([monthlyPriceRange[0], parseInt(e.target.value)])}
+                          className="w-full accent-blue-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Minimum Rating for Mass Classes */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Minimum Rating
+                    </label>
+                    <div className="space-y-2">
+                      {[0, 3, 4, 4.5].map(rating => (
+                        <label key={rating} className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name="massRating"
+                            checked={massRating === rating}
+                            onChange={() => setMassRating(rating)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          />
+                          <div className="ml-3 flex items-center">
+                            {rating === 0 ? (
+                              <span className="text-gray-700">Any Rating</span>
+                            ) : (
+                              <>
+                                <div className="flex mr-2">
+                                  {renderStars(rating)}
+                                </div>
+                                <span className="text-gray-700">{rating}+ Stars</span>
+                              </>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sort By for Mass Classes */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
+                    <select
+                      value={massSortBy}
+                      onChange={(e) => setMassSortBy(e.target.value as any)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="high-rated">High Rated</option>
+                      <option value="popular">Popular</option>
+                      <option value="low-priced">Low Priced</option>
+                      <option value="high-priced">High Priced</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -583,7 +885,10 @@ export default function FindTutorsPage() {
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-800">
-                {loading ? 'Loading...' : `${filteredTutors.length} ${tutorType} Tutor${filteredTutors.length !== 1 ? 's' : ''} Found`}
+                {loading ? 'Loading...' : tutorType === 'Mass' 
+                  ? `${realMassClasses.length} Group Class${realMassClasses.length !== 1 ? 'es' : ''} Found`
+                  : `${filteredTutors.length} ${tutorType} Tutor${filteredTutors.length !== 1 ? 's' : ''} Found`
+                }
                 {!loading && totalTutors > tutorsPerPage && (
                   <span className="text-lg font-normal text-gray-600 ml-2">
                     (Page {currentPage})
@@ -593,22 +898,27 @@ export default function FindTutorsPage() {
               <div className="flex items-center space-x-2">
                 <SlidersHorizontal className="w-5 h-5 text-gray-400" />
                 <span className="text-sm text-gray-600">
-                  Sorted by {sortBy === 'rating' ? 'Rating' : sortBy === 'hourly_rate_asc' ? 'Price (Low)' : 'Price (High)'}
+                  {tutorType === 'Mass' ? 'Filtered by Class/Tutor Name & Subject Selection' : 
+                   `Sorted by ${sortBy === 'rating' ? 'Rating' : sortBy === 'hourly_rate_asc' ? 'Price (Low)' : 'Price (High)'}`}
                 </span>
               </div>
             </div>
 
-            {/* Tutors Grid */}
+            {/* Content Grid */}
             {loading ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">Loading tutors...</h3>
-                <p className="text-gray-500">Please wait while we fetch the best tutors for you</p>
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                  Loading {tutorType === 'Mass' ? 'group classes' : 'tutors'}...
+                </h3>
+                <p className="text-gray-500">Please wait while we fetch the best {tutorType === 'Mass' ? 'classes' : 'tutors'} for you</p>
               </div>
             ) : error ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                 <X className="w-16 h-16 mx-auto mb-4 text-red-300" />
-                <h3 className="text-xl font-semibold text-red-600 mb-2">Error Loading Tutors</h3>
+                <h3 className="text-xl font-semibold text-red-600 mb-2">
+                  Error Loading {tutorType === 'Mass' ? 'Group Classes' : 'Tutors'}
+                </h3>
                 <p className="text-gray-500 mb-4">{error}</p>
                 <button
                   onClick={fetchTutors}
@@ -617,132 +927,293 @@ export default function FindTutorsPage() {
                   Try Again
                 </button>
               </div>
-            ) : filteredTutors.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-                <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">No tutors found</h3>
-                <p className="text-gray-500">Try adjusting your filters to see more results</p>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {filteredTutors.map(tutor => (
-                  <div key={tutor.id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
-                    <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
-                      {/* Profile Picture */}
-                      <div className="flex-shrink-0">
-                        <img
-                          src={tutor.profilePicture}
-                          alt={tutor.name}
-                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-gray-100"
-                        />
-                      </div>
+            ) : tutorType === 'Mass' ? (
+              // Group Classes Grid
+              realMassClasses.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                  <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No group classes found</h3>
+                  <p className="text-gray-500">Try adjusting your search terms to see more results</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-6">
+                    {realMassClasses.map(massClass => (
+                      <div key={massClass.class_id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-l-4 border-purple-500">
+                      <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                        {/* Tutor Profile Picture */}
+                        <div className="flex-shrink-0">
+                          <img
+                            src={massClass.tutorPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(massClass.tutorName)}&background=random`}
+                            alt={massClass.tutorName}
+                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-purple-100"
+                          />
+                        </div>
 
-                      {/* Tutor Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <h3 className="text-xl font-bold text-gray-900 mr-2">{tutor.name}</h3>
-                              {tutor.verified && (
-                                <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold">
+                        {/* Class Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <h3 className="text-xl font-bold text-gray-900 mr-3">{massClass.title}</h3>
+                                <div className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
                                   Verified
                                 </div>
-                              )}
+                              </div>
+                              <div className="flex items-center space-x-1 mb-2">
+                                {renderStars(Number(massClass.tutorRating))}
+                                <span className="text-sm text-gray-600 ml-2">
+                                  {massClass.tutorRating} • by {massClass.tutorName}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-1 mb-2">
-                              {renderStars(tutor.rating)}
-                              <span className="text-sm text-gray-600 ml-2">
-                                {tutor.rating} ({tutor.reviewsCount} reviews)
-                              </span>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-purple-600 mb-1">
+                                Rs. {Number(massClass.monthlyRate).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-gray-500">per month</div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+
+                          {/* Class Details */}
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+                            <div className="flex items-center text-sm text-gray-600">
+                              <BookOpen className="w-4 h-4 mr-2 text-purple-500" />
+                              <span className="font-semibold text-purple-700">{massClass.subject}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Clock className="w-4 h-4 mr-2 text-purple-500" />
+                              <span>{massClass.day} at {new Date(massClass.time).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true, // 12-hour format with AM/PM
+                              timeZone: "UTC", // optional: adjust to your timezone
+                            })}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Clock className="w-4 h-4 mr-2 text-purple-500" />
+                              <span>Weekly Session</span>
+                            </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Users className="w-4 h-4 mr-2 text-purple-500" />
+                              <span>{massClass.enrollmentCount} Students</span>
+                            </div>
+                          </div>
+
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                            Learn {massClass.subject} with experienced tutor {massClass.tutorName}. 
+                            Join our community of {massClass.enrollmentCount} students in this comprehensive course.
+                          </p>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                            <button
+                              onClick={() => navigate(`/mass-tutor-profile/${massClass.m_tutor_id}`)}
+                              className="flex-1 bg-purple-100 text-purple-700 px-6 py-3 rounded-lg hover:bg-purple-200 transition-colors font-semibold text-center flex items-center justify-center"
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              View Tutor
+                            </button>
+                            <button
+                              onClick={() => currentUser ? navigate(`/mass-class/${massClass.class_id}`) : navigate('/auth')}
+                              className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-center flex items-center justify-center"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Class
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mass Classes Pagination Controls */}
+                <div className="mt-8 flex justify-center">
+                  <div className="flex items-center space-x-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentMassPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentMassPage === 1}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        currentMassPage === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                      }`}
+                    >
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    {(() => {
+                      const maxPages = Math.ceil(totalMassClasses / classesPerPage);
+                      const pages = [];
+                      const startPage = Math.max(1, currentMassPage - 2);
+                      const endPage = Math.min(maxPages, startPage + 4);
+
+                      // Show first page if not in range
+                      if (startPage > 1) {
+                        pages.push(1);
+                        if (startPage > 2) {
+                          pages.push('...');
+                        }
+                      }
+
+                      // Show page numbers in range
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(i);
+                      }
+
+                      // Show last page if not in range
+                      if (endPage < maxPages) {
+                        if (endPage < maxPages - 1) {
+                          pages.push('...');
+                        }
+                        pages.push(maxPages);
+                      }
+
+                      return pages.map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => typeof page === 'number' && setCurrentMassPage(page)}
+                          disabled={page === '...' || page === currentMassPage}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                            page === currentMassPage
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : page === '...'
+                              ? 'bg-transparent text-gray-400 cursor-default'
+                              : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentMassPage(prev => prev + 1)}
+                      disabled={realMassClasses.length < classesPerPage}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        realMassClasses.length < classesPerPage
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-purple-50 hover:text-purple-600 border border-gray-300'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mass Classes Results Info */}
+                <div className="mt-6 text-center text-sm text-gray-600">
+                  Showing {((currentMassPage - 1) * classesPerPage) + 1} to {Math.min(currentMassPage * classesPerPage, totalMassClasses)} of {totalMassClasses}+ classes
+                </div>
+                </>
+              )
+            ) : (
+              // Individual Tutors Grid
+              filteredTutors.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No tutors found</h3>
+                  <p className="text-gray-500">Try adjusting your filters to see more results</p>
+                </div>
+              ) : (
+                <div className="grid gap-6">
+                  {filteredTutors.map(tutor => (
+                    <div key={tutor.id} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+                      <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                        {/* Profile Picture */}
+                        <div className="flex-shrink-0">
+                          <img
+                            src={tutor.profilePicture}
+                            alt={tutor.name}
+                            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-gray-100"
+                          />
+                        </div>
+
+                        {/* Tutor Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3">
+                            <div>
+                              <div className="flex items-center mb-2">
+                                <h3 className="text-xl font-bold text-gray-900 mr-2">{tutor.name}</h3>
+                                {tutor.verified && (
+                                  <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold">
+                                    Verified
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1 mb-2">
+                                {renderStars(tutor.rating)}
+                                <span className="text-sm text-gray-600 ml-2">
+                                  {tutor.rating} ({tutor.reviewsCount} reviews)
+                                </span>
+                              </div>
+                            </div>
                             <div className="text-right">
-                              <div className="text-2xl font-bold text-green-600">
+                              <div className="text-2xl font-bold text-green-600 mb-1">
                                 Rs. {tutor.hourlyRate.toLocaleString()}
                               </div>
                               <div className="text-sm text-gray-500">per hour</div>
                             </div>
-                            <button
-                              onClick={() => toggleSaveTutor(tutor.id)}
-                              className={`p-2 rounded-full transition-colors ${
-                                savedTutors.includes(tutor.id)
-                                  ? 'text-red-500 hover:text-red-600'
-                                  : 'text-gray-400 hover:text-gray-500'
-                              }`}
+                          </div>
+
+                          {/* Subjects and Titles */}
+                          <div className="mb-4">
+                            <div className="mb-2">
+                              <span className="text-sm font-semibold text-gray-700 mr-2">Subjects:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {tutor.subjects.map(subject => (
+                                  <span
+                                    key={subject}
+                                    className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                                  >
+                                    {subject}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold text-gray-700 mr-2">Specializations:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {tutor.titles.map(title => (
+                                  <span
+                                    key={title}
+                                    className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"
+                                  >
+                                    {title}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-gray-600 text-sm mb-4">{tutor.description}</p>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <button 
+                              onClick={() => {navigate(`/tutor-profile/${tutor.id}`)}}
+                              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
                             >
-                              <Bookmark className={`w-5 h-5 ${savedTutors.includes(tutor.id) ? 'fill-current' : ''}`} />
+                              View Profile
+                            </button>
+                            <button 
+                              onClick={() => {currentUser? navigate(`/book-session/${tutor.id}`) : navigate('/auth')}}
+                              className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                            >
+                              Book Session
                             </button>
                           </div>
                         </div>
-
-                        {/* Subjects and Titles */}
-                        <div className="mb-3">
-                          <div className="mb-2">
-                            <span className="text-sm font-semibold text-gray-700 mr-2">Subjects:</span>
-                            <div className="flex flex-wrap gap-1">
-                              {tutor.subjects.map(subject => (
-                                <span
-                                  key={subject}
-                                  className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                                >
-                                  {subject}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-sm font-semibold text-gray-700 mr-2">Specializations:</span>
-                            <div className="flex flex-wrap gap-1">
-                              {tutor.titles.map(title => (
-                                <span
-                                  key={title}
-                                  className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"
-                                >
-                                  {title}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-gray-600 text-sm mb-4">{tutor.description}</p>
-
-                        {/* Additional Info for Mass Tutors */}
-                        {tutor.type === 'Mass' && (
-                          <div className="flex items-center space-x-4 mb-4 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <Users className="w-4 h-4 mr-1" />
-                              <span>Class Size: {tutor.classSize}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <BookOpen className="w-4 h-4 mr-1" />
-                              <span>Total Students: {tutor.totalStudents}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <button 
-                            onClick={() => {navigate(`/tutor-profile/${tutor.id}`)}}
-                            className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                          >
-                            View Profile
-                          </button>
-                          <button 
-                            onClick={() => {currentUser? navigate(`/book-session/${tutor.id}`) : navigate('/auth')}}
-                            className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                          >
-                            {tutor.type === 'Individual' ? 'Book Session' : 'Join Class'}
-                          </button>
-                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )
             )}
 
             {/* Pagination Controls */}

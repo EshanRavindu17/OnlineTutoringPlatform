@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import e, { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/authBypass';
 import prisma from '../prismaClient';
 import {
@@ -12,6 +12,8 @@ import {
 /**
  * Controller for user-related HTTP requests
  * Handles request/response logic and delegates business logic to userService
+ * 
+ * NOTE: Individual tutors now store subject and title names instead of IDs
  */
 
 /**
@@ -66,7 +68,7 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
             try {
               const statusResult = await prisma.$queryRaw`
                 SELECT status FROM "Candidates" 
-                WHERE email = ${user.email} AND role = 'Individual'
+                WHERE email = ${user.email} AND (role = 'Individual')
                 LIMIT 1
               ` as any[];
               
@@ -88,7 +90,7 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
                   canAccessDashboard: false,
                   message: 'Your tutor application has been rejected'
                 });
-              }
+              } 
             } catch (statusError) {
               // Fallback to pending if status query fails
               return res.status(200).json({
@@ -205,12 +207,12 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
         }
 
         // No application found - user needs to complete registration
-        return res.status(200).json({
-          ...user,
-          tutorStatus: 'not_registered',
-          canAccessDashboard: false,
-          message: 'Please complete your tutor profile registration'
-        });
+        // return res.status(200).json({
+        //   ...user,
+        //   tutorStatus: 'not_registered',
+        //   canAccessDashboard: false,
+        //   message: 'Please complete your tutor profile registration'
+        // });
       }
 
       // User exists in Mass_Tutor table - check their status from Mass_Tutor table
@@ -485,3 +487,33 @@ export const uploadImage = async (req: AuthRequest, res: Response): Promise<Resp
     });
   }
 };
+
+// export const getUserByUidController = async (req: AuthRequest, res: Response): Promise<Response> => {
+//   try {
+//     const { uid } = req.params;
+
+//     if (!uid) {
+//       return res.status(400).json({ 
+//         error: 'User ID is required' 
+//       });
+//     }
+
+//     const user = await getUserByUid(uid);
+//     if (!user) {
+//       return res.status(404).json({ 
+//         error: 'User not found' 
+//       });
+//     }
+
+//     return res.status(200).json({
+//       message: 'User retrieved successfully',
+//       user: user
+//     });
+//   } catch (error: any) {
+//     console.error('❌ Error in getUserByUidController:', error);
+//     return res.status(500).json({ 
+//       error: 'Failed to retrieve user',
+//       detail: error.message 
+//     });
+//   }
+// };

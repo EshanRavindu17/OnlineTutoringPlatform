@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  createUserWithEmailAndPassword, 
+import {  
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  OAuthProvider,
   sendPasswordResetEmail,
   sendEmailVerification,
   signOut
 } from 'firebase/auth';
-import { auth } from '../firebase.tsx'; // Adjust path as needed
+import { auth } from '../firebase.tsx'; 
 import { useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, Users, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authContext';
+import { addStudent } from '../api/Student.ts';
 
 export default function AuthPage() {
   const { currentUser, userProfile } = useAuth();
@@ -31,6 +30,8 @@ export default function AuthPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -80,35 +81,11 @@ export default function AuthPage() {
       [name]: value
     }));
     setError('');
-  };
-
-  const validateForm = () => {
-    if (!isLogin) {
-      if (!formData.name.trim()) {
-        setError('Full name is required');
-        return false;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        return false;
-      }
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters long');
-        return false;
-      }
-    }
-    if (!formData.email || !formData.password) {
-      setError('Email and password are required');
-      return false;
-    }
-    return true;
+    setResendSuccess(false);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
     setLoading(true);
     setError('');
 
@@ -129,6 +106,14 @@ export default function AuthPage() {
             formData.email, 
             formData.password
           );
+          
+          // Check if email is verified
+          if (!user.emailVerified) {
+            await signOut(auth);
+            setError(`Please verify your email before logging in. Check your inbox for the verification link sent to ${formData.email}.`);
+            return;
+          }
+          
           console.log('User signed in successfully:', user);
           
           // Store userType in localStorage for persistence
@@ -137,58 +122,18 @@ export default function AuthPage() {
           // Navigate based on role
           if (selectedRole === 'student') {
             navigate('/studentprofile');
-          } else {
+          } else if (selectedRole === 'Individual') {
             navigate('/tutorprofile');
+          } else if (selectedRole === 'Mass') {
+            navigate('/mass-tutor-dashboard');
           }
-        } else {
+        } 
+        else {
           const { detail } = await res.json();
           setError(detail || 'Invalid role for this account');
         }
-      } else {
-        const { user: newUser } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        const firebaseAuthId = newUser.uid;
+      } 
 
-        
-        const response = await fetch('/api/add-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firebase_uid: firebaseAuthId,
-            email: newUser.email,
-            role: userType,
-            name: formData.name,
-            photo_url: '',       
-            bio: 'New user bio',  
-            dob: null    
-          })
-        });
-
-        console.log("Sending new user data:", {
-          firebase_uid: firebaseAuthId,
-          email: newUser.email,
-          role: userType,
-          name: formData.name
-        });
-
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.detail || 'Failed to save user to DB');
-        }
-
-        // Store userType in localStorage for persistence
-        localStorage.setItem('userType', userType);
-
-        await sendEmailVerification(newUser, {
-          url: "https://learnconnect.com/finishSignUp",
-          handleCodeInApp: false
-        });
-
-        console.log("Verification email sent to:", newUser.email);
-
-        await signOut(auth);
-        setIsLogin(true);
-        setError("Verification email sent. Please verify your email before logging in.");
-      }
     } catch (error: any) {
       console.error('Authentication error:', error);
       
@@ -226,101 +171,70 @@ export default function AuthPage() {
   };
 
   const handleGoogleSignIn = async () => {
-  if (selectedRole !== 'student') {
-    setError('Google sign-in is only available for students');
-    return;
-  }
-
-  setLoading(true);
-  setError('');
-
-  try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const firebaseUser = result.user;
-
-    const userPayload = {
-      firebase_uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      role: 'student',
-      name: firebaseUser.displayName || 'Unnamed User',
-      photo_url: firebaseUser.photoURL || '',
-      bio: 'Signed up via Google',
-      dob: null
-    };
-
-    const response = await fetch('http://localhost:5000/api/add-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userPayload)
-    });
-
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      await signOut(auth);
-      throw new Error(errJson.detail || "Failed to save user to database");
-    }
-
-    const savedUser = await response.json();
-    console.log('✅ Saved Google user to DB:', savedUser);
-
-    // ✅ Set user type and role — persist for better UX
-    setUserType('student');
-    setSelectedRole('student');
-    localStorage.setItem('userType', 'student'); // Persist role for user experience
-
-    } catch (err: any) {
-      console.error('❌ Google sign-in error:', err);
-      setError(err.message);
-      await signOut(auth);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMicrosoftSignIn = async () => {
     if (selectedRole !== 'student') {
-      setError('Microsoft sign-in is only available for students');
+      setError('Google sign-in is only available for students');
       return;
     }
 
     setLoading(true);
     setError('');
-    
+
     try {
-      const provider = new OAuthProvider('microsoft.com');
+      const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
 
       const userPayload = {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
-        role: 'student', // Force role to student for Microsoft auth
+        role: 'student',
         name: firebaseUser.displayName || 'Unnamed User',
         photo_url: firebaseUser.photoURL || '',
-        bio: 'Signed up via Microsoft',
+        bio: 'Signed up via Google',
         dob: null
       };
 
-      const response = await fetch('/api/add-user', { // Updated port to 5000
+      const response = await fetch('http://localhost:5000/api/add-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload)
       });
 
+      
+
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
         await signOut(auth);
-        throw new Error(errJson.detail || 'Failed to register/login');
+        throw new Error(errJson.detail || "Failed to save user to database");
       }
 
-      // Store userType in localStorage for persistence
-      localStorage.setItem('userType', 'student');
+      const savedUser = await response.json();
+      const user_id = savedUser.user.id;
 
-      console.log('Microsoft sign in successful:', result.user);
-    } catch (error) {
-      console.error('Microsoft sign in error:', error);
-      setError('Failed to sign in with Microsoft');
+      const student = await addStudent({
+        user_id,
+        points: 0
+      }).then(
+        (student) => {
+          console.log('Student Add to Student Table', student);
+        }
+      ).catch((error) => {
+        console.error('Error adding student:', error);
+      });
+
+
+      console.log('Student Add to Student Table', student);
+      console.log('✅ Saved Google user to DB:', savedUser);
+
+      // ✅ Set user type and role — persist for better UX
+      setUserType('student');
+      setSelectedRole('student');
+      localStorage.setItem('userType', 'student'); // Persist role for user experience
+
+    } catch (err: any) {
+      console.error('❌ Google sign-in error:', err);
+      setError(err.message);
+      await signOut(auth);
     } finally {
       setLoading(false);
     }
@@ -338,6 +252,39 @@ export default function AuthPage() {
     setForgotEmail('');
     setResetError('');
     setResetSuccess(false);
+  };
+
+  const handleResendVerification = async () => {
+    if (!formData.email.trim()) {
+      setError('Please enter your email address first.');
+      return;
+    }
+
+    setResendLoading(true);
+    setResendSuccess(false);
+
+    try {
+      // Sign in temporarily to get access to the user object
+      const { user } = await signInWithEmailAndPassword(
+        auth, 
+        formData.email, 
+        formData.password
+      );
+      
+      // Send verification email
+      await sendEmailVerification(user);
+      
+      // Sign out immediately
+      await signOut(auth);
+      
+      setResendSuccess(true);
+      setError('');
+    } catch (error: any) {
+      console.error('Resend verification error:', error);
+      setError('Failed to resend verification email. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -388,14 +335,14 @@ export default function AuthPage() {
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="text-center mb-8">
             <a href="#" className="flex items-center justify-center mb-6">
-              <span className="text-blue-600 font-bold text-2xl">LearnConnect</span>
+              <span className="text-blue-600 font-bold text-2xl">Tutorly</span>
             </a>
             
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
               {isLogin ? 'Sign in to your account' : 'Create your account'}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              {isLogin ? 'New to LearnConnect? ' : 'Already have an account? '}
+              {isLogin ? 'New to Tutorly? ' : 'Already have an account? '}
               <button 
                 onClick={toggleAuthMode}
                 className="font-medium text-blue-600 hover:text-blue-500"
@@ -408,36 +355,29 @@ export default function AuthPage() {
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-red-600 mb-2">{error}</p>
+              {error.includes('verify your email') && (
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {resendSuccess && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-600">
+                Verification email sent successfully! Please check your inbox.
+              </p>
             </div>
           )}
 
           <div className="mt-6">
             <form className="space-y-6" onSubmit={handleSubmit}>
-              {/* {!isLogin && (
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Full Name
-                  </label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="text-gray-400" size={18} />
-                    </div>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-                </div>
-              )} */}
-
               {isLogin && ( // Add this section for login mode
                 <div className="mb-6">
                   <label className="block text-sm font-semibold text-gray-800 mb-4">
@@ -516,7 +456,7 @@ export default function AuthPage() {
                     onChange={handleInputChange}
                     disabled={loading}
                     className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                    placeholder="you@example.com"
+                    placeholder="john@gmail.com"
                   />
                 </div>
               </div>
@@ -557,30 +497,6 @@ export default function AuthPage() {
                   </div>
                 </div>
               </div>
-
-              {/* {!isLogin && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                    Confirm Password
-                  </label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock size={18} className="text-gray-400" />
-                    </div>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                      className="pl-10 pr-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                      placeholder="Confirm your password"
-                    />
-                  </div>
-                </div>
-              )} */}
 
               {isLogin && (
                 <div className="flex items-center justify-between">
@@ -651,20 +567,6 @@ export default function AuthPage() {
                       Continue with Google
                     </button>
                   </div>
-                  {/* Microsoft button commented out */}
-                  {/* 
-                  <div>
-                    <button
-                      onClick={handleMicrosoftSignIn}
-                      disabled={loading}
-                      className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                    >
-                      <span className="flex items-center justify-center">
-                        Microsoft
-                      </span>
-                    </button>
-                  </div>
-                  */}
                 </div>
               </div>
             )}
@@ -731,39 +633,73 @@ export default function AuthPage() {
 
       {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Reset Your Password</h3>
+        <div className="fixed inset-0 bg-white bg-opacity-60 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto transform transition-all duration-300 ease-out scale-100">
+            {/* Header with gradient background */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl px-6 py-6 relative overflow-hidden">
+              {/* Background pattern */}
+              <div className="absolute inset-0 bg-blue-600 opacity-20">
+                <div className="absolute inset-0" style={{
+                  backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)'
+                }}></div>
+              </div>
+              
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <Lock className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Reset Password</h3>
+                    <p className="text-blue-100 text-sm">Secure account recovery</p>
+                  </div>
+                </div>
                 <button
                   onClick={closeForgotModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-white hover:text-blue-100 transition-colors duration-200 p-1 hover:bg-white hover:bg-opacity-10 rounded-full"
                 >
                   <X size={24} />
                 </button>
               </div>
+            </div>
 
+            {/* Modal Body */}
+            <div className="px-6 py-6">
               {!resetSuccess ? (
                 <>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Enter your email address and we'll send you a link to reset your password.
-                  </p>
+                  {/* Description */}
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Mail className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <p className="text-gray-600 leading-relaxed">
+                      Don't worry! Enter your email address below and we'll send you a secure link to reset your password.
+                    </p>
+                  </div>
 
+                  {/* Error Message */}
                   {resetError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-600">{resetError}</p>
+                    <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-red-700 font-medium">{resetError}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  <form onSubmit={handleForgotPassword}>
-                    <div className="mb-4"></div>
-                      <label htmlFor="forgotEmail" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email address
+                  {/* Form */}
+                  <form onSubmit={handleForgotPassword} className="space-y-6">
+                    <div>
+                      <label htmlFor="forgotEmail" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email Address
                       </label>
-                      <div className="relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail size={18} className="text-gray-400" />
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Mail size={20} className="text-blue-400" />
                         </div>
                         <input
                           id="forgotEmail"
@@ -772,47 +708,100 @@ export default function AuthPage() {
                           value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           disabled={resetLoading}
-                          className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                          placeholder="you@example.com"
+                          className="pl-12 pr-4 py-3 block w-full border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500"
+                          placeholder="Enter your email address"
                           required
                         />
                       </div>
-                    {/* </div> */}
+                    </div>
 
-                    <div className="flex items-center justify-end space-x-3">
+                    {/* Action Buttons */}
+                    <div className="flex space-x-3 pt-2">
                       <button
                         type="button"
                         onClick={closeForgotModal}
                         disabled={resetLoading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="flex-1 px-6 py-3 text-sm font-semibold text-gray-700 bg-gray-100 border-2 border-gray-200 rounded-xl hover:bg-gray-200 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={resetLoading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 border-2 border-blue-600 rounded-xl hover:from-blue-700 hover:to-blue-800 hover:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
                       >
-                        {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                        <span className="flex items-center justify-center">
+                          {resetLoading ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              Send Reset Link
+                              <ChevronRight size={16} className="ml-1" />
+                            </>
+                          )}
+                        </span>
                       </button>
                     </div>
                   </form>
                 </>
               ) : (
-                <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <Mail className="h-6 w-6 text-green-600" />
+                /* Success State */
+                <div className="text-center py-4">
+                  {/* Success Animation */}
+                  <div className="mx-auto mb-6">
+                    <div className="relative">
+                      <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                        <Mail className="h-10 w-10 text-white" />
+                      </div>
+                      {/* Checkmark overlay */}
+                      <div className="absolute -top-1 -right-1 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Email Sent!</h4>
-                  <p className="text-sm text-gray-500 mb-6">
-                    We've sent a password reset link to <strong>{forgotEmail}</strong>. 
-                    Check your inbox and follow the instructions to reset your password.
-                  </p>
+                  
+                  <h4 className="text-2xl font-bold text-gray-900 mb-3">Email Sent Successfully!</h4>
+                  
+                  <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg mb-6">
+                    <p className="text-sm text-green-700 leading-relaxed">
+                      We've sent a password reset link to <span className="font-semibold text-green-800">{forgotEmail}</span>
+                    </p>
+                  </div>
+                  
+                  <div className="text-left bg-blue-50 rounded-xl p-4 mb-6">
+                    <h5 className="font-semibold text-blue-900 mb-2">Next Steps:</h5>
+                    <ol className="text-sm text-blue-800 space-y-1">
+                      <li className="flex items-start">
+                        <span className="font-bold text-blue-600 mr-2">1.</span>
+                        Check your email inbox (and spam folder)
+                      </li>
+                      <li className="flex items-start">
+                        <span className="font-bold text-blue-600 mr-2">2.</span>
+                        Click the "Reset Password" link in the email
+                      </li>
+                      <li className="flex items-start">
+                        <span className="font-bold text-blue-600 mr-2">3.</span>
+                        Create your new secure password
+                      </li>
+                    </ol>
+                  </div>
+                  
                   <button
                     onClick={closeForgotModal}
-                    className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="w-full px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 border-2 border-blue-600 rounded-xl hover:from-blue-700 hover:to-blue-800 hover:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 active:scale-95"
                   >
-                    Close
+                    <span className="flex items-center justify-center">
+                      Got it, thanks!
+                      <ChevronRight size={16} className="ml-2" />
+                    </span>
                   </button>
                 </div>
               )}

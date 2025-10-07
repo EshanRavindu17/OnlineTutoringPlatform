@@ -48,6 +48,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Check if email is verified first
+        if (!user.emailVerified) {
+          console.log('User email not verified, not setting user profile');
+          setCurrentUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+
         setCurrentUser(user);
 
         let retries = 3;
@@ -61,7 +70,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               // First try with cached token
               idToken = await user.getIdToken(false);
               
-              // Validate token expiration
               const payload = JSON.parse(atob(idToken.split('.')[1]));
               const currentTime = Date.now() / 1000;
               
@@ -69,14 +77,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
               if (payload.exp <= (currentTime + 300)) {
                 console.log('🔄 Token expiring soon, refreshing...');
                 idToken = await user.getIdToken(true);
+                console.log('Token', idToken);
               }
             } catch {
               // If validation fails, get fresh token
               idToken = await user.getIdToken(true);
             }
 
-            console.log('🔑 Using Firebase ID token, expires at:', 
-              new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
+            // console.log('🔑 Using Firebase ID token, expires at:', 
+            //   new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
+            
             
             const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
               method: 'GET',
@@ -85,20 +95,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 'Authorization': `Bearer ${idToken}`
               }
             });
+            profileData = await response.json();
+
+            console.log('👤 Fetched user profile:', profileData);
 
             if (response.ok) {
-              profileData = await response.json();
-              console.log('✅ User profile loaded successfully');
               break;
             } else if (response.status === 401) {
-              console.warn('🚫 Authentication failed, will retry with fresh token...');
-              // Force refresh on next retry
               await user.getIdToken(true);
             } else {
-              console.error('❌ Profile fetch failed:', response.status, response.statusText);
+              console.error('Profile fetch failed:', response.status, response.statusText);
             }
           } catch (err) {
-            console.error('❌ Retry fetch user profile failed:', err);
+            console.error('Retry fetch user profile failed:', err);
           }
 
           retries--;
@@ -111,9 +120,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUserProfile(profileData);
           // Store userType in localStorage for persistence
           localStorage.setItem('userType', profileData.role);
-          console.log('✅ User profile loaded and userType stored:', profileData.role);
         } else {
-          console.error('❌ Failed to fetch user profile after retries');
+          console.error('Failed to fetch user profile after retries');
           setUserProfile(null);
         }
       } else {
@@ -121,7 +129,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUserProfile(null);
         // Clear userType from localStorage when user signs out
         localStorage.removeItem('userType');
-        console.log('👋 User signed out, userType cleared');
+        console.log('User signed out, userType cleared');
       }
 
       setLoading(false);

@@ -136,21 +136,21 @@ export class ScheduleService {
   }
 
   // Update an existing time slot
-  static async updateTimeSlot(
-    slotId: string, 
-    updateData: UpdateTimeSlotRequest
-  ): Promise<{ success: boolean; data: TimeSlot; message: string }> {
-    try {
-      const response = await apiClient.put(
-        `${this.baseUrl}/slots/${slotId}`,
-        updateData
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error('Error updating time slot:', error);
-      throw new Error(error.response?.data?.message || 'Failed to update time slot');
-    }
-  }
+  // static async updateTimeSlot(
+  //   slotId: string, 
+  //   updateData: UpdateTimeSlotRequest
+  // ): Promise<{ success: boolean; data: TimeSlot; message: string }> {
+  //   try {
+  //     const response = await apiClient.put(
+  //       `${this.baseUrl}/slots/${slotId}`,
+  //       updateData
+  //     );
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error updating time slot:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to update time slot');
+  //   }
+  // }
 
   // Delete a time slot
   static async deleteTimeSlot(
@@ -187,104 +187,104 @@ export class ScheduleService {
   }
 
   // Book a time slot
-  static async bookTimeSlot(
-    slotId: string, 
-    bookingData: BookTimeSlotRequest
-  ): Promise<{ success: boolean; data: any; message: string }> {
-    try {
-      const response = await apiClient.post(
-        `${this.baseUrl}/slots/${slotId}/book`,
-        bookingData
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error('Error booking time slot:', error);
-      throw new Error(error.response?.data?.message || 'Failed to book time slot');
-    }
-  }
+  // static async bookTimeSlot(
+  //   slotId: string, 
+  //   bookingData: BookTimeSlotRequest
+  // ): Promise<{ success: boolean; data: any; message: string }> {
+  //   try {
+  //     const response = await apiClient.post(
+  //       `${this.baseUrl}/slots/${slotId}/book`,
+  //       bookingData
+  //     );
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error booking time slot:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to book time slot');
+  //   }
+  // }
 
   // Cancel a booking
-  static async cancelBooking(
-    sessionId: string, 
-    cancelData: CancelBookingRequest
-  ): Promise<{ success: boolean; data: any; message: string }> {
-    try {
-      const response = await apiClient.delete(
-        `${this.baseUrl}/sessions/${sessionId}/cancel`,
-        { data: cancelData }
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error('Error cancelling booking:', error);
-      throw new Error(error.response?.data?.message || 'Failed to cancel booking');
-    }
-  }
+  // static async cancelBooking(
+  //   sessionId: string, 
+  //   cancelData: CancelBookingRequest
+  // ): Promise<{ success: boolean; data: any; message: string }> {
+  //   try {
+  //     const response = await apiClient.delete(
+  //       `${this.baseUrl}/sessions/${sessionId}/cancel`,
+  //       { data: cancelData }
+  //     );
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error cancelling booking:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to cancel booking');
+  //   }
+  // }
 
   // Get tutor's sessions
-  static async getTutorSessions(
-    tutorId: string
-  ): Promise<{ success: boolean; data: TutorSession[]; message: string }> {
-    try {
-      const response = await apiClient.get(`${this.baseUrl}/tutor/${tutorId}/sessions`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching tutor sessions:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch tutor sessions');
-    }
-  }
+  // static async getTutorSessions(
+  //   tutorId: string
+  // ): Promise<{ success: boolean; data: TutorSession[]; message: string }> {
+  //   try {
+  //     const response = await apiClient.get(`${this.baseUrl}/tutor/${tutorId}/sessions`);
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error fetching tutor sessions:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to fetch tutor sessions');
+  //   }
+  // }
 
   // Get student's sessions
-  static async getStudentSessions(
-    studentId: string
-  ): Promise<{ success: boolean; data: StudentSession[]; message: string }> {
-    try {
-      const response = await apiClient.get(`${this.baseUrl}/student/${studentId}/sessions`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching student sessions:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch student sessions');
-    }
-  }
+  // static async getStudentSessions(
+  //   studentId: string
+  // ): Promise<{ success: boolean; data: StudentSession[]; message: string }> {
+  //   try {
+  //     const response = await apiClient.get(`${this.baseUrl}/student/${studentId}/sessions`);
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error fetching student sessions:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to fetch student sessions');
+  //   }
+  // }
 
   // Helper function to format date for API calls
-  static formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
-  }
+  // static formatDate(date: Date): string {
+  //   return date.toISOString().split('T')[0];
+  // }
 
   // Helper function to format time for API calls
-  static formatTime(date: Date): string {
-    return date.toTimeString().split(' ')[0].substring(0, 5);
-  }
+  // static formatTime(date: Date): string {
+  //   return date.toTimeString().split(' ')[0].substring(0, 5);
+  // }
 
   // Helper function to get current week's date range
-  static getCurrentWeekRange(): { startDate: string; endDate: string } {
-    const today = new Date();
-    const currentDayOfWeek = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDayOfWeek);
+  // static getCurrentWeekRange(): { startDate: string; endDate: string } {
+  //   const today = new Date();
+  //   const currentDayOfWeek = today.getDay();
+  //   const startOfWeek = new Date(today);
+  //   startOfWeek.setDate(today.getDate() - currentDayOfWeek);
     
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+  //   const endOfWeek = new Date(startOfWeek);
+  //   endOfWeek.setDate(startOfWeek.getDate() + 6);
     
-    return {
-      startDate: this.formatDate(startOfWeek),
-      endDate: this.formatDate(endOfWeek)
-    };
-  }
+  //   return {
+  //     startDate: this.formatDate(startOfWeek),
+  //     endDate: this.formatDate(endOfWeek)
+  //   };
+  // }
 
   // Helper function to get next week's date range
-  static getNextWeekRange(): { startDate: string; endDate: string } {
-    const today = new Date();
-    const currentDayOfWeek = today.getDay();
-    const startOfNextWeek = new Date(today);
-    startOfNextWeek.setDate(today.getDate() - currentDayOfWeek + 7);
+  // static getNextWeekRange(): { startDate: string; endDate: string } {
+  //   const today = new Date();
+  //   const currentDayOfWeek = today.getDay();
+  //   const startOfNextWeek = new Date(today);
+  //   startOfNextWeek.setDate(today.getDate() - currentDayOfWeek + 7);
     
-    const endOfNextWeek = new Date(startOfNextWeek);
-    endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+  //   const endOfNextWeek = new Date(startOfNextWeek);
+  //   endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
     
-    return {
-      startDate: this.formatDate(startOfNextWeek),
-      endDate: this.formatDate(endOfNextWeek)
-    };
-  }
+  //   return {
+  //     startDate: this.formatDate(startOfNextWeek),
+  //     endDate: this.formatDate(endOfNextWeek)
+  //   };
+  // }
 }
