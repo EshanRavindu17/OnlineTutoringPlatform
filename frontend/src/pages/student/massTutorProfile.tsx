@@ -24,6 +24,7 @@ import {
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { getMassTutorById, MassTutor, ClassInfo, RatingReview } from '../../api/Student';
+import { useAuth } from '../../context/authContext';
 
 interface Review {
   id: string;
@@ -78,6 +79,41 @@ export default function MassTutorProfile() {
   const [tutorProfile, setTutorProfile] = useState<TutorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { currentUser } = useAuth();
+
+
+  const handleWhatsAppContact = () => {
+    if (tutorProfile?.phone_number) {
+      const message = `Hi ${tutorProfile.name}! I'm interested in your classes. Could we discuss the details?`;
+      // Clean phone number - remove all non-digits
+      let cleanPhone = tutorProfile.phone_number.replace(/[^\d]/g, '');
+
+      // Ensure proper country code format
+      if (cleanPhone.startsWith('0')) {
+        // Remove leading 0 and add Sri Lankan country code
+        cleanPhone = '94' + cleanPhone.substring(1);
+      } else if (!cleanPhone.startsWith('94') && cleanPhone.length === 10) {
+        // Add Sri Lankan country code for 10-digit numbers
+        cleanPhone = '94' + cleanPhone;
+      }
+      
+      // Try multiple WhatsApp URL formats for better compatibility
+      const whatsappWebUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+      const whatsappApiUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+      
+      console.log('Cleaned phone:', cleanPhone);
+      console.log('WhatsApp URL:', whatsappApiUrl);
+      
+      // Try to open WhatsApp
+      const newWindow = window.open(whatsappApiUrl, '_blank');
+      
+      // Fallback: if popup was blocked or failed, try web version
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        window.location.href = whatsappWebUrl;
+      }
+    }
+  };
 
   // Fetch tutor data from API
   useEffect(() => {
@@ -394,7 +430,7 @@ export default function MassTutorProfile() {
           Back to Search
         </button>
         {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6 text-white rounded-xl shadow-lg p-8 mb-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-center space-y-6 lg:space-y-0 lg:space-x-8">
             {/* Profile Picture */}
             <div className="flex-shrink-0">
@@ -408,7 +444,7 @@ export default function MassTutorProfile() {
             {/* Basic Info */}
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">{tutorProfile.name}</h1>
+                <h1 className="text-3xl font-bold text-white">{tutorProfile.name}</h1>
                 {tutorProfile.verified && (
                   <div className="bg-purple-100 text-purple-800 text-sm px-3 py-1 rounded-full font-semibold">
                     Verified Tutor
@@ -418,22 +454,22 @@ export default function MassTutorProfile() {
               
               <div className="flex items-center space-x-1 mb-4">
                 {renderStars(tutorProfile.rating)}
-                <span className="text-lg font-semibold text-gray-700 ml-2">
+                <span className="text-lg font-semibold  text-white ml-2">
                   {tutorProfile.rating} ({tutorProfile.totalReviews} reviews)
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="flex items-center text-gray-600">
-                  <Users className="w-5 h-5 mr-2 text-purple-500" />
+                <div className="flex items-center  text-white-600">
+                  <Users className="w-5 h-5 mr-2  text-green-500" />
                   <span>{tutorProfile.totalStudents}+ Students Taught</span>
                 </div>
-                <div className="flex items-center text-gray-600">
-                  <BookOpen className="w-5 h-5 mr-2 text-purple-500" />
+                <div className="flex items-center text-white-600">
+                  <BookOpen className="w-5 h-5 mr-2  text-green-500" />
                   <span>{tutorProfile.activeClasses} Active Classes</span>
                 </div>
-                <div className="flex items-center text-gray-600">
-                  <MapPin className="w-5 h-5 mr-2 text-purple-500" />
+                <div className="flex items-center text-white-600">
+                  <MapPin className="w-5 h-5 mr-2  text-green-500" />
                   <span>{tutorProfile.location}</span>
                 </div>
               </div>
@@ -452,7 +488,7 @@ export default function MassTutorProfile() {
 
             {/* Contact Actions */}
             <div className="flex flex-col space-y-3 lg:w-48">
-              <button
+              {/* <button
                 onClick={handleRateTutor}
                 className={`px-6 py-3 rounded-lg transition-colors font-semibold text-center flex items-center justify-center ${
                   hasRatedTutor
@@ -462,10 +498,11 @@ export default function MassTutorProfile() {
               >
                 <Star className={`w-4 h-4 mr-2 ${hasRatedTutor ? 'fill-current' : ''}`} />
                 {hasRatedTutor ? 'Rated' : 'Rate Tutor'}
-              </button>
-              <button className="bg-purple-100 text-purple-700 px-6 py-3 rounded-lg hover:bg-purple-200 transition-colors font-semibold text-center flex items-center justify-center">
+              </button> */}
+              <button className=" bg-green-600 text-white px-8 py-4 rounded-xl hover:bg-green-700 transition-colors font-semibold text-center flex items-center justify-center"
+                onClick={handleWhatsAppContact}>
                 <MessageCircle className="w-4 h-4 mr-2" />
-                Message
+                WhatsApp
               </button>
             </div>
           </div>
@@ -588,7 +625,7 @@ export default function MassTutorProfile() {
                           </div>
                           <div className="text-sm text-gray-500 mb-4">per month</div>
                           <div className="space-y-3">
-                            <button
+                            {/* <button
                               onClick={() => toggleSaveClass(tutorClass.id)}
                               className={`w-full px-6 py-2 rounded-lg transition-colors font-semibold flex items-center justify-center ${
                                 savedClasses.includes(tutorClass.id)
@@ -598,9 +635,9 @@ export default function MassTutorProfile() {
                             >
                               <Bookmark className={`w-4 h-4 mr-2 ${savedClasses.includes(tutorClass.id) ? 'fill-current' : ''}`} />
                               {savedClasses.includes(tutorClass.id) ? 'Saved' : 'Save Class'}
-                            </button>
+                            </button> */}
                             <button
-                              onClick={() => navigate(`/mass-class/${tutorClass.id}`)}
+                              onClick={() => {currentUser ? navigate(`/mass-class/${tutorClass.id}`) : navigate('/auth')}}
                               className="w-full mb-3 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
                             >
                               View Class

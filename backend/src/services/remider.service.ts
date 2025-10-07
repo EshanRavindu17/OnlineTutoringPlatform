@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { sendSessionReminderEmail } from './email.service';
 import { DateTime } from 'luxon';
 import { start } from 'repl';
+import { getZak } from './zoom.service';
 
 const prisma = new PrismaClient();
 
@@ -213,6 +214,15 @@ const sendIndividualSessionReminders = async (hoursAhead: number) => {
       const formattedDate = DateTime.fromJSDate(sessionDateTime).toFormat('MMMM dd, yyyy');
       const formattedTime = DateTime.fromJSDate(new Date(session.slots[0].toISOString().split('.')[0])).toFormat('h:mm a');
       const I_Tutor_meetingLink = session.meeting_urls?.[0] || undefined;
+      // get's updated url
+      try {
+        var updatedIndividualTutorMeetingLink = await getZak(I_Tutor_meetingLink);
+        console.log('Updated Individual Tutor Meeting Link:', updatedIndividualTutorMeetingLink);
+      } catch (error) {
+        console.error(`❌ Failed to update Individual Tutor Meeting Link for session ${session.session_id}:`, error);
+        var updatedIndividualTutorMeetingLink = I_Tutor_meetingLink;
+      }
+
       const student_meetingLink = session.meeting_urls?.[1] || undefined; // Fallback to tutor link if student link missing
 
       // Send reminder to student
@@ -236,7 +246,7 @@ const sendIndividualSessionReminders = async (hoursAhead: number) => {
         formattedDate,
         formattedTime,
         reminderText,
-        I_Tutor_meetingLink
+        updatedIndividualTutorMeetingLink
       );
 
       console.log(`✅ Sent ${reminderText} reminder for session ${session.session_id}`);
@@ -270,6 +280,14 @@ const sendMassClassReminders = async (hoursAhead: number) => {
       const studentMeetingLink = slot.meetingURLs?.[1] || undefined; // Fallback to tutor link if student link missing
       const className = slot.Class.title || 'Class Session';
       const tutorName = slot.Class.Mass_Tutor.User.name;
+
+      try {
+        var newTutorMeetingLink = await getZak(tutorMeetingLink);
+        console.log('Updated Mass Class Tutor Meeting Link:', newTutorMeetingLink);
+      } catch (error) {
+        console.error(`❌ Failed to update Mass Class Tutor Meeting Link for slot ${slot.cslot_id}:`, error);
+        var newTutorMeetingLink = tutorMeetingLink;
+      }
 
       // Send reminders to all enrolled students
       const students = slot.enrolledStudents || [];
@@ -305,7 +323,7 @@ const sendMassClassReminders = async (hoursAhead: number) => {
         formattedDate,
         formattedTime,
         reminderText,
-        tutorMeetingLink
+        newTutorMeetingLink
       );
 
       console.log(`✅ Sent ${reminderText} reminders for class slot ${slot.cslot_id}`);

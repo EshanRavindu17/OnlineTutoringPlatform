@@ -6,6 +6,6 @@ import { verifyFirebaseTokenSimple } from '../middleware/authMiddlewareSimple';
 
 const router = express.Router();
 
-router.post('/get-zak', verifyFirebaseTokenSimple, getZoomZakController);
+router.post('/get-zak', getZoomZakController);
 
 export default router
