@@ -22,6 +22,7 @@ import {
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { getIndividualTutorById, getReviewsByIndividualTutorId } from '../../api/Student';
+import { useAuth } from '../../context/authContext';
 
 interface Review {
   id: string;
@@ -216,6 +217,8 @@ export default function TutorProfilePage() {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
+  const { currentUser } = useAuth();
+
   useEffect(() => {
     const fetchTutorData = async () => {
       if (!tutorId) {
@@ -301,6 +304,11 @@ export default function TutorProfilePage() {
 
   const handleBookSession = () => {
     // Navigate to booking page
+    
+    if(!currentUser){
+      navigate('/auth');
+      return;
+    }
     navigate(`/book-session/${tutorId}`);
   };
 
@@ -484,7 +492,7 @@ export default function TutorProfilePage() {
                     <p className="text-blue-100 text-lg">{tutor.description}</p>
                   </div>
                   
-                  <div className="flex items-center gap-3 mt-4 lg:mt-0">
+                  {/* <div className="flex items-center gap-3 mt-4 lg:mt-0">
                     <button
                       onClick={() => setIsSaved(!isSaved)}
                       className={`p-3 rounded-full border-2 border-white transition-colors ${
@@ -496,7 +504,7 @@ export default function TutorProfilePage() {
                     <button className="p-3 rounded-full border-2 border-white text-white hover:bg-white hover:text-blue-600 transition-colors">
                       <Share2 className="w-5 h-5" />
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -739,6 +747,7 @@ export default function TutorProfilePage() {
             </div>
 
             {/* Report Tutor */}
+            {currentUser && (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Having Issues?</h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -755,6 +764,7 @@ export default function TutorProfilePage() {
                 All reports are reviewed confidentially
               </p>
             </div>
+            )}
           </div>
         </div>
       </div>

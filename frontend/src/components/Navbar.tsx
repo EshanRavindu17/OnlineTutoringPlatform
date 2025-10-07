@@ -91,8 +91,8 @@ export default function Navbar() {
     { to: '/findtutors', label: 'Find Tutors' },
     { to: '/mycalendar', label: 'My Calendar' },
     { to: '/payment-history', label: 'Payments'   },
-    { to: '/notifications', label: 'Notifications' },
-    { to: '/saved', label: 'Saved' }
+    // { to: '/notifications', label: 'Notifications' },
+    // { to: '/saved', label: 'Saved' }
   ];
 
   const tutorLinks = [

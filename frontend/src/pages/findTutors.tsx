@@ -1015,7 +1015,7 @@ export default function FindTutorsPage() {
                               View Tutor
                             </button>
                             <button
-                              onClick={() => navigate(`/mass-class/${massClass.class_id}`)}
+                              onClick={() => currentUser ? navigate(`/mass-class/${massClass.class_id}`) : navigate('/auth')}
                               className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold text-center flex items-center justify-center"
                             >
                               <Eye className="w-4 h-4 mr-2" />
