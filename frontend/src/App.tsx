@@ -35,8 +35,9 @@ import PaymentHistoryPage from './pages/student/paymentHistory';
 import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './pages/individualTutor/TutorRejected';
-import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 import EmailVerification from './pages/EmailVerification';
+
+import { massTutorRoutes } from './pages/massTutor/routes';
 
 import MassTutorProfile from './pages/student/massTutorProfile';
 import MassClassPage from './pages/student/massClass';
@@ -51,8 +52,11 @@ import TutorApproval from './admin/TutorApproval';
 import TutorSuspend from './admin/TutorSuspend';
 import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
+import Complaints from './admin/Complaints';
+import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
 
@@ -122,7 +126,7 @@ const App = () => {
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
-          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
+          {massTutorRoutes()}
         </Route>
 
         {/* ===== Admin portal ===== */}
@@ -134,6 +138,8 @@ const App = () => {
             <Route path="tutors/suspend" element={<TutorSuspend />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="broadcast" element={<Broadcast />} />
+            <Route path="complaints" element={<Complaints />} />
+            <Route path="finance" element={<Finance />} />
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>

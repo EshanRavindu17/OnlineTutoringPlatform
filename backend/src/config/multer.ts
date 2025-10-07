@@ -23,6 +23,27 @@ const documentStorage = new CloudinaryStorage({
   }),
 });
 
+// Materials storage for class materials (PDFs, images, videos, etc.)
+const materialsStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: (req, file) => ({
+    folder: 'tutorly/materials',
+    allowedFormats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'mp4', 'mov'],
+    resource_type: 'auto',
+    public_id: `material_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+  }),
+});
+
+// Recordings storage for class recordings
+const recordingsStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: (req, file) => ({
+    folder: 'tutorly/recordings',
+    resource_type: 'video',
+    public_id: `recording_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+  }),
+});
+
 // Enhanced Session Materials Storage
 const sessionMaterialsStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -110,6 +131,20 @@ const documentUpload = multer({
   }
 });
 
+const materialsUpload = multer({
+  storage: materialsStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for materials
+  },
+});
+
+const recordingsUpload = multer({
+  storage: recordingsStorage,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit for recordings
+  },
+});
+
 // Enhanced session materials upload configuration
 const sessionMaterialsUpload = multer({
   storage: sessionMaterialsStorage,
@@ -132,7 +167,7 @@ const batchMaterialsUpload = multer({
 
 export default upload;
 export { 
-  documentUpload, 
+  documentUpload, materialsUpload, recordingsUpload, 
   sessionMaterialsUpload, 
   batchMaterialsUpload 
 };

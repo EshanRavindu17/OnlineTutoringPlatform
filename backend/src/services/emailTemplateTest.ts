@@ -3,7 +3,8 @@ import {
   createSessionCancellationEmail,
   createSessionReminderEmail,
   createPaymentConfirmationEmail,
-  createWelcomeEmail
+  createWelcomeEmail,
+  createClassReminderEmail
 } from '../templates/emails';
 
 // Example usage and testing of email templates
@@ -60,6 +61,9 @@ export const testEmailTemplates = () => {
   console.log('Has meeting link:', reminder.html.includes('Join Session'));
   console.log('');
 
+
+
+  
   // Test payment confirmation email
   const paymentConfirmation = createPaymentConfirmationEmail({
     studentName: 'David Wilson',

@@ -8,7 +8,14 @@ import {
   createWelcomeEmail,
   createSessionCompletionEmail,
   createAutoCancellationEmail,
-  EmailContent
+  EmailContent,
+  createClassReminderEmail,
+  createNewMassClassNotificationEmail,
+  createClassApprovedEmail,
+  createClassRejectedEmail,
+  createEnrollmentConfirmationEmail,
+  createNewEnrollmentNotificationEmail,
+  createCustomMessageEmail
 } from '../templates/emails';
 
 dotenv.config();
@@ -122,6 +129,34 @@ export const sendSessionReminderEmail = async (
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };
 
+// Class reminder email
+export const sendClassReminderEmail = async (
+    to: string,
+    type: 'student' | 'massTutor',
+    className: string,
+    classDate: string,
+    classTime: string,
+    reminderTime: string,
+    studentName?: string,
+    tutorName?: string,
+    subject?: string,
+    meetingLink?: string
+) => {
+    const emailContent = createClassReminderEmail({
+        type,
+        studentName,
+        tutorName,
+        className,
+        classDate,
+        classTime,
+        subject,
+        meetingLink,
+        reminderTime
+    });
+
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
 // Payment confirmation email
 export const sendPaymentConfirmationEmail = async (
     to: string,
@@ -165,6 +200,106 @@ export const sendWelcomeEmail = async (
         loginUrl
     });
 
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Admin notification: New mass class created
+export const sendNewMassClassNotificationEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        tutorEmail: string;
+        className: string;
+        subject: string;
+        day: string;
+        time: string;
+        description?: string;
+        classId: string;
+        dashboardUrl?: string;
+    }
+) => {
+    const emailContent = createNewMassClassNotificationEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Mass tutor: Class approved notification
+export const sendClassApprovedEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        className: string;
+        subject: string;
+        day: string;
+        time: string;
+        dashboardUrl?: string;
+    }
+) => {
+    const emailContent = createClassApprovedEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Mass tutor: Class rejected notification
+export const sendClassRejectedEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        className: string;
+        reason: string;
+        dashboardUrl?: string;
+    }
+) => {
+    const emailContent = createClassRejectedEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Student: Enrollment confirmation
+export const sendEnrollmentConfirmationEmail = async (
+    to: string,
+    data: {
+        studentName: string;
+        className: string;
+        tutorName: string;
+        subject: string;
+        day: string;
+        time: string;
+        amount: number;
+        dashboardUrl?: string;
+    }
+) => {
+    const emailContent = createEnrollmentConfirmationEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Mass tutor: New student enrolled notification
+export const sendNewEnrollmentNotificationEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        studentName: string;
+        studentEmail: string;
+        className: string;
+        enrollmentDate: string;
+        totalStudents: number;
+        dashboardUrl?: string;
+    }
+) => {
+    const emailContent = createNewEnrollmentNotificationEmail(data);
+    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
+};
+
+// Custom message from tutor to student
+export const sendCustomMessageEmail = async (
+    to: string,
+    data: {
+        tutorName: string;
+        studentName: string;
+        studentEmail: string;
+        subject: string;
+        message: string;
+        className?: string;
+    }
+) => {
+    const emailContent = createCustomMessageEmail(data);
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };
 

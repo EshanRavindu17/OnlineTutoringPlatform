@@ -23,6 +23,7 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+import massTutorRoutes from './routes/massTutor.routes';
 import documentRoutes from './routes/documentRoutes';
 
 import scheduleRoutes from './routes/scheduleRoutes';
@@ -157,6 +158,9 @@ app.use('/student', studentRoutes);
 
 //Individual Tutor Routes
 app.use('/individual-tutor', individualTutorRoutes);
+
+//Mass Tutor Routes
+app.use('/mass-tutor', massTutorRoutes);
 
 //Schedule Routes
 app.use('/api/schedule', scheduleRoutes);

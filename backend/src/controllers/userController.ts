@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import e, { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/authBypass';
 import prisma from '../prismaClient';
 import {
@@ -68,7 +68,7 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
             try {
               const statusResult = await prisma.$queryRaw`
                 SELECT status FROM "Candidates" 
-                WHERE email = ${user.email} AND role = 'Individual'
+                WHERE email = ${user.email} AND (role = 'Individual')
                 LIMIT 1
               ` as any[];
               
@@ -90,7 +90,7 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
                   canAccessDashboard: false,
                   message: 'Your tutor application has been rejected'
                 });
-              }
+              } 
             } catch (statusError) {
               // Fallback to pending if status query fails
               return res.status(200).json({
@@ -207,12 +207,12 @@ export const getUserByUid = async (req: AuthRequest, res: Response): Promise<Res
         }
 
         // No application found - user needs to complete registration
-        return res.status(200).json({
-          ...user,
-          tutorStatus: 'not_registered',
-          canAccessDashboard: false,
-          message: 'Please complete your tutor profile registration'
-        });
+        // return res.status(200).json({
+        //   ...user,
+        //   tutorStatus: 'not_registered',
+        //   canAccessDashboard: false,
+        //   message: 'Please complete your tutor profile registration'
+        // });
       }
 
       // User exists in Mass_Tutor table - check their status from Mass_Tutor table

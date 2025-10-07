@@ -352,12 +352,12 @@ enum UserRole {
   Admin
 }
 
-enum EnrolmentStatus {
-  valid
-  invalid
-}
-
 enum ClassSlotStatus {
   completed
   upcoming
+}
+
+enum EnrolmentStatus {
+  valid
+  invalid
 }
