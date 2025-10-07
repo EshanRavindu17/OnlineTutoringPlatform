@@ -1,11 +1,14 @@
 import express, { Request, Response } from "express";
 import Stripe from "stripe";
 import prisma from "../prismaClient";
-import { createASession, updateSlotStatus } from "../services/studentService";
+import { createASession, createEnrolment, createMassPayment, updateSlotStatus } from "../services/studentService";
 import { parseArgs } from "util";
 import { Status } from "@prisma/client";
 import { createPaymentRecord } from "../services/paymentService";
 import { UUID } from "crypto";
+import { conformSessionBookingEmail, sendPaymentConfirmationEmail } from "../services/email.service";
+import { verifyFirebaseTokenSimple } from "../middleware/authMiddlewareSimple";
+import { verifyRole } from "../middleware/verifyRole";
 
 const router = express.Router();
 
@@ -30,7 +33,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion:
 // });
 
 // Create payment intent
-router.post('/create-payment-intent', async (req: Request, res: Response) => {
+router.post('/create-payment-intent', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
   try {
     const {
       amount,
@@ -61,10 +64,17 @@ router.post('/create-payment-intent', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields: amount, tutorId, studentId' });
     }
 
+    // Find the customer ID for the student
+    const customer_id = (await prisma.student.findUnique({
+      where: { student_id: studentId },
+      select: { customer_id: true }
+    }))?.customer_id;
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Stripe expects amount in cents
       currency,
+      customer: customer_id || undefined,
       metadata: {
         tutorId,
         studentId,
@@ -97,7 +107,7 @@ router.post('/create-payment-intent', async (req: Request, res: Response) => {
 });
 
 // Confirm payment and create session booking This is only for individual Session booking 
-router.post('/confirm-payment', async (req: Request, res: Response) => {
+router.post('/confirm-payment', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
 
 console.log('Confirm payment request received:', req.body);
   try {
@@ -182,6 +192,7 @@ console.log('Confirm payment request received:', req.body);
       i_tutor_id,
       slotsAsDate,
       status as any, // Cast to SessionStatus enum
+      sessionDetails.subject,
       price,
       sessionDate
     );
@@ -275,6 +286,57 @@ console.log('Confirm payment request received:', req.body);
       slotsUpdated: timeSlots.length
     });
 
+    const student_email = (await prisma.student.findUnique({ // find student email
+      where: { student_id },
+      select: { User: { select: { email: true } } }
+    })).User.email;
+
+    const tutor_email = (await prisma.individual_Tutor.findUnique({ // find tutor email
+      where: { i_tutor_id },
+      select: { User: { select: { email: true } } }
+    })).User.email;
+
+    // Send confirmation email to student 
+    
+
+    const session_date_str = sessionDate.toDateString();
+    const session_time_str = slotsAsDate[0].toISOString().split('T')[1].split('.')[0];
+    const conformEmailStudent = await conformSessionBookingEmail(
+        student_email,
+        'student',
+        student_name,
+        i_tutor_name,
+        session_date_str,
+        session_time_str,
+    )
+
+    console.log('Confirmation email sent to student:', conformEmailStudent);
+
+    const conformEmailTutor = await conformSessionBookingEmail(
+        tutor_email,
+        'tutor',
+        student_name,
+        i_tutor_name,
+        session_date_str,
+        session_time_str,
+    )
+    console.log('Confirmation email sent to tutor:', conformEmailTutor);
+
+    const paymentConformEmail = await sendPaymentConfirmationEmail(
+      student_email,
+      student_name,
+      price,
+      'Credit Card',
+      paymentIntent.id,
+      {
+        tutorName: i_tutor_name,
+        date: session_date_str,
+        time: session_time_str
+      }
+    );
+
+    console.log('Payment confirmation email sent to student:', paymentConformEmail);
+
   } catch (error) {
     console.error('Error confirming payment:', error);
     
@@ -291,7 +353,7 @@ console.log('Confirm payment request received:', req.body);
 });
 
 // Get payment history for a student
-router.get('/payment-history/:studentId', async (req: Request, res: Response) => {
+router.get('/payment-history/:studentId', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
   try {
     const { studentId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -395,7 +457,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: R
 });
 
 // Process refund
-router.post('/refund', async (req: Request, res: Response) => {
+router.post('/refund', verifyFirebaseTokenSimple, verifyRole('student'), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amount, reason = 'requested_by_customer' } = req.body;
 
@@ -423,6 +485,152 @@ router.post('/refund', async (req: Request, res: Response) => {
 
 
 // Getting payment history should be handled with pagination 
+
+
+
+// Mass Tutor Subscription Payment routes 
+
+
+router.post('/create-payment-intent-mass', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
+  try {
+    const { studentId, classId, amount } = req.body;
+    console.log('Creating payment intent for mass class with data:', { studentId, classId, amount });
+    // Fetch price_id from class
+    if(!classId || !studentId){
+      return res.status(400).json({ error: 'Class ID and Student ID are required' });
+    }
+
+    const customer_id = (await prisma.student.findUnique({
+      where: { student_id: studentId },
+      select: { customer_id: true }
+    }))?.customer_id;
+
+    // if (!customer_id) {
+    //   return res.status(404).json({ error: 'Customer not found for the student' });
+    // }
+
+    const usdAmount = Math.round((amount * 100) / 300); // Convert to cents
+    console.log('Amount in USD cents:', usdAmount);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: usdAmount, // Example amount in cents
+      currency: 'usd',
+      customer: customer_id || undefined,
+      metadata: {
+        studentId,
+        classId
+      }
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+
+  } catch (error) {
+    console.error('Error creating paymentIntent for Mass Students:', error);
+    res.status(500).json({ error: 'Failed to create paymentIntent for Mass Students' });
+  }
+});
+
+
+
+
+
+
+router.post('/confirm-payment-mass', verifyFirebaseTokenSimple, verifyRole('student'),async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId, studentId, classId, amount } = req.body;
+    
+    console.log('Confirm payment for mass class request received:', req.body);
+
+    // Retrieve the subscription from Stripe
+    if (!classId || !studentId) {
+      return res.status(400).json({ error: 'Class ID and Student ID are required' });
+    }
+
+    const payment = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    if (payment.status !== 'succeeded') {
+      return res.status(400).json({ error: 'Payment not completed' });
+    }
+    // Create a mass payment record
+    const massPayment = await createMassPayment(studentId, classId, amount);
+    console.log('Mass payment record created:', massPayment);
+    // Create an enrolment record
+    const enrolment = await createEnrolment(studentId, classId);
+    console.log('Enrolment record created:', enrolment);
+
+    res.status(200).json({
+      success: true,
+      enrollmentId: enrolment.enrol_id,
+      message: 'Payment confirmed and enrolment created successfully'
+    });
+
+  } catch (error) {
+    console.error('Error confirming subscription:', error);
+    res.status(500).json({ error: 'Failed to confirm subscription' });
+  }
+});
+
+
+// router.post('/cancel-subscription', async (req: Request, res: Response) => {
+//   try {
+//     const { subscriptionId ,classId } = req.body;
+//     if (!subscriptionId) {
+//       return res.status(400).json({ error: 'Subscription ID is required' });
+//     }
+
+
+//     // Cancel the subscription in Stripe
+//     const deletedSubscription = await stripe.subscriptions.del(subscriptionId);
+//     res.json({ subscription: deletedSubscription });
+//   } catch (error) {
+//     console.error('Error cancelling subscription:', error);
+//     res.status(500).json({ error: 'Failed to cancel subscription' });
+//   }
+// });
+
+// router.post('/cancel-subscription-item', async (req: Request, res: Response) => {
+//   try {
+//     const { subscriptionId, classId } = req.body;
+//     if (!subscriptionId || !classId) {
+//       return res.status(400).json({ error: 'Subscription ID and Class ID are required' });
+//     }
+
+//     // Fetch price_id from class table
+//     const classData = await prisma.class.findUnique({
+//       where: { class_id: classId },
+//       select: { price_id: true },
+//     });
+
+//     if (!classData?.price_id) {
+//       return res.status(404).json({ error: 'Price not found for this class' });
+//     }
+
+//     const priceId = classData.price_id;
+
+//     // Fetch subscription from Stripe
+//     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+//     // Find the subscription item that matches the priceId
+//     const item = subscription.items.data.find(i => i.price.id === priceId);
+//     if (!item) {
+//       return res.status(404).json({ error: 'Subscription item not found for this class' });
+//     }
+
+//     // Delete the subscription item (unsubscribes this product)
+//     const deletedItem = await stripe.subscriptionItems.del(item.id);
+
+//     res.json({ subscriptionItem: deletedItem });
+
+//   } catch (error) {
+//     console.error('Error cancelling subscription item:', error);
+//     res.status(500).json({ error: 'Failed to cancel subscription item' });
+//   }
+// });
+
 
 export default router;
 

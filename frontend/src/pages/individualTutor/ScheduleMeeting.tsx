@@ -4,7 +4,8 @@ import Footer from '../../components/Footer';
 import Navbar from '../../components/Navbar';
 import ScheduleManager from './ScheduleManager';
 import { useAuth } from '../../context/authContext';
-import { ScheduleService } from '../../api/ScheduleService';
+import { ScheduleService, TimeSlot } from '../../api/ScheduleService';
+import { normalizeTimeSlot, isSlotInFuture, commonStyles } from '../../utils/timeSlotUtils';
 
 const ScheduleMeeting: React.FC = () => {
   const [tutorId, setTutorId] = useState<string | null>(null);
@@ -13,8 +14,7 @@ const ScheduleMeeting: React.FC = () => {
   const [stats, setStats] = useState({
     totalSlots: 0,
     availableSlots: 0,
-    bookedSlots: 0,
-    totalEarnings: 0
+    bookedSlots: 0
   });
 
   const { currentUser, userProfile } = useAuth();
@@ -42,7 +42,6 @@ const ScheduleMeeting: React.FC = () => {
           setError('Failed to get tutor profile');
         }
       } catch (err) {
-        console.error('Error fetching tutor ID:', err);
         setError(err instanceof Error ? err.message : 'Failed to load tutor profile');
       } finally {
         setLoading(false);
@@ -58,81 +57,48 @@ const ScheduleMeeting: React.FC = () => {
       const response = await ScheduleService.getTutorTimeSlots(tutorIdParam);
       if (response.success) {
         const timeSlots = response.data;
-        
-        // Filter out past time slots
         const now = new Date();
-        const currentDate = now.getFullYear() + '-' + 
-          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-          String(now.getDate()).padStart(2, '0');
-        const currentHour = now.getHours();
-        
-        const futureSlots = timeSlots.filter(slot => {
-          // Handle date conversion
-          let slotDate: string;
-          if (slot.date instanceof Date) {
-            slotDate = slot.date.getFullYear() + '-' + 
-              String(slot.date.getMonth() + 1).padStart(2, '0') + '-' + 
-              String(slot.date.getDate()).padStart(2, '0');
-          } else if (typeof slot.date === 'string') {
-            slotDate = slot.date.split('T')[0];
-          } else {
-            slotDate = String(slot.date);
+
+        const futureSlots = timeSlots.filter((slot: TimeSlot) => {
+          try {
+            const normalized = normalizeTimeSlot({
+              date: slot.date,
+              start_time: slot.start_time
+            });
+            return isSlotInFuture(normalized.date, normalized.startTime);
+          } catch (error) {
+            return false;
           }
-          
-          // If slot is in future date, include it
-          if (slotDate > currentDate) {
-            return true;
-          }
-          
-          // If slot is today, check if time hasn't passed
-          if (slotDate === currentDate) {
-            // Handle start_time conversion
-            let startTimeStr: string;
-            if (slot.start_time instanceof Date) {
-              const timeStr = slot.start_time.toISOString();
-              startTimeStr = timeStr.substr(11, 5);
-            } else if (typeof slot.start_time === 'string') {
-              if (slot.start_time.includes('T')) {
-                startTimeStr = slot.start_time.split('T')[1].slice(0, 5);
-              } else if (slot.start_time.includes('1970-01-01T')) {
-                startTimeStr = slot.start_time.split('T')[1].slice(0, 5);
-              } else {
-                startTimeStr = slot.start_time.slice(0, 5);
-              }
-            } else {
-              startTimeStr = String(slot.start_time).slice(0, 5);
-            }
-            
-            const slotHour = parseInt(startTimeStr.split(':')[0]);
-            return slotHour > currentHour;
-          }
-          
-          // Past dates are excluded
-          return false;
         });
-        
+
         const totalSlots = futureSlots.length;
-        const availableSlots = futureSlots.filter(slot => slot.status === 'free').length;
-        const bookedSlots = futureSlots.filter(slot => slot.status === 'booked').length;
-        const totalEarnings = bookedSlots * 65; // Assuming $65 per hour
+        const availableSlots = futureSlots.filter((slot: TimeSlot) => slot.status === 'free').length;
+        const bookedSlots = futureSlots.filter((slot: TimeSlot) => slot.status === 'booked').length;
 
         setStats({
           totalSlots,
           availableSlots,
-          bookedSlots,
-          totalEarnings
+          bookedSlots
         });
       }
     } catch (err) {
-      console.error('Error loading stats:', err);
+      // Error loading stats
     }
   };
+
+  // Refresh stats function to be called from ScheduleManager
+  const refreshStats = () => {
+    if (tutorId) {
+      loadStats(tutorId);
+    }
+  };
+
 
   if (loading) {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+        <div className={`${commonStyles.gradient} flex items-center justify-center`}>
           <div className="text-center">
             <Loader className="animate-spin text-blue-600 mx-auto mb-4" size={48} />
             <h2 className="text-xl font-semibold text-gray-700">Loading Schedule Management...</h2>
@@ -154,7 +120,7 @@ const ScheduleMeeting: React.FC = () => {
             <p className="text-red-600 mb-4">{error}</p>
             <button 
               onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className={commonStyles.button}
             >
               Try Again
             </button>
@@ -202,26 +168,12 @@ const ScheduleMeeting: React.FC = () => {
                     Create and manage your time slots for student bookings
                   </p>
                 </div>
-                <div className="flex space-x-8">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">{stats.totalSlots}</div>
-                    <div className="text-sm font-medium text-gray-600">Future Slots</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">{stats.availableSlots}</div>
-                    <div className="text-sm font-medium text-gray-600">Available</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-red-600">{stats.bookedSlots}</div>
-                    <div className="text-sm font-medium text-gray-600">Booked</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -260,24 +212,11 @@ const ScheduleMeeting: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Potential Earnings</p>
-                  <p className="text-2xl font-bold text-purple-600">${stats.totalEarnings}</p>
-                  <p className="text-xs text-gray-500">From future bookings</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Schedule Manager Component */}
           <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
-            <ScheduleManager tutorId={tutorId} />
+            <ScheduleManager tutorId={tutorId} onScheduleChange={refreshStats} />
           </div>
 
           {/* Additional Information */}
@@ -296,26 +235,18 @@ const ScheduleMeeting: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Schedule Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Future Time Slots:</span>
-                  <span className="font-semibold text-blue-600">{stats.totalSlots}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Available for Booking:</span>
-                  <span className="font-semibold text-green-600">{stats.availableSlots}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Currently Booked:</span>
-                  <span className="font-semibold text-red-600">{stats.bookedSlots}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                  <span className="text-gray-600">Potential Earnings:</span>
-                  <span className="font-semibold text-purple-600">${stats.totalEarnings}</span>
-                </div>
-              </div>
+            <div className={commonStyles.card}>
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                <TrendingUp className="mr-2 text-blue-600" size={20} />
+                Performance Tips
+              </h3>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Maintain consistent weekly availability for better student retention</li>
+                <li>• Consider peak hours (evenings, weekends) for maximum bookings</li>
+                <li>• Review your booking patterns to optimize your schedule</li>
+                <li>• Keep at least 3-5 time slots available per day for flexibility</li>
+                <li>• Update your availability regularly to avoid missed opportunities</li>
+              </ul>
             </div>
           </div>
         </div>

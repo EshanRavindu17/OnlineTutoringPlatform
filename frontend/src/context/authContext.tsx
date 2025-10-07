@@ -48,6 +48,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Check if email is verified first
+        if (!user.emailVerified) {
+          console.log('User email not verified, not setting user profile');
+          setCurrentUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+
         setCurrentUser(user);
 
         let retries = 3;
@@ -68,6 +77,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               if (payload.exp <= (currentTime + 300)) {
                 console.log('🔄 Token expiring soon, refreshing...');
                 idToken = await user.getIdToken(true);
+                console.log('Token', idToken);
               }
             } catch {
               // If validation fails, get fresh token

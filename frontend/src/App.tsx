@@ -17,7 +17,7 @@ import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
 import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './pages/individualTutor/tutorProfile';
-import StartZoom from './pages/individualTutor/startZoom';
+// import StartZoom from './pages/individualTutor/startZoom';
 import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
@@ -36,6 +36,7 @@ import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './pages/individualTutor/TutorRejected';
 import MassTutorDashboard from './pages/massTutor/masstutordashbord';
+import EmailVerification from './pages/EmailVerification';
 
 import MassTutorProfile from './pages/student/massTutorProfile';
 import MassClassPage from './pages/student/massClass';
@@ -79,6 +80,7 @@ const App = () => {
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
         <Route path="/selectuser" element={<SelectUser />} />
         <Route path="/selectuser/student" element={<SignupForm role="student" />} />
         <Route path="/selectuser/individual" element={<SignupForm role="Individual" />} />
@@ -113,7 +115,7 @@ const App = () => {
         {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          <Route path="/startzoom" element={<StartZoom />} />
+          {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
         </Route>

@@ -3,12 +3,12 @@ import {
   getTutorTimeSlots,
   getTutorTimeSlotsInRange,
   createTimeSlot,
-  updateTimeSlot,
+  // updateTimeSlot,
   deleteTimeSlot,
   getAvailableTimeSlots,
   getTutorIdByFirebaseUid,
   CreateTimeSlotData,
-  UpdateTimeSlotData
+  // UpdateTimeSlotData
 } from "../services/scheduleService";
 
 // Get tutor ID by Firebase UID
@@ -148,73 +148,73 @@ export const createTimeSlotController = async (req: Request, res: Response) => {
 };
 
 // Update an existing time slot
-export const updateTimeSlotController = async (req: Request, res: Response) => {
-  try {
-    const { slotId } = req.params;
-    const { date, start_time, end_time, status } = req.body;
+// export const updateTimeSlotController = async (req: Request, res: Response) => {
+//   try {
+//     const { slotId } = req.params;
+//     const { date, start_time, end_time, status } = req.body;
 
-    // Validate time format if provided
-    if (start_time || end_time) {
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-      if ((start_time && !timeRegex.test(start_time)) || (end_time && !timeRegex.test(end_time))) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid time format. Use HH:MM format"
-        });
-      }
-    }
+//     // Validate time format if provided
+//     if (start_time || end_time) {
+//       const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+//       if ((start_time && !timeRegex.test(start_time)) || (end_time && !timeRegex.test(end_time))) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid time format. Use HH:MM format"
+//         });
+//       }
+//     }
 
-    // Validate date format if provided
-    if (date) {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(date)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid date format. Use YYYY-MM-DD format"
-        });
-      }
-    }
+//     // Validate date format if provided
+//     if (date) {
+//       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+//       if (!dateRegex.test(date)) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid date format. Use YYYY-MM-DD format"
+//         });
+//       }
+//     }
 
-    const updateData: UpdateTimeSlotData = {};
-    if (date) updateData.date = date;
-    if (start_time) updateData.start_time = start_time;
-    if (end_time) updateData.end_time = end_time;
-    if (status) updateData.status = status;
+//     const updateData: UpdateTimeSlotData = {};
+//     if (date) updateData.date = date;
+//     if (start_time) updateData.start_time = start_time;
+//     if (end_time) updateData.end_time = end_time;
+//     if (status) updateData.status = status;
 
-    const updatedTimeSlot = await updateTimeSlot(slotId, updateData);
+//     const updatedTimeSlot = await updateTimeSlot(slotId, updateData);
 
-    res.status(200).json({
-      success: true,
-      message: "Time slot updated successfully",
-      data: updatedTimeSlot
-    });
-  } catch (error) {
-    console.error("Error updating time slot:", error);
+//     res.status(200).json({
+//       success: true,
+//       message: "Time slot updated successfully",
+//       data: updatedTimeSlot
+//     });
+//   } catch (error) {
+//     console.error("Error updating time slot:", error);
     
-    if (error instanceof Error) {
-      if (error.message.includes('not found')) {
-        return res.status(404).json({
-          success: false,
-          message: error.message
-        });
-      }
-      if (error.message.includes('already exists') || 
-          error.message.includes('past date') || 
-          error.message.includes('past time')) {
-        return res.status(400).json({
-          success: false,
-          message: error.message
-        });
-      }
-    }
+//     if (error instanceof Error) {
+//       if (error.message.includes('not found')) {
+//         return res.status(404).json({
+//           success: false,
+//           message: error.message
+//         });
+//       }
+//       if (error.message.includes('already exists') || 
+//           error.message.includes('past date') || 
+//           error.message.includes('past time')) {
+//         return res.status(400).json({
+//           success: false,
+//           message: error.message
+//         });
+//       }
+//     }
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to update time slot",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-};
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to update time slot",
+//       error: error instanceof Error ? error.message : "Unknown error"
+//     });
+//   }
+// };
 
 // Delete a time slot
 export const deleteTimeSlotController = async (req: Request, res: Response) => {

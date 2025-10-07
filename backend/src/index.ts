@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+const { execSync } = require("child_process");
 
 // Generate Prisma client when starting the server 
 // Commented out to avoid permission issues - run manually if needed
@@ -23,13 +23,26 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+import documentRoutes from './routes/documentRoutes';
 
 import scheduleRoutes from './routes/scheduleRoutes';
+import sessionRoutes from './routes/sessionRoutes';
+import earningsRoutes from './routes/earningsRoutes';
+import reviewsRoutes from './routes/reviewsRoutes';
 
 import paymentRoutes from './routes/paymentRoutes';
 
 import adminRoutes from './routes/admin.routes';
 import adminTutorsRoutes from './routes/admin.tutors.routes';
+import reminderRoutes from './routes/reminderRoutes';
+
+import zoomRouter from './routes/zoom.routes'
+
+// Import reminder service
+import { startReminderJobs, getReminderJobStatus } from './services/remider.service';
+// Import session cleanup service
+import { sessionCleanupService } from './services/sessionCleanupService';
+import  {DateTime}  from 'luxon';
 
 dotenv.config();
 
@@ -56,7 +69,7 @@ app.use(cors({
   },
   credentials: false, // we're sending tokens in headers, not cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -74,6 +87,42 @@ app.get('/health', (_req: Request, res: Response) => {
     environment: NODE_ENV,
     timestamp: new Date().toISOString()
   });
+});
+
+// Reminder jobs health check endpoint
+app.get('/health/reminders', (_req: Request, res: Response) => {
+  try {
+    const reminderStatus = getReminderJobStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Email reminder system is active',
+      ...reminderStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Email reminder system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Session cleanup health check endpoint
+app.get('/health/session-cleanup', (_req: Request, res: Response) => {
+  try {
+    const cleanupStatus = sessionCleanupService.getStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Session cleanup system status',
+      ...cleanupStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Session cleanup system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API Routes
@@ -100,6 +149,9 @@ app.get('/', (_req: Request, res: Response) => {
 // Register routes
 app.use('/api', userRoutes);
 
+//Document Routes
+app.use('/api/documents', documentRoutes);
+
 //Student Routes
 app.use('/student', studentRoutes);
 
@@ -108,12 +160,23 @@ app.use('/individual-tutor', individualTutorRoutes);
 
 //Schedule Routes
 app.use('/api/schedule', scheduleRoutes);
+//Session Routes
+app.use('/api/sessions', sessionRoutes);
+//Earnings Routes
+app.use('/api/earnings', earningsRoutes);
+//Reviews Routes
+app.use('/api/reviews', reviewsRoutes);
 //Payment Routes
 app.use('/payment', paymentRoutes);
 
 // Admin Routes
 app.use('/Admin', adminRoutes);
 app.use('/Admin/tutors', adminTutorsRoutes);
+
+// Reminder Routes
+app.use('/api/reminders', reminderRoutes);
+
+app.use('/zoom',zoomRouter)
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -148,17 +211,61 @@ app.listen(PORT, () => {
   console.log(`📍 Environment: ${NODE_ENV}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   console.log(`📡 API endpoint: http://localhost:${PORT}/api`);
+  
+  // Initialize reminder cron jobs
+  try {
+    startReminderJobs();
+  } catch (error) {
+    console.error('❌ Failed to start reminder jobs:', error);
+  }
+
+  // Initialize session cleanup service
+  try {
+    sessionCleanupService.start({
+      expireCheckIntervalMs: 5 * 60 * 1000, // Check every 5 minutes for expired sessions
+      completeCheckIntervalMs: 10 * 60 * 1000, // Check every 10 minutes for long-running sessions
+    });
+    console.log('✅ Session cleanup service started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start session cleanup service:', error);
+  }
 });
+
+// const time = new Date();
+// console.log(time.toISOString());
+// console.log(new Date(time.getTime()+5*60*60*1000+30*60*1000))
+// console.log(time.toString());
+// console.log(time.toLocaleTimeString());
+
+
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });
