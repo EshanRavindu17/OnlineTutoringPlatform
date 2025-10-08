@@ -55,7 +55,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
 import { EarningsService, EarningsDashboard, EarningsStatistics, RecentPayment } from '../../api/EarningsService';
 import { ReviewsService, ReviewData, ReviewStatistics, ReviewAnalytics } from '../../api/ReviewsService';
-import EnhancedMaterialModal from '../../components/EnhancedMaterialModal';
+// import EnhancedMaterialModal from '../../components/EnhancedMaterialModal';
 import SessionActions from './SessionActions';
 
 interface LocalTutorProfile {
@@ -382,6 +382,291 @@ const MaterialAddModal: React.FC<MaterialAddModalProps> = ({ sessionId, onClose,
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Enhanced Material Uploader Component
+interface EnhancedMaterialUploaderProps {
+  sessionId: string;
+  firebaseUid: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+const EnhancedMaterialUploader: React.FC<EnhancedMaterialUploaderProps> = ({
+  sessionId,
+  firebaseUid,
+  onSuccess,
+  onCancel,
+}) => {
+  const [uploadMode, setUploadMode] = useState<'text' | 'file'>('text');
+  const [textMaterial, setTextMaterial] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [dragActive, setDragActive] = useState(false);
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  // Handle drag and drop
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    setSelectedFiles(prev => [...prev, ...files]);
+  };
+
+  // Remove selected file
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Get file type icon
+  const getFileTypeIcon = (file: File) => {
+    const type = file.type;
+    if (type.startsWith('image/')) return <Camera className="w-5 h-5 text-blue-600" />;
+    if (type.startsWith('video/')) return <Video className="w-5 h-5 text-red-600" />;
+    if (type === 'application/pdf') return <FileText className="w-5 h-5 text-red-500" />;
+    if (type.includes('presentation') || type.includes('powerpoint')) return <VideoIcon className="w-5 h-5 text-orange-600" />;
+    return <FileText className="w-5 h-5 text-gray-600" />;
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Upload files
+  const handleUpload = async () => {
+    if (uploadMode === 'text' && textMaterial.trim()) {
+      // Handle text material
+      try {
+        setUploading(true);
+        await sessionService.addSessionMaterial(firebaseUid, sessionId, textMaterial);
+        onSuccess();
+      } catch (error) {
+        console.error('Error adding text material:', error);
+        alert('Failed to add text material. Please try again.');
+      } finally {
+        setUploading(false);
+      }
+    } else if (uploadMode === 'file' && selectedFiles.length > 0) {
+      // Handle file uploads
+      try {
+        setUploading(true);
+        const uploadPromises = selectedFiles.map(async (file, index) => {
+          try {
+            const fileKey = `${file.name}_${index}`;
+            const result = await sessionService.uploadMaterialFile(
+              firebaseUid,
+              sessionId,
+              file,
+              (progress) => {
+                setUploadProgress(prev => ({ ...prev, [fileKey]: progress }));
+              }
+            );
+            
+            // Add the uploaded file as a material
+            const materialData = JSON.stringify({
+              id: result.fileId,
+              name: file.name,
+              type: file.type.startsWith('image/') ? 'image' : 
+                    file.type.startsWith('video/') ? 'video' :
+                    file.type === 'application/pdf' ? 'document' :
+                    file.type.includes('presentation') ? 'presentation' : 'document',
+              url: result.url,
+              uploadDate: new Date().toISOString(),
+              size: file.size,
+              mimeType: file.type,
+              isPublic: false
+            });
+
+            await sessionService.addSessionMaterial(firebaseUid, sessionId, `ENHANCED_MATERIAL:${materialData}`);
+            
+            return result;
+          } catch (error) {
+            console.error(`Error uploading ${file.name}:`, error);
+            throw error;
+          }
+        });
+
+        await Promise.all(uploadPromises);
+        onSuccess();
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        alert('Some files failed to upload. Please try again.');
+      } finally {
+        setUploading(false);
+        setUploadProgress({});
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Mode Selection */}
+      <div className="flex space-x-2 mb-4">
+        <button
+          onClick={() => setUploadMode('text')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            uploadMode === 'text'
+              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4 inline mr-2" />
+          Text/Link
+        </button>
+        <button
+          onClick={() => setUploadMode('file')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            uploadMode === 'file'
+              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          <Upload className="w-4 h-4 inline mr-2" />
+          File Upload
+        </button>
+      </div>
+
+      {/* Content based on mode */}
+      {uploadMode === 'text' ? (
+        <div>
+          <input
+            type="text"
+            value={textMaterial}
+            onChange={(e) => setTextMaterial(e.target.value)}
+            placeholder="Enter material name, URL, or description..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      ) : (
+        <div>
+          {/* File Upload Area */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              dragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-sm text-gray-600 mb-2">
+              Drag and drop files here, or{' '}
+              <label className="text-blue-600 hover:text-blue-700 cursor-pointer underline">
+                browse
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mov,.wmv"
+                />
+              </label>
+            </p>
+            <p className="text-xs text-gray-500">
+              Supports: PDF, DOC, PPT, Images, Videos (Max 10MB per file)
+            </p>
+          </div>
+
+          {/* Selected Files */}
+          {selectedFiles.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Files:</h4>
+              <div className="space-y-2">
+                {selectedFiles.map((file, index) => {
+                  const fileKey = `${file.name}_${index}`;
+                  const progress = uploadProgress[fileKey] || 0;
+                  
+                  return (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        {getFileTypeIcon(file)}
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">{file.name}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {uploading && progress > 0 && (
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        )}
+                        {!uploading && (
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+        <button
+          onClick={onCancel}
+          disabled={uploading}
+          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleUpload}
+          disabled={uploading || (uploadMode === 'text' && !textMaterial.trim()) || (uploadMode === 'file' && selectedFiles.length === 0)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+        >
+          {uploading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Uploading...</span>
+            </>
+          ) : (
+            <>
+              <Plus size={16} />
+              <span>Add Material</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
@@ -874,7 +1159,6 @@ const TutorDashboard: React.FC = () => {
   //   }
   // ]);
 
-  const [newMaterial, setNewMaterial] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Enhanced Material Management State
@@ -1092,7 +1376,7 @@ const TutorDashboard: React.FC = () => {
       review: session.Rating_N_Review_Session?.[0]?.review || undefined,
       status: session.status || undefined,
       meeting_urls: session.meeting_urls || [],
-      refunded: false, // TODO: Add refund status to backend
+      refunded: false,
       reason: undefined // TODO: Add cancellation reason to backend
     };
   };
@@ -1494,43 +1778,29 @@ const TutorDashboard: React.FC = () => {
   };
 
 
-  const addMaterial = async (sessionId: string) => {
-    if (newMaterial.trim() && currentUser?.uid) {
-      try {
-        await sessionService.addSessionMaterial(currentUser.uid, sessionId, newMaterial.trim());
-        // Reload sessions to get updated data
-        loadSessionsData();
-        setNewMaterial('');
-        setSelectedSessionId(null);
-        alert('Material added successfully!');
-      } catch (error) {
-        console.error('Error adding material:', error);
-        alert('Failed to add material. Please try again.');
-      }
-    }
-  };
+  // Note: addMaterial functionality moved to EnhancedMaterialUploader component
 
   // Enhanced material management functions
-  const addEnhancedMaterial = async (materialData: Omit<Material, 'id' | 'uploadDate'>) => {
-    if (!selectedSessionForMaterial || !currentUser?.uid) return;
+  // const addEnhancedMaterial = async (materialData: Omit<Material, 'id' | 'uploadDate'>) => {
+  //   if (!selectedSessionForMaterial || !currentUser?.uid) return;
     
-    try {
-      await sessionService.addEnhancedSessionMaterial(
-        currentUser.uid, 
-        selectedSessionForMaterial, 
-        materialData
-      );
+  //   try {
+  //     await sessionService.addEnhancedSessionMaterial(
+  //       currentUser.uid, 
+  //       selectedSessionForMaterial, 
+  //       materialData
+  //     );
       
-      // Reload sessions to get updated data
-      loadSessionsData();
-      setShowMaterialModal(false);
-      setSelectedSessionForMaterial(null);
-      alert('Enhanced material added successfully!');
-    } catch (error) {
-      console.error('Error adding enhanced material:', error);
-      alert('Failed to add enhanced material. Please try again.');
-    }
-  };
+  //     // Reload sessions to get updated data
+  //     loadSessionsData();
+  //     setShowMaterialModal(false);
+  //     setSelectedSessionForMaterial(null);
+  //     alert('Enhanced material added successfully!');
+  //   } catch (error) {
+  //     console.error('Error adding enhanced material:', error);
+  //     alert('Failed to add enhanced material. Please try again.');
+  //   }
+  // };
 
   const openMaterialModal = (sessionId: string) => {
     setSelectedSessionForMaterial(sessionId);
@@ -2715,29 +2985,89 @@ const TutorDashboard: React.FC = () => {
                           {session.materials && session.materials.length > 0 ? (
                             <div className="space-y-2 mb-4">
                               {session.materials.map((material, index) => {
-                                // Handle both string and Material object formats
-                                const materialName = typeof material === 'string' ? material : material.name;
-                                const materialType = typeof material === 'string' ? 'text' : material.type;
+                                // Enhanced material handling for both string and Material object formats
+                                let materialData: any = {};
+                                let isEnhanced = false;
+                                
+                                if (typeof material === 'string') {
+                                  if (material.startsWith('ENHANCED_MATERIAL:')) {
+                                    // Parse enhanced material
+                                    try {
+                                      materialData = JSON.parse(material.replace('ENHANCED_MATERIAL:', ''));
+                                      isEnhanced = true;
+                                    } catch (e) {
+                                      // Fallback to simple string
+                                      materialData = { name: material, type: 'text' };
+                                    }
+                                  } else {
+                                    // Simple string material
+                                    materialData = { name: material, type: 'text' };
+                                  }
+                                } else {
+                                  // Already an object
+                                  materialData = material;
+                                  isEnhanced = true;
+                                }
+                                
+                                const materialName = materialData.name || 'Unnamed Material';
+                                const materialType = materialData.type || 'text';
+                                const materialUrl = materialData.url;
+                                const materialSize = materialData.size;
                                 
                                 return (
-                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
-                                    <div className="flex items-center space-x-3">
+                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                                    <div className="flex items-center space-x-3 flex-1">
                                       <div className="flex-shrink-0">
-                                        {materialType === 'document' && <FileText className="w-4 h-4 text-blue-600" />}
-                                        {materialType === 'video' && <Video className="w-4 h-4 text-red-600" />}
-                                        {materialType === 'link' && <ExternalLink className="w-4 h-4 text-green-600" />}
-                                        {materialType === 'image' && <Camera className="w-4 h-4 text-purple-600" />}
-                                        {materialType === 'text' && <MessageSquare className="w-4 h-4 text-gray-600" />}
-                                        {materialType === 'presentation' && <VideoIcon className="w-4 h-4 text-orange-600" />}
+                                        {materialType === 'document' && <FileText className="w-5 h-5 text-red-500" />}
+                                        {materialType === 'video' && <Video className="w-5 h-5 text-red-600" />}
+                                        {materialType === 'link' && <ExternalLink className="w-5 h-5 text-green-600" />}
+                                        {materialType === 'image' && <Camera className="w-5 h-5 text-blue-600" />}
+                                        {materialType === 'text' && <MessageSquare className="w-5 h-5 text-gray-600" />}
+                                        {materialType === 'presentation' && <VideoIcon className="w-5 h-5 text-orange-600" />}
                                       </div>
-                                      <span className="text-sm font-medium text-gray-700">{materialName}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-sm font-medium text-gray-700 truncate">{materialName}</span>
+                                          {isEnhanced && materialUrl && (
+                                            <a
+                                              href={materialUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 hover:text-blue-800 transition-colors"
+                                              title="Open file"
+                                            >
+                                              <ExternalLink size={14} />
+                                            </a>
+                                          )}
+                                        </div>
+                                        {materialSize && (
+                                          <p className="text-xs text-gray-500">
+                                            {materialSize > 0 ? `${(materialSize / 1024 / 1024).toFixed(2)} MB` : 'Size unknown'}
+                                          </p>
+                                        )}
+                                        {!isEnhanced && materialUrl && (
+                                          <p className="text-xs text-blue-600 truncate">{materialUrl}</p>
+                                        )}
+                                      </div>
                                     </div>
-                                    <button
-                                      onClick={() => removeMaterial(session.id, index, materialName)}
-                                      className="text-red-500 hover:text-red-700 transition-colors p-1"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
+                                    <div className="flex items-center space-x-2">
+                                      {isEnhanced && materialUrl && (
+                                        <button
+                                          onClick={() => window.open(materialUrl, '_blank')}
+                                          className="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                                          title="Open file"
+                                        >
+                                          <Download size={16} />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => removeMaterial(session.id, index, materialName)}
+                                        className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                        title="Remove material"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -2748,49 +3078,23 @@ const TutorDashboard: React.FC = () => {
                           
                           {/* Add material form */}
                           {selectedSessionId === session.id ? (
-                            <div className="flex space-x-2">
-                              <input
-                                type="text"
-                                value={newMaterial}
-                                onChange={(e) => setNewMaterial(e.target.value)}
-                                placeholder="Enter material name, URL, or description..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
-                              <button
-                                onClick={() => addMaterial(session.id)}
-                                className="px-3 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 transition-colors"
-                              >
-                                Add
-                              </button>
-                              <button
-                                onClick={() => openMaterialModal(session.id)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                              >
-                                <Upload size={16} />
-                                <span>Enhanced</span>
-                              </button>
-                              <button
-                                onClick={() => setSelectedSessionId(null)}
-                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                            <EnhancedMaterialUploader
+                              sessionId={session.id}
+                              onSuccess={() => {
+                                setSelectedSessionId(null);
+                                loadSessionsData(); // Reload sessions to show new materials
+                              }}
+                              onCancel={() => setSelectedSessionId(null)}
+                              firebaseUid={currentUser?.uid || ''}
+                            />
                           ) : (
                             <div className="flex space-x-3">
                               <button
                                 onClick={() => setSelectedSessionId(session.id)}
-                                className="flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                                className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
                               >
                                 <Plus className="w-4 h-4 mr-1" />
-                                Simple
-                              </button>
-                              <button
-                                onClick={() => openMaterialModal(session.id)}
-                                className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                              >
-                                <Upload className="w-4 h-4 mr-1" />
-                                Advanced
+                                Add Materials
                               </button>
                             </div>
                           )}
@@ -4256,7 +4560,7 @@ const TutorDashboard: React.FC = () => {
       )}
 
       {/* Enhanced Material Modal */}
-      {showMaterialModal && selectedSessionForMaterial && (
+      {/* {showMaterialModal && selectedSessionForMaterial && (
         <EnhancedMaterialModal
           sessionId={selectedSessionForMaterial}
           onClose={() => {
@@ -4265,7 +4569,7 @@ const TutorDashboard: React.FC = () => {
           }}
           onAdd={addEnhancedMaterial}
         />
-      )}
+      )} */}
 
       {/* Session Actions Modal */}
       {showSessionActions && selectedSessionForActions && (

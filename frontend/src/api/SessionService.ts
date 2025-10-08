@@ -247,82 +247,82 @@ class SessionService {
   // Enhanced Material Management Methods
 
   // Add enhanced material to session
-  async addEnhancedSessionMaterial(
-    firebaseUid: string, 
-    sessionId: string, 
-    materialData: Omit<Material, 'id' | 'uploadDate'>
-  ): Promise<SessionWithDetails> {
-    try {
-      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(materialData),
-      });
+  // async addEnhancedSessionMaterial(
+  //   firebaseUid: string, 
+  //   sessionId: string, 
+  //   materialData: Omit<Material, 'id' | 'uploadDate'>
+  // ): Promise<SessionWithDetails> {
+  //   try {
+  //     const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(materialData),
+  //     });
 
-      if (!response.ok) {
-        throw new Error(`Failed to add enhanced material: ${response.statusText}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to add enhanced material: ${response.statusText}`);
+  //     }
 
-      const data = await response.json();
-      return data.data;
-    } catch (error) {
-      console.error('Error adding enhanced session material:', error);
-      throw error;
-    }
-  }
+  //     const data = await response.json();
+  //     return data.data;
+  //   } catch (error) {
+  //     console.error('Error adding enhanced session material:', error);
+  //     throw error;
+  //   }
+  // }
 
   // Remove enhanced material from session
-  async removeEnhancedSessionMaterial(
-    firebaseUid: string, 
-    sessionId: string, 
-    materialIndex: number
-  ): Promise<SessionWithDetails> {
-    try {
-      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material/${materialIndex}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  // async removeEnhancedSessionMaterial(
+  //   firebaseUid: string, 
+  //   sessionId: string, 
+  //   materialIndex: number
+  // ): Promise<SessionWithDetails> {
+  //   try {
+  //     const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-material/${materialIndex}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //     });
 
-      if (!response.ok) {
-        throw new Error(`Failed to remove enhanced material: ${response.statusText}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to remove enhanced material: ${response.statusText}`);
+  //     }
 
-      const data = await response.json();
-      return data.data;
-    } catch (error) {
-      console.error('Error removing enhanced session material:', error);
-      throw error;
-    }
-  }
+  //     const data = await response.json();
+  //     return data.data;
+  //   } catch (error) {
+  //     console.error('Error removing enhanced session material:', error);
+  //     throw error;
+  //   }
+  // }
 
   // Get enhanced session materials
-  async getEnhancedSessionMaterials(
-    firebaseUid: string, 
-    sessionId: string
-  ): Promise<Material[]> {
-    try {
-      const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-materials`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  // async getEnhancedSessionMaterials(
+  //   firebaseUid: string, 
+  //   sessionId: string
+  // ): Promise<Material[]> {
+  //   try {
+  //     const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/enhanced-materials`, {
+  //       method: 'GET',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //     });
 
-      if (!response.ok) {
-        throw new Error(`Failed to get enhanced materials: ${response.statusText}`);
-      }
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to get enhanced materials: ${response.statusText}`);
+  //     }
 
-      const data = await response.json();
-      return data.data;
-    } catch (error) {
-      console.error('Error getting enhanced session materials:', error);
-      throw error;
-    }
-  }
+  //     const data = await response.json();
+  //     return data.data;
+  //   } catch (error) {
+  //     console.error('Error getting enhanced session materials:', error);
+  //     throw error;
+  //   }
+  // }
 
   // Upload file for materials (with real file upload to server/cloud)
   async uploadMaterialFile(
@@ -386,32 +386,32 @@ class SessionService {
   }
 
   // Batch upload multiple materials
-  async batchUploadMaterials(
-    firebaseUid: string,
-    sessionId: string,
-    materials: Array<Omit<Material, 'id' | 'uploadDate'>>,
-    onProgress?: (completed: number, total: number) => void
-  ): Promise<SessionWithDetails> {
-    try {
-      const results = [];
+  // async batchUploadMaterials(
+  //   firebaseUid: string,
+  //   sessionId: string,
+  //   materials: Array<Omit<Material, 'id' | 'uploadDate'>>,
+  //   onProgress?: (completed: number, total: number) => void
+  // ): Promise<SessionWithDetails> {
+  //   try {
+  //     const results = [];
       
-      for (let i = 0; i < materials.length; i++) {
-        const material = materials[i];
-        const result = await this.addEnhancedSessionMaterial(firebaseUid, sessionId, material);
-        results.push(result);
+  //     for (let i = 0; i < materials.length; i++) {
+  //       const material = materials[i];
+  //       const result = await this.addEnhancedSessionMaterial(firebaseUid, sessionId, material);
+  //       results.push(result);
         
-        if (onProgress) {
-          onProgress(i + 1, materials.length);
-        }
-      }
+  //       if (onProgress) {
+  //         onProgress(i + 1, materials.length);
+  //       }
+  //     }
       
-      // Return the last result which should have all materials
-      return results[results.length - 1];
-    } catch (error) {
-      console.error('Error in batch upload:', error);
-      throw error;
-    }
-  }
+  //     // Return the last result which should have all materials
+  //     return results[results.length - 1];
+  //   } catch (error) {
+  //     console.error('Error in batch upload:', error);
+  //     throw error;
+  //   }
+  // }
 
   // Update session status
   async updateSessionStatus(firebaseUid: string, sessionId: string, status: SessionStatus): Promise<SessionWithDetails> {

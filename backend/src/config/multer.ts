@@ -2,6 +2,7 @@ import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from './cloudinary';
 import path from 'path';
+import { access } from 'fs';
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -49,6 +50,7 @@ const sessionMaterialsStorage = new CloudinaryStorage({
       folder: folder,
       public_id: `${sessionId}_${timestamp}_${randomId}`,
       resource_type: 'auto',
+      access_mode:'public',
       // Add metadata
       context: {
         session_id: sessionId,
