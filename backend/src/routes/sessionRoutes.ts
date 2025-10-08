@@ -22,7 +22,7 @@ import {
   autoExpireSessionsController,
   autoCompleteSessionsController
 } from '../controllers/sessionController';
-import { sessionMaterialsUpload, batchMaterialsUpload } from '../config/multer';
+import { materialsUpload } from '../config/multer';
 
 const router = express.Router();
 
@@ -56,7 +56,7 @@ router.delete('/:firebaseUid/session/:sessionId/enhanced-material/:materialIndex
 router.get('/:firebaseUid/session/:sessionId/enhanced-materials', getEnhancedSessionMaterialsController);
 
 // File upload routes for session materials
-router.post('/:firebaseUid/session/:sessionId/upload-file', sessionMaterialsUpload.single('file'), uploadMaterialFileController);
-router.post('/:firebaseUid/session/:sessionId/batch-upload', batchMaterialsUpload.array('files', 10), batchUploadMaterialsController);
+// Use materialsUpload for all files - it will handle both materials and videos
+router.post('/:firebaseUid/session/:sessionId/upload-file', materialsUpload.single('file'), uploadMaterialFileController);
 
 export default router;

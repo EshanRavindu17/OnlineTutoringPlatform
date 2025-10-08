@@ -2,6 +2,7 @@ import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from './cloudinary';
 import path from 'path';
+import { access } from 'fs';
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -9,6 +10,7 @@ const storage = new CloudinaryStorage({
     folder: 'uploads',
     allowedFormats: ['jpg', 'png', 'jpeg'],
     resource_type: 'auto', // Use 'auto' for better format detection
+    access_mode: 'public',
   }),
 });
 
@@ -19,6 +21,7 @@ const documentStorage = new CloudinaryStorage({
     folder: 'documents',
     allowedFormats: ['pdf'],
     resource_type: 'auto', // Use 'auto' instead of 'raw' for proper PDF handling
+    access_mode: 'public',
     public_id: `${req.body.type || 'document'}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
   }),
 });
@@ -30,6 +33,7 @@ const materialsStorage = new CloudinaryStorage({
     folder: 'tutorly/materials',
     allowedFormats: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'mp4', 'mov'],
     resource_type: 'auto',
+    access_mode: 'public',
     public_id: `material_${Date.now()}_${Math.random().toString(36).substring(7)}`,
   }),
 });
@@ -40,49 +44,14 @@ const recordingsStorage = new CloudinaryStorage({
   params: (req, file) => ({
     folder: 'tutorly/recordings',
     resource_type: 'video',
+    access_mode: 'public',
     public_id: `recording_${Date.now()}_${Math.random().toString(36).substring(7)}`,
   }),
 });
 
-// Enhanced Session Materials Storage
-const sessionMaterialsStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: (req, file) => {
-    const sessionId = req.params?.sessionId || req.body?.sessionId || 'unknown';
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(7);
-    
-    // Determine folder based on file type
-    let folder = 'session-materials';
-    if (file.mimetype.startsWith('image/')) {
-      folder = 'session-materials/images';
-    } else if (file.mimetype.startsWith('video/')) {
-      folder = 'session-materials/videos';
-    } else if (file.mimetype === 'application/pdf') {
-      folder = 'session-materials/documents';
-    } else if (file.mimetype.includes('presentation') || file.mimetype.includes('powerpoint')) {
-      folder = 'session-materials/presentations';
-    } else {
-      folder = 'session-materials/files';
-    }
-
-    return {
-      folder: folder,
-      public_id: `${sessionId}_${timestamp}_${randomId}`,
-      resource_type: 'auto',
-      // Add metadata
-      context: {
-        session_id: sessionId,
-        upload_date: new Date().toISOString(),
-        original_name: file.originalname
-      }
-    };
-  },
-});
-
-// File filter for session materials
-const sessionMaterialsFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  // Define allowed file types
+// File filter for all session materials (including videos)
+const materialsFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Define allowed file types for all materials
   const allowedMimeTypes = [
     // Images
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
@@ -97,7 +66,7 @@ const sessionMaterialsFileFilter = (req: any, file: Express.Multer.File, cb: mul
     'text/plain', // .txt
     'text/csv', // .csv
     'application/rtf', // .rtf
-    // Videos
+    // Videos (now included in materials)
     'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm',
     // Audio
     'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a',
@@ -108,7 +77,22 @@ const sessionMaterialsFileFilter = (req: any, file: Express.Multer.File, cb: mul
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    const error = new Error(`File type ${file.mimetype} is not supported. Allowed types: ${allowedMimeTypes.join(', ')}`);
+    const error = new Error(`File type ${file.mimetype} is not supported.`);
+    cb(error as any, false);
+  }
+};
+
+// Simple file filter for recordings (video files)
+const recordingsFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Define allowed video types for recordings
+  const allowedMimeTypes = [
+    'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm'
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    const error = new Error(`File type ${file.mimetype} is not supported for recordings.`);
     cb(error as any, false);
   }
 };
@@ -134,8 +118,9 @@ const documentUpload = multer({
 const materialsUpload = multer({
   storage: materialsStorage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit for materials
+    fileSize: 100 * 1024 * 1024, // 100MB limit to accommodate videos and other materials
   },
+  fileFilter: materialsFileFilter
 });
 
 const recordingsUpload = multer({
@@ -143,31 +128,12 @@ const recordingsUpload = multer({
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB limit for recordings
   },
-});
-
-// Enhanced session materials upload configuration
-const sessionMaterialsUpload = multer({
-  storage: sessionMaterialsStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit for session materials
-    files: 5 // Maximum 5 files per request for batch upload
-  },
-  fileFilter: sessionMaterialsFileFilter
-});
-
-// Multiple files upload for batch processing
-const batchMaterialsUpload = multer({
-  storage: sessionMaterialsStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB per file
-    files: 10 // Maximum 10 files per batch
-  },
-  fileFilter: sessionMaterialsFileFilter
+  fileFilter: recordingsFileFilter
 });
 
 export default upload;
 export { 
-  documentUpload, materialsUpload, recordingsUpload, 
-  sessionMaterialsUpload, 
-  batchMaterialsUpload 
+  documentUpload, 
+  materialsUpload, 
+  recordingsUpload 
 };

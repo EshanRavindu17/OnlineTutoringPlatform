@@ -896,32 +896,6 @@ export const uploadMaterialFileController = async (req: Request, res: Response) 
       });
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (req.file.size > maxSize) {
-      return res.status(400).json({
-        success: false,
-        message: "File size exceeds 10MB limit"
-      });
-    }
-
-    // Validate file type
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain', 'text/csv',
-      'video/mp4', 'video/avi', 'video/mov', 'video/wmv'
-    ];
-
-    if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({
-        success: false,
-        message: "File type not supported"
-      });
-    }
-
     // Get tutor ID from firebase UID
     const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
     
@@ -934,34 +908,16 @@ export const uploadMaterialFileController = async (req: Request, res: Response) 
       });
     }
 
-    // Generate unique filename
-    const fileExtension = req.file.originalname.split('.').pop();
-    const uniqueFilename = `${sessionId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
-    
-    // For now, create a mock URL - in production, upload to cloud storage (AWS S3, Cloudinary, etc.)
-    const mockFileUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${uniqueFilename}`;
+    // File is already uploaded to Cloudinary via multer middleware
+    // The URL is available in req.file.path for Cloudinary
+    const fileUrl = req.file.path || req.file.filename;
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // In production, you would:
-    // 1. Upload to cloud storage (AWS S3, Google Cloud, Cloudinary, etc.)
-    // 2. Get the real URL from the cloud service
-    // 3. Store file metadata in database
-    
-    // Example for AWS S3:
-    // const uploadResult = await s3.upload({
-    //   Bucket: 'your-bucket-name',
-    //   Key: `session-materials/${uniqueFilename}`,
-    //   Body: req.file.buffer,
-    //   ContentType: req.file.mimetype,
-    //   ACL: 'private'
-    // }).promise();
-    // const fileUrl = uploadResult.Location;
 
     res.status(200).json({
       success: true,
       message: 'File uploaded successfully',
       data: {
-        url: mockFileUrl,
+        url: fileUrl,
         fileId: fileId,
         originalName: req.file.originalname,
         size: req.file.size,
