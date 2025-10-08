@@ -89,7 +89,7 @@ class ReviewsService {
       return reviews.map(review => ({
         review_id: review.r_id,
         student_name: review.Sessions?.Student?.User?.name || 'Anonymous Student',
-        student_photo: review.Sessions?.Student?.User?.photo_url || null,
+        // student_photo: review.Sessions?.Student?.User?.photo_url || null,
         rating: Number(review.rating || 0),
         review: review.review || '',
         subject: review.Sessions?.title || 'General',

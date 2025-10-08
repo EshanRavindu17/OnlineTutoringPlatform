@@ -15,8 +15,6 @@ const missingVars = Object.entries(requiredEnvVars)
   .map(([key]) => key);
 
 if (missingVars.length > 0) {
-  console.error('❌ Missing required Cloudinary environment variables:', missingVars);
-  console.error('Please set these variables in your .env file:');
   missingVars.forEach(varName => console.error(`${varName}=your_${varName.toLowerCase()}`));
 }
 

@@ -97,8 +97,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
             profileData = await response.json();
 
-            console.log('👤 Fetched user profile:', profileData);
-
             if (response.ok) {
               break;
             } else if (response.status === 401) {
