@@ -3,11 +3,12 @@ import * as massTutorController from '../controllers/massTutor.controller';
 import * as uploadController from '../controllers/upload.controller';
 import { verifyFirebaseTokenSimple } from '../middleware/authMiddlewareSimple';
 import { materialsUpload, recordingsUpload } from '../config/multer';
+import { verifyRole } from '../middleware/verifyRole';
 
 const router = Router();
 
 // All routes require authentication
-router.use(verifyFirebaseTokenSimple);
+router.use(verifyFirebaseTokenSimple,verifyRole('Mass'));
 
 // Class management routes
 router.get('/classes', massTutorController.getTutorClassesController);
