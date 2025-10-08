@@ -15,8 +15,10 @@ import Auth from './pages/auth';
 import FindTutors from './pages/findTutors'
 import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
+import { SocketProvider } from './context/SocketContext';
 import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './pages/individualTutor/tutorProfile';
+import { ChatPage } from './pages/ChatPage';
 // import StartZoom from './pages/individualTutor/startZoom';
 import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
@@ -78,11 +80,12 @@ function HostRedirectToAdmin() {
 const App = () => {
   return (
     <Router>
-      {/* Enable this if you plan to use admin.localhost */}
-      <HostRedirectToAdmin />
+      <SocketProvider>
+        {/* Enable this if you plan to use admin.localhost */}
+        <HostRedirectToAdmin />
 
-      <ScrollToTop />
-      <Routes>
+        <ScrollToTop />
+        <Routes>
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
         <Route path="/auth" element={<Auth />} />
@@ -116,6 +119,7 @@ const App = () => {
           <Route path="/mass-class/:classId" element={<MassClassPage />} />
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/saved" element={<SavedPage />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Individual Tutor Protected Routes */}
@@ -124,11 +128,13 @@ const App = () => {
           {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
           {massTutorRoutes()}
+          <Route path="/mass-tutor/chat" element={<ChatPage />} />
         </Route>
 
         {/* ===== Admin portal ===== */}
@@ -152,6 +158,7 @@ const App = () => {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </SocketProvider>
     </Router>
   );
 };

@@ -16,6 +16,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
+import http from 'http';
 import prisma from './prismaClient';
 import cookieParser from 'cookie-parser';
 
@@ -36,6 +37,7 @@ import paymentRoutes from './routes/paymentRoutes';
 import adminRoutes from './routes/admin.routes';
 import adminTutorsRoutes from './routes/admin.tutors.routes';
 import reminderRoutes from './routes/reminderRoutes';
+import chatRoutes from './routes/chat.routes';
 
 import zoomRouter from './routes/zoom.routes'
 
@@ -43,12 +45,20 @@ import zoomRouter from './routes/zoom.routes'
 import { startReminderJobs, getReminderJobStatus } from './services/remider.service';
 // Import session cleanup service
 import { sessionCleanupService } from './services/sessionCleanupService';
+// Import Socket.io server
+import { SocketServer } from './socket/socketServer';
 import  {DateTime}  from 'luxon';
 
 dotenv.config();
 
 // Initialize Express app
 const app = express();
+
+// Create HTTP server for Socket.io
+const httpServer = http.createServer(app);
+
+// Initialize Socket.io server
+const socketServer = new SocketServer(httpServer);
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
@@ -126,6 +136,25 @@ app.get('/health/session-cleanup', (_req: Request, res: Response) => {
   }
 });
 
+// Chat system health check endpoint
+app.get('/health/chat', (_req: Request, res: Response) => {
+  try {
+    const activeUsers = socketServer.getActiveUsersCount();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Chat system is running',
+      activeUsers,
+      socketConnected: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Chat system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // API Routes
 app.get('/api', (_req: Request, res: Response) => {
   res.json({
@@ -180,6 +209,9 @@ app.use('/Admin/tutors', adminTutorsRoutes);
 // Reminder Routes
 app.use('/api/reminders', reminderRoutes);
 
+// Chat Routes
+app.use('/api/chat', chatRoutes);
+
 app.use('/zoom',zoomRouter)
 
 // Error handling middleware
@@ -209,12 +241,14 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server with Socket.io
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${NODE_ENV}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   console.log(`📡 API endpoint: http://localhost:${PORT}/api`);
+  console.log(`💬 Socket.io server initialized`);
+  console.log(`👥 Active users: ${socketServer.getActiveUsersCount()}`);
   
   // Initialize reminder cron jobs
   try {

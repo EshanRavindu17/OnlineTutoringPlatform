@@ -62,14 +62,19 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
       console.log('✅ Token verified for user:', userId);
 
       // Find user role from database
-      const userRole = await prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { firebase_uid: userId },
-        select: { role: true }
+        select: { role: true , id: true }
       });
 
-      if (userRole) {
-        (req.user as any).role = userRole.role;
-        console.log('🔍 User role:', userRole.role);
+      if (user) {
+        (req.user as any).role = user.role;
+        (req.user as any).userId = user.id; // Add internal user ID to request
+        console.log('🔍 User role:', user.role);
+        console.log('🔍 User ID:', user.id);
+      } else {
+        console.log('⚠️ No user record found for UID:', userId);
+
       }
       next();
     } catch (tokenError) {
