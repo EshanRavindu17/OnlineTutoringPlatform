@@ -414,10 +414,10 @@ export const getClassesByStudentIdController = async (req: Request, res: Respons
 };
 
 export const getMassTutorsByStudentIdController = async (req: Request, res: Response) => {
-    const { student_id } = req.params;
-    console.log("Getting mass tutors for student_ID:", student_id);
+    const { studentId } = req.params;
+    console.log("Getting mass tutors for student_ID:", studentId);
     try {
-        const massTutors = await getMassTutorsByStudentId(student_id);
+        const massTutors = await getMassTutorsByStudentId(studentId);
         return res.json(massTutors);
     } catch (error) {
         console.error("Error getting mass tutors:", error);
