@@ -241,6 +241,8 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
+app.use(cors());
+
 // Start server with Socket.io
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
