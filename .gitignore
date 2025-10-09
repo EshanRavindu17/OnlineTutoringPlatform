@@ -1,0 +1,198 @@
+# ===================================
+# OnlineTutoringPlatform - .gitignore
+# ===================================
+
+# ============ Node.js ============
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ============ Environment Variables ============
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+
+# ============ Build Outputs ============
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# ============ TypeScript ============
+*.tsbuildinfo
+.tsbuildinfo
+
+# ============ Logs ============
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============ Testing ============
+coverage/
+*.lcov
+.nyc_output
+junit.xml
+test-results/
+playwright-report/
+
+# ============ IDEs & Editors ============
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.DS_Store
+
+# ============ OS Files ============
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============ Prisma ============
+# Keep migrations but ignore dev database
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# ============ Uploads & User Content ============
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/materials/*
+!backend/materials/.gitkeep
+backend/recordings/*
+!backend/recordings/.gitkeep
+backend/temp/*
+!backend/temp/.gitkeep
+
+# ============ Credentials & Secrets ============
+backend/creds/*
+!backend/creds/.gitkeep
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+serviceAccountKey.json
+firebase-adminsdk*.json
+credentials.json
+google-credentials.json
+
+# ============ Firebase ============
+.firebase/
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# ============ Cache & Temp Files ============
+.cache/
+.temp/
+.tmp/
+*.cache
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.turbo/
+
+# ============ Vite ============
+frontend/dist/
+frontend/.vite/
+frontend/dist-ssr/
+
+# ============ React ============
+frontend/build/
+
+# ============ Package Manager ============
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.yarn/
+.pnp.*
+
+# ============ Documentation ============
+# Uncomment if you want to ignore generated docs
+# docs/build/
+# docs/.docusaurus/
+
+# ============ Misc ============
+*.local
+.vercel
+.netlify
+.wrangler/
+.output/
+
+# ============ Security & Sensitive Data ============
+# Admin credentials
+admin-passwords.txt
+secrets.txt
+*.secret
+
+# JWT keys
+jwt-secret.key
+refresh-token.key
+
+# Database backups
+*.sql
+*.dump
+*.backup
+
+# SSL certificates
+*.crt
+*.csr
+
+# ============ Development ============
+.vscode-test
+*.code-workspace
+
+# ============ Cloudinary ============
+cloudinary-config.json
+
+# ============ Stripe ============
+stripe-config.json
+
+# ============ Email Service ============
+email-credentials.json
+
+# ============ Zoom ============
+zoom-credentials.json
+zoom-jwt.txt
+
+# ============ Custom ============
+# Add any project-specific ignores below
+TODO.md
+NOTES.md
+scratch/
+sandbox/
+
+# Keep important files
+!.gitkeep
+!.env.example
+!README.md
+!LICENSE

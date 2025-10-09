@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+const { execSync } = require("child_process");
 
 // Generate Prisma client when starting the server 
 // Commented out to avoid permission issues - run manually if needed
@@ -16,6 +16,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
+import http from 'http';
 import prisma from './prismaClient';
 import cookieParser from 'cookie-parser';
 
@@ -23,18 +24,41 @@ import cookieParser from 'cookie-parser';
 import userRoutes from './routes/userRoutes';
 import studentRoutes from './routes/studentsRoutes';
 import individualTutorRoutes from './routes/individualTutorRouter';
+import massTutorRoutes from './routes/massTutor.routes';
+import documentRoutes from './routes/documentRoutes';
 
 import scheduleRoutes from './routes/scheduleRoutes';
+import sessionRoutes from './routes/sessionRoutes';
+import earningsRoutes from './routes/earningsRoutes';
+import reviewsRoutes from './routes/reviewsRoutes';
 
 import paymentRoutes from './routes/paymentRoutes';
 
 import adminRoutes from './routes/admin.routes';
 import adminTutorsRoutes from './routes/admin.tutors.routes';
+import reminderRoutes from './routes/reminderRoutes';
+import chatRoutes from './routes/chat.routes';
+
+import zoomRouter from './routes/zoom.routes'
+
+// Import reminder service
+import { startReminderJobs, getReminderJobStatus } from './services/remider.service';
+// Import session cleanup service
+import { sessionCleanupService } from './services/sessionCleanupService';
+// Import Socket.io server
+import { SocketServer } from './socket/socketServer';
+import  {DateTime}  from 'luxon';
 
 dotenv.config();
 
 // Initialize Express app
 const app = express();
+
+// Create HTTP server for Socket.io
+const httpServer = http.createServer(app);
+
+// Initialize Socket.io server
+const socketServer = new SocketServer(httpServer);
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
@@ -56,7 +80,7 @@ app.use(cors({
   },
   credentials: false, // we're sending tokens in headers, not cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -74,6 +98,61 @@ app.get('/health', (_req: Request, res: Response) => {
     environment: NODE_ENV,
     timestamp: new Date().toISOString()
   });
+});
+
+// Reminder jobs health check endpoint
+app.get('/health/reminders', (_req: Request, res: Response) => {
+  try {
+    const reminderStatus = getReminderJobStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Email reminder system is active',
+      ...reminderStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Email reminder system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Session cleanup health check endpoint
+app.get('/health/session-cleanup', (_req: Request, res: Response) => {
+  try {
+    const cleanupStatus = sessionCleanupService.getStatus();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Session cleanup system status',
+      ...cleanupStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Session cleanup system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Chat system health check endpoint
+app.get('/health/chat', (_req: Request, res: Response) => {
+  try {
+    const activeUsers = socketServer.getActiveUsersCount();
+    res.status(200).json({
+      status: 'OK',
+      message: 'Chat system is running',
+      activeUsers,
+      socketConnected: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Chat system error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API Routes
@@ -100,20 +179,40 @@ app.get('/', (_req: Request, res: Response) => {
 // Register routes
 app.use('/api', userRoutes);
 
+//Document Routes
+app.use('/api/documents', documentRoutes);
+
 //Student Routes
 app.use('/student', studentRoutes);
 
 //Individual Tutor Routes
 app.use('/individual-tutor', individualTutorRoutes);
 
+//Mass Tutor Routes
+app.use('/mass-tutor', massTutorRoutes);
+
 //Schedule Routes
 app.use('/api/schedule', scheduleRoutes);
+//Session Routes
+app.use('/api/sessions', sessionRoutes);
+//Earnings Routes
+app.use('/api/earnings', earningsRoutes);
+//Reviews Routes
+app.use('/api/reviews', reviewsRoutes);
 //Payment Routes
 app.use('/payment', paymentRoutes);
 
 // Admin Routes
 app.use('/Admin', adminRoutes);
 app.use('/Admin/tutors', adminTutorsRoutes);
+
+// Reminder Routes
+app.use('/api/reminders', reminderRoutes);
+
+// Chat Routes
+app.use('/api/chat', chatRoutes);
+
+app.use('/zoom',zoomRouter)
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -142,23 +241,69 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server with Socket.io
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${NODE_ENV}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   console.log(`📡 API endpoint: http://localhost:${PORT}/api`);
+  console.log(`💬 Socket.io server initialized`);
+  console.log(`👥 Active users: ${socketServer.getActiveUsersCount()}`);
+  
+  // Initialize reminder cron jobs
+  try {
+    startReminderJobs();
+  } catch (error) {
+    console.error('❌ Failed to start reminder jobs:', error);
+  }
+
+  // Initialize session cleanup service
+  try {
+    sessionCleanupService.start({
+      expireCheckIntervalMs: 5 * 60 * 1000, // Check every 5 minutes for expired sessions
+      completeCheckIntervalMs: 10 * 60 * 1000, // Check every 10 minutes for long-running sessions
+    });
+    console.log('✅ Session cleanup service started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start session cleanup service:', error);
+  }
 });
+
+// const time = new Date();
+// console.log(time.toISOString());
+// console.log(new Date(time.getTime()+5*60*60*1000+30*60*1000))
+// console.log(time.toString());
+// console.log(time.toLocaleTimeString());
+
+
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('🛑 SIGINT received. Shutting down gracefully...');
+  
+  // Stop session cleanup service
+  try {
+    sessionCleanupService.stop();
+    console.log('✅ Session cleanup service stopped');
+  } catch (error) {
+    console.error('❌ Error stopping session cleanup service:', error);
+  }
+  
   await prisma.$disconnect();
   process.exit(0);
 });

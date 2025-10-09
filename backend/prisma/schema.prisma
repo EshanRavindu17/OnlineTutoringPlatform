@@ -8,14 +8,19 @@ datasource db {
 }
 
 model Admin {
-  admin_id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String?   @db.VarChar
-  email         String    @unique @db.VarChar(255)
-  password_hash String
-  token_version Int       @default(0)
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
-  last_login_at DateTime? @db.Timestamptz(6)
+  admin_id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?          @db.VarChar
+  email          String           @unique @db.VarChar(255)
+  password_hash  String
+  token_version  Int              @default(0)
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  last_login_at  DateTime?        @db.Timestamptz(6)
+  Commission     Commission[]
+  Policies       Policies[]
+  Reports        Reports[]
+  admin_sessions admin_sessions[]
+  paymentrates   paymentrates[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -26,12 +31,20 @@ model Candidates {
   role            UserRole
   bio             String?
   dob             DateTime?       @db.Date
-  phone_number    Int?
+  phone_number    String?         @db.VarChar(20)
   user_id         String?         @db.Uuid
   applied_at      DateTime?       @db.Timestamptz(6)
   status          CandidateStatus @default(pending)
   cvUrl           String?
   certificateUrls String[]
+  description     String?
+  heading         String?
+  hourly_rate     Float?
+  location        String?
+  prices          Float?
+  qualifications  String[]
+  subjects        String[]
+  titles          String[]
   User            User?           @relation(fields: [user_id], references: [id], onDelete: Restrict)
 }
 
@@ -55,6 +68,7 @@ model Individual_Payments {
   status            Status?
   method            String?   @db.VarChar
   payment_intent_id String?
+  Sessions          Sessions? @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
   Student           Student?  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_i_pay_fk")
 }
 
@@ -72,6 +86,8 @@ model Individual_Tutor {
   phone_number    String?           @db.VarChar
   qualifications  String[]
   status          TutorStatus       @default(active)
+  cvUrl           String?           @default("")
+  certificateUrls String[]
   Free_Time_Slots Free_Time_Slots[]
   User            User?             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "i_tutor_user_id_fk")
   Sessions        Sessions[]
@@ -79,15 +95,19 @@ model Individual_Tutor {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Mass_Tutor {
-  m_tutor_id  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjects    String[]    @db.VarChar
-  prices      Decimal?    @db.Decimal(10, 2)
-  description String?
-  user_id     String?     @db.Uuid
-  rating      Decimal?    @db.Decimal(3, 1)
-  heading     String?
-  status      TutorStatus @default(active)
-  User        User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
+  m_tutor_id     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjects       String[]    @db.VarChar
+  prices         Decimal?    @db.Decimal(10, 2)
+  description    String?
+  user_id        String?     @db.Uuid
+  rating         Decimal?    @db.Decimal(3, 1)
+  heading        String?
+  status         TutorStatus @default(active)
+  phone_number   String?     @db.VarChar
+  qualifications String[]
+  location       String?
+  Class          Class[]
+  User           User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "m_tutor_user_id_fk")
 }
 
 model Notifications {
@@ -113,14 +133,16 @@ model Rating_N_Review_Session {
 model Reports {
   id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id     String?       @db.Uuid
-  tutor_id       String?       @db.Uuid
   tutor_type     TutorType?
   description    String?
   reason         String?
   resolve_date   DateTime?     @db.Date
   response       String?
-  status         ReportStatus?
+  status         ReportStatus? @default(under_review)
   submitted_date DateTime?     @db.Date
+  resolved_by    String?       @db.Uuid
+  tutor_id       String?       @db.Uuid
+  Admin          Admin?        @relation(fields: [resolved_by], references: [admin_id])
   Student        Student?      @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_id_fk")
 }
 
@@ -128,7 +150,7 @@ model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
   status                  SessionStatus?
-  materials               String[]                  @db.VarChar
+  materials               String[]
   created_at              DateTime?                 @db.Timestamp(6)
   date                    DateTime?                 @db.Date
   i_tutor_id              String?                   @db.Uuid
@@ -138,6 +160,8 @@ model Sessions {
   title                   String?
   start_time              DateTime?                 @db.Timestamp(6)
   end_time                DateTime?                 @db.Timestamp(6)
+  subject                 String?                   @db.VarChar
+  Individual_Payments     Individual_Payments[]
   Rating_N_Review_Session Rating_N_Review_Session[]
   Individual_Tutor        Individual_Tutor?         @relation(fields: [i_tutor_id], references: [i_tutor_id], onDelete: Cascade, onUpdate: NoAction)
   Student                 Student?                  @relation(fields: [student_id], references: [student_id], onDelete: NoAction, map: "student_session_fk")
@@ -147,7 +171,11 @@ model Student {
   student_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id                 String                    @db.Uuid
   points                  Int?                      @default(0)
+  customer_id             String?                   @db.VarChar
+  Enrolment               Enrolment[]
   Individual_Payments     Individual_Payments[]
+  Mass_Payments           Mass_Payments[]
+  Rating_N_Review_Class   Rating_N_Review_Class[]
   Rating_N_Review_Session Rating_N_Review_Session[]
   Reports                 Reports[]
   Sessions                Sessions[]
@@ -178,10 +206,158 @@ model User {
   photo_url        String?
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   Candidates       Candidates[]
+  ChatParticipant  ChatParticipant[]
   Individual_Tutor Individual_Tutor[]
   Mass_Tutor       Mass_Tutor[]
+  Message          Message[]
   Notifications    Notifications[]
   Student          Student[]
+  admin_sessions   admin_sessions[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Class {
+  class_id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  m_tutor_id            String?                 @db.Uuid
+  subject               String?                 @db.VarChar
+  time                  DateTime?               @db.Time(6)
+  day                   String?                 @db.VarChar
+  title                 String?
+  description           String?
+  product_id            String?                 @db.VarChar
+  price_id              String?                 @db.VarChar
+  Chat                  Chat[]
+  Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
+  ClassSlot             ClassSlot[]
+  Enrolment             Enrolment[]
+  Mass_Payments         Mass_Payments[]
+  Rating_N_Review_Class Rating_N_Review_Class[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ClassSlot {
+  cslot_id     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+  class_id     String?          @db.Uuid
+  materials    String[]
+  meetingURLs  String[]
+  dateTime     DateTime?        @db.Timestamp(6)
+  duration     Float?           @db.Real
+  announcement String?
+  recording    String?
+  status       ClassSlotStatus? @default(upcoming)
+  Class        Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Enrolment {
+  enrol_id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  class_id        String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id      String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status          EnrolmentStatus? @default(valid)
+  subscription_id String?          @db.VarChar
+  Class           Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student         Student?         @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Mass_Payments {
+  m_payment_id      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_time      DateTime @default(now()) @db.Timestamptz(6)
+  student_id        String?  @db.Uuid
+  amount            Float?
+  class_id          String?  @db.Uuid
+  paidMonth         String?  @db.VarChar
+  status            Status?
+  method            String?
+  payment_intent_id String?
+  Class             Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student           Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Rating_N_Review_Class {
+  r_id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  student_id String?  @db.Uuid
+  class_id   String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rating     Float?   @db.Real
+  review     String?
+  Class      Class?   @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
+  Student    Student? @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
+}
+
+model Policies {
+  policy_id   String   @id(map: "policies_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  policy_name String   @unique(map: "uq_policies_policy_name") @db.VarChar(255)
+  type        String   @db.VarChar(50)
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_by  String?  @db.Uuid
+  Admin       Admin?   @relation(fields: [updated_by], references: [admin_id], map: "fk_policies_updated_by")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Commission {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  value      Float    @default(10) @db.Real
+  updated_by String?  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Admin      Admin?   @relation(fields: [updated_by], references: [admin_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paymentrates {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        payment_type
+  value       Decimal      @db.Decimal(10, 2)
+  status      status_type  @default(active)
+  description String?
+  created_at  DateTime?    @default(now()) @db.Timestamptz(6)
+  created_by  String       @db.Uuid
+  Admin       Admin        @relation(fields: [created_by], references: [admin_id], onDelete: SetNull, map: "PaymentRates_created_by_fkey")
+
+  @@map("paymentrates")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model admin_sessions {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  urls           String[]
+  description    String?
+  created_by     String         @db.Uuid
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  receiver_email String?        @db.VarChar
+  status         SessionStatus? @default(scheduled)
+  Admin          Admin          @relation(fields: [created_by], references: [admin_id], onDelete: SetNull)
+  User           User?          @relation(fields: [receiver_email], references: [email])
+}
+
+  chat      Chat      @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade, onUpdate: NoAction, map: "chatparticipant_chat_fk")
+  User      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chatparticipant_user_fk")
+
+  @@unique([chat_id, user_id], map: "chatparticipant_chat_user_unique")
+}
+
+model Message {
+  message_id   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat_id      String      @db.Uuid
+  sender_id    String      @db.Uuid
+  content      String
+  message_type MessageType @default(text)
+  file_url     String?
+  file_name    String?
+  is_read      Boolean     @default(false)
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  edited_at    DateTime?   @db.Timestamptz(6)
+  chat         Chat        @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade, onUpdate: NoAction, map: "message_chat_fk")
+  User         User        @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "message_user_fk")
+
+  @@index([chat_id, created_at], map: "message_chat_created_idx")
 }
 
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -189,6 +365,7 @@ enum CandidateStatus {
   pending
   approved
   rejected
+  suspended
 }
 
 enum ReportStatus {
@@ -231,4 +408,36 @@ enum UserRole {
   Individual
   Mass
   Admin
+}
+
+enum ClassSlotStatus {
+  completed
+  upcoming
+}
+
+enum EnrolmentStatus {
+  valid
+  invalid
+}
+
+enum payment_type {
+  individual_hourly
+  mass_monthly
+  class_rate
+}
+
+enum status_type {
+  active
+  deactivated
+}
+
+enum ChatType {
+  direct
+  group
+}
+
+enum MessageType {
+  text
+  file
+  image
 }

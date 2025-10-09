@@ -87,6 +87,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [clientSecret, setClientSecret] = useState<string>('');
+  const { userProfile } = useAuth();
 
   const totalAmount = sessionData.hourlyRate * sessionData.duration;
 
@@ -169,7 +170,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
         payment_method: {
           card: cardElement,
           billing_details: {
-            name: sessionData.tutorName,
+            // name: sessionData.tutorName,
+            name: userProfile?.name || 'Student',
           },
         },
       });
@@ -191,6 +193,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ sessionData, onSuccess, onCan
           slots: formattedSlots,
           status: 'scheduled',
           price: totalAmount,
+          subject: sessionData.subject,
           date: sessionData.selectedDate
         };
 

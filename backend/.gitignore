@@ -1,46 +1,90 @@
-# Node modules
-node_modules/
+# ===================================
+# Backend - .gitignore
+# ===================================
 
-# Logs
-logs/
-*.log
+# ============ Node.js ============
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Environment variables
+# ============ Environment Variables ============
 .env
 .env.*
+!.env.example
 
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Build output
+# ============ Build Output ============
 dist/
 build/
+*.tsbuildinfo
 
-# Dependency directories
-jspm_packages/
+# ============ Logs ============
+logs/
+*.log
 
-# Optional npm cache directory
-.npm
+# ============ OS Files ============
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
 
-# Coverage directory
-coverage/
-
-# IDE files
-.vscode/
+# ============ IDE Files ============
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 
-# Misc
-*.tgz
+# ============ Testing ============
+coverage/
+.nyc_output
+
+# ============ Prisma ============
+# Ignore dev database but keep migrations and schema
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
 /src/generated/prisma
 
-./node_modules
-.env
-.env.example
+# ============ Uploads & Files ============
+uploads/*
+!uploads/.gitkeep
+materials/*
+!materials/.gitkeep
+recordings/*
+!recordings/.gitkeep
+temp/*
+!temp/.gitkeep
+
+# ============ Credentials & Secrets ============
+creds/*
+!creds/.gitkeep
+*.pem
+*.key
+*.cert
+serviceAccountKey.json
+firebase-adminsdk*.json
+credentials.json
+google-credentials.json
+cloudinary-config.json
+stripe-config.json
+zoom-credentials.json
+
+# ============ Cache ============
+.cache/
+.npm
+.eslintcache
+
+# ============ Misc ============
+*.tgz
+jspm_packages/
+
+# ============ Keep Important Files ============
+!.gitkeep
+!.env.example
+!README.md

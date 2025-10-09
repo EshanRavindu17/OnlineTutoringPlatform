@@ -3,65 +3,83 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
+import { adminApi } from './api';
 
 interface AnalyticsData {
+  // Core metrics
   totalUsers: number;
   activeUsers: number;
   totalTutors: number;
   totalStudents: number;
   totalSessions: number;
+  completedSessions: number;
   revenue: number;
+  
+  // Platform health
+  platformHealth: {
+    uptime: number;
+    avgResponseTime: number;
+    errorRate: number;
+  };
+  
+  // Engagement metrics
+  engagement: {
+    newUsersThisMonth: number;
+    returningUsers: number;
+    retentionRate: number;
+    avgSessionsPerUser: number;
+  };
+  
+  // Financial breakdown
+  financial: {
+    revenueThisMonth: number;
+    revenueLastMonth: number;
+    revenueGrowth: number;
+    individualTutorRevenue: number;
+    massTutorRevenue: number;
+  };
+  
+  // Moderation metrics
+  moderation: {
+    pendingApplications: number;
+    suspendedTutors: number;
+    activeReports: number;
+    resolvedReports: number;
+  };
+  
+  // Chart data
   userGrowth: Array<{ date: string; users: number }>;
   sessionsBySubject: Array<{ subject: string; sessions: number }>;
   revenueByMonth: Array<{ month: string; amount: number }>;
   tutorRatings: Array<{ rating: number; count: number }>;
+  sessionsByDay: Array<{ day: string; sessions: number }>;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function Analytics() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
-  const [data, setData] = useState<AnalyticsData>({
-    totalUsers: 1250,
-    activeUsers: 890,
-    totalTutors: 150,
-    totalStudents: 1100,
-    totalSessions: 3200,
-    revenue: 45600,
-    userGrowth: [
-      { date: '2025-03', users: 800 },
-      { date: '2025-04', users: 900 },
-      { date: '2025-05', users: 1000 },
-      { date: '2025-06', users: 1100 },
-      { date: '2025-07', users: 1180 },
-      { date: '2025-08', users: 1250 },
-    ],
-    sessionsBySubject: [
-      { subject: 'Mathematics', sessions: 850 },
-      { subject: 'Science', sessions: 620 },
-      { subject: 'English', sessions: 540 },
-      { subject: 'Programming', sessions: 480 },
-      { subject: 'Others', sessions: 710 },
-    ],
-    revenueByMonth: [
-      { month: 'Apr', amount: 32000 },
-      { month: 'May', amount: 36000 },
-      { month: 'Jun', amount: 38000 },
-      { month: 'Jul', amount: 42000 },
-      { month: 'Aug', amount: 45600 },
-    ],
-    tutorRatings: [
-      { rating: 5, count: 45 },
-      { rating: 4, count: 65 },
-      { rating: 3, count: 25 },
-      { rating: 2, count: 10 },
-      { rating: 1, count: 5 },
-    ],
-  });
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Implement API call to fetch analytics data
+  // Fetch analytics data from API
   useEffect(() => {
-    // Fetch data based on timeRange
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const analyticsData = await adminApi.getAnalytics();
+        setData(analyticsData);
+      } catch (err) {
+        console.error('Failed to fetch analytics:', err);
+        setError('Failed to load analytics data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
   }, [timeRange]);
 
   const StatCard = ({ title, value, subtitle, trend }: { 
@@ -86,6 +104,35 @@ export default function Analytics() {
     </div>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !data) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-red-600 text-lg">{error || 'Failed to load data'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header with time range selector */}
@@ -107,7 +154,6 @@ export default function Analytics() {
         <StatCard
           title="Total Users"
           value={data.totalUsers}
-          trend={{ value: 12, isPositive: true }}
         />
         <StatCard
           title="Active Users"
@@ -117,13 +163,107 @@ export default function Analytics() {
         <StatCard
           title="Total Sessions"
           value={data.totalSessions}
-          trend={{ value: 8, isPositive: true }}
         />
         <StatCard
           title="Revenue"
-          value={`$${data.revenue.toLocaleString()}`}
-          trend={{ value: 15, isPositive: true }}
+          value={`LKR ${data.revenue.toLocaleString()}`}
         />
+      </div>
+
+      {/* Platform Health Metrics */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Platform Health</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard
+            title="System Uptime"
+            value={`${data.platformHealth.uptime.toFixed(2)}%`}
+          />
+          <StatCard
+            title="Avg Response Time"
+            value={`${data.platformHealth.avgResponseTime}ms`}
+          />
+          <StatCard
+            title="Error Rate"
+            value={`${data.platformHealth.errorRate.toFixed(2)}%`}
+          />
+        </div>
+      </div>
+
+      {/* Engagement Metrics */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">User Engagement</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard
+            title="New Users This Month"
+            value={data.engagement.newUsersThisMonth}
+          />
+          <StatCard
+            title="Returning Users"
+            value={data.engagement.returningUsers}
+          />
+          <StatCard
+            title="Retention Rate"
+            value={`${data.engagement.retentionRate.toFixed(1)}%`}
+          />
+          <StatCard
+            title="Avg Sessions/User"
+            value={data.engagement.avgSessionsPerUser.toFixed(1)}
+          />
+        </div>
+      </div>
+
+      {/* Financial Metrics */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Financial Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <StatCard
+            title="This Month Revenue"
+            value={`LKR ${data.financial.revenueThisMonth.toLocaleString()}`}
+          />
+          <StatCard
+            title="Last Month Revenue"
+            value={`LKR ${data.financial.revenueLastMonth.toLocaleString()}`}
+          />
+          <StatCard
+            title="Revenue Growth"
+            value={`${data.financial.revenueGrowth > 0 ? '+' : ''}${data.financial.revenueGrowth.toFixed(1)}%`}
+            trend={{ 
+              value: Math.abs(data.financial.revenueGrowth), 
+              isPositive: data.financial.revenueGrowth >= 0 
+            }}
+          />
+          <StatCard
+            title="Individual Tutor Revenue"
+            value={`LKR ${data.financial.individualTutorRevenue.toLocaleString()}`}
+          />
+          <StatCard
+            title="Mass Tutor Revenue"
+            value={`LKR ${data.financial.massTutorRevenue.toLocaleString()}`}
+          />
+        </div>
+      </div>
+
+      {/* Moderation Metrics */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Moderation & Safety</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard
+            title="Pending Applications"
+            value={data.moderation.pendingApplications}
+          />
+          <StatCard
+            title="Suspended Tutors"
+            value={data.moderation.suspendedTutors}
+          />
+          <StatCard
+            title="Active Reports"
+            value={data.moderation.activeReports}
+          />
+          <StatCard
+            title="Resolved Reports"
+            value={data.moderation.resolvedReports}
+          />
+        </div>
       </div>
 
       {/* Charts */}
@@ -142,20 +282,6 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
 
-        {/* Sessions by Subject */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Sessions by Subject</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.sessionsBySubject}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="subject" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="sessions" fill="#0088FE" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
         {/* Revenue Chart */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Revenue Trend</h2>
@@ -165,8 +291,37 @@ export default function Analytics() {
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
+              <Legend />
               <Line type="monotone" dataKey="amount" stroke="#00C49F" strokeWidth={2} />
             </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Sessions by Day */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Daily Session Activity</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data.sessionsByDay}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="sessions" fill="#0088FE" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Sessions by Subject */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Sessions by Subject</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data.sessionsBySubject}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="subject" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="sessions" fill="#FFBB28" />
+            </BarChart>
           </ResponsiveContainer>
         </div>
 
@@ -180,7 +335,10 @@ export default function Analytics() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                label={(entry) => {
+                  const percent = entry.percent || 0;
+                  return `${entry.rating}⭐ (${(percent * 100).toFixed(0)}%)`;
+                }}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="count"

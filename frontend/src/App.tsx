@@ -15,9 +15,11 @@ import Auth from './pages/auth';
 import FindTutors from './pages/findTutors'
 import Courses from './pages/showcourses'
 import { useAuth } from './context/authContext';
+import { SocketProvider } from './context/SocketContext';
 import StudentProfile from './pages/student/studentProfile';
 import TutorProfile from './pages/individualTutor/tutorProfile';
-import StartZoom from './pages/individualTutor/startZoom';
+import { ChatPage } from './pages/ChatPage';
+// import StartZoom from './pages/individualTutor/startZoom';
 import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
@@ -35,8 +37,9 @@ import PaymentHistoryPage from './pages/student/paymentHistory';
 import TutorPending from './pages/tutorPending';
 import TutorSuspended from './pages/tutorSuspended';
 import TutorRejected from './pages/individualTutor/TutorRejected';
-import MassTutorDashboard from './pages/massTutor/masstutordashbord';
 import EmailVerification from './pages/EmailVerification';
+
+import { massTutorRoutes } from './pages/massTutor/routes';
 
 import MassTutorProfile from './pages/student/massTutorProfile';
 import MassClassPage from './pages/student/massClass';
@@ -51,8 +54,13 @@ import TutorApproval from './admin/TutorApproval';
 import TutorSuspend from './admin/TutorSuspend';
 import Analytics from './admin/Analytics';
 import Broadcast from './admin/Broadcast';
+import Complaints from './admin/Complaints';
+import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import Sessions from './admin/Sessions';
+import Meetings from './admin/Meetings';
+
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
 
@@ -72,11 +80,12 @@ function HostRedirectToAdmin() {
 const App = () => {
   return (
     <Router>
-      {/* Enable this if you plan to use admin.localhost */}
-      <HostRedirectToAdmin />
+      <SocketProvider>
+        {/* Enable this if you plan to use admin.localhost */}
+        <HostRedirectToAdmin />
 
-      <ScrollToTop />
-      <Routes>
+        <ScrollToTop />
+        <Routes>
         {/* Public site */}
         <Route path="/" element={<WelcomePage />} />
         <Route path="/auth" element={<Auth />} />
@@ -110,19 +119,22 @@ const App = () => {
           <Route path="/mass-class/:classId" element={<MassClassPage />} />
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/saved" element={<SavedPage />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Individual Tutor Protected Routes */}
         <Route element={<TutorRoute />}>
           <Route path="/tutorprofile" element={<TutorProfile />} />
-          <Route path="/startzoom" element={<StartZoom />} />
+          {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
-          <Route path='/mass-tutor-dashboard' element={<MassTutorDashboard />} />
+          {massTutorRoutes()}
+          <Route path="/mass-tutor/chat" element={<ChatPage />} />
         </Route>
 
         {/* ===== Admin portal ===== */}
@@ -134,14 +146,19 @@ const App = () => {
             <Route path="tutors/suspend" element={<TutorSuspend />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="broadcast" element={<Broadcast />} />
+            <Route path="complaints" element={<Complaints />} />
+            <Route path="finance" element={<Finance />} />
             <Route path="policies" element={<Policies />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="meetings" element={<Meetings />} />
           </Route>
         </Route>
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </SocketProvider>
     </Router>
   );
 };

@@ -21,11 +21,13 @@ import {
 } from 'lucide-react';
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { getIndividualTutorById } from '../../api/Student';
+import { getIndividualTutorById, getReviewsByIndividualTutorId } from '../../api/Student';
+import { useAuth } from '../../context/authContext';
 
 interface Review {
   id: string;
   studentName: string;
+  studentImageUrl: string; // <-- new field for student image URL
   rating: number;
   comment: string;
   date: string;
@@ -97,6 +99,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '1',
       studentName: 'Alex Thompson',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
       rating: 5,
       comment: 'Dr. Johnson is an amazing tutor! She helped me understand calculus concepts that I was struggling with for months. Her teaching style is clear and patient.',
       date: '2024-08-15',
@@ -105,6 +108,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '2',
       studentName: 'Maria Garcia',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/2.jpg',
       rating: 5,
       comment: 'Excellent physics tutor. She makes complex topics easy to understand and always provides practical examples.',
       date: '2024-08-10',
@@ -113,6 +117,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '3',
       studentName: 'John Davis',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
       rating: 4,
       comment: 'Very knowledgeable and professional. Helped me improve my grades significantly in chemistry.',
       date: '2024-07-28',
@@ -121,6 +126,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '4',
       studentName: 'Emma Wilson',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/4.jpg',
       rating: 5,
       comment: 'Dr. Johnson is patient and explains everything clearly. I highly recommend her for mathematics tutoring.',
       date: '2024-07-20',
@@ -129,6 +135,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '5',
       studentName: 'Michael Brown',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/5.jpg',
       rating: 5,
       comment: 'Outstanding tutor! Her teaching methods are innovative and effective. Saw improvement in just a few sessions.',
       date: '2024-07-15',
@@ -137,6 +144,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '6',
       studentName: 'Sophie Chen',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/6.jpg',
       rating: 4,
       comment: 'Great chemistry tutor. She helped me understand organic chemistry concepts that seemed impossible before.',
       date: '2024-07-10',
@@ -145,6 +153,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '7',
       studentName: 'David Rodriguez',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/7.jpg',
       rating: 5,
       comment: 'Excellent mathematics tutor! She made calculus and algebra much easier to understand. Highly recommended.',
       date: '2024-06-25',
@@ -153,6 +162,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '8',
       studentName: 'Lisa Anderson',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/8.jpg',
       rating: 5,
       comment: 'Dr. Johnson is fantastic! She is very patient and explains physics concepts in a way that makes sense.',
       date: '2024-06-20',
@@ -161,6 +171,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '9',
       studentName: 'James Miller',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/9.jpg',
       rating: 4,
       comment: 'Very helpful tutor. She helped me prepare for my chemistry exam and I got an A! Thank you so much.',
       date: '2024-06-15',
@@ -169,6 +180,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '10',
       studentName: 'Rachel Green',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/10.jpg',
       rating: 5,
       comment: 'Amazing tutor! She makes learning fun and engaging. My understanding of mathematics has improved dramatically.',
       date: '2024-06-10',
@@ -177,6 +189,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '11',
       studentName: 'Kevin Wang',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/11.jpg',
       rating: 5,
       comment: 'Excellent physics tutor. She uses real-world examples that make concepts stick. Highly recommend!',
       date: '2024-06-05',
@@ -185,6 +198,7 @@ const mockTutorProfile: TutorProfile = {
     {
       id: '12',
       studentName: 'Amanda Foster',
+      studentImageUrl: 'https://randomuser.me/api/portraits/men/12.jpg',
       rating: 4,
       comment: 'Very knowledgeable and professional. She helped me understand complex chemistry problems step by step.',
       date: '2024-05-30',
@@ -198,9 +212,12 @@ export default function TutorProfilePage() {
   const navigate = useNavigate();
   const [tutor, setTutor] = useState<TutorProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchTutorData = async () => {
@@ -214,8 +231,30 @@ export default function TutorProfilePage() {
         setLoading(true);
         console.log('Fetching tutor data for ID:', tutorId);
         
-        const apiResponse = await getIndividualTutorById(tutorId);
+        // Fetch tutor data and reviews in parallel
+        const [apiResponse, reviewsResponse] = await Promise.all([
+          getIndividualTutorById(tutorId),
+          getReviewsByIndividualTutorId(tutorId).catch(err => {
+            console.warn('Failed to fetch reviews:', err);
+            return []; // Return empty array if reviews fail
+          })
+        ]);
+        
         console.log('API Response:', apiResponse);
+        console.log('Reviews Response:', reviewsResponse);
+        
+        // Transform reviews data
+        const transformedReviews: Review[] = Array.isArray(reviewsResponse) 
+          ? reviewsResponse.map((review: any, index: number) => ({
+              id: review.review_id || `review_${index}`,
+              studentName: review.Student?.User?.name || review.Student?.name || 'Anonymous Student',
+              studentImageUrl: review.Student?.User?.photo_url || 'https://via.placeholder.com/50?text=No+Image',
+              rating: Number(review.rating) || 0,
+              comment: review.review || review.comment || 'No comment provided',
+              date: review.created_at ? new Date(review.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              subject: review.Session?.Individual_Tutor?.Course?.course_name || 'General'
+            }))
+          : [];
         
         // Map the API response to our TutorProfile interface
         const mappedTutor: TutorProfile = {
@@ -228,7 +267,7 @@ export default function TutorProfilePage() {
           subjects: apiResponse.subjects || [],
           titles: apiResponse.titles || [],
           rating: apiResponse.rating || 0,
-          reviewsCount: Math.floor(Math.random() * 100) + 20, // Generate random review count
+          reviewsCount: transformedReviews.length || 0,
           hourlyRate: apiResponse.hourly_rate || 0,
           type: 'Individual',
           description: apiResponse.heading || 'No description available',
@@ -238,15 +277,15 @@ export default function TutorProfilePage() {
           education: apiResponse.qualifications || [],
           languages: ['English'], // Default language
           availability: 'Mon-Fri: 9 AM - 6 PM', // Default availability
-          totalStudents: Math.floor(Math.random() * 200) + 50, // Generate random student count
-          completedSessions: Math.floor(Math.random() * 1000) + 100, // Generate random session count
+          totalStudents: apiResponse.uniqueStudentsCount || Math.floor(Math.random() * 200) + 50,
+          completedSessions: apiResponse.completedSessionsCount || 0,
           responseTime: '< 2 hours', // Default response time
           achievements: [
             'Top Rated Tutor 2024',
             'Excellence in Teaching Award',
             `${Math.floor(Math.random() * 500) + 100}+ Sessions Completed`
           ],
-          reviews: [] // Empty for now, can be populated from another API if available
+          reviews: transformedReviews
         };
         
         setTutor(mappedTutor);
@@ -265,6 +304,11 @@ export default function TutorProfilePage() {
 
   const handleBookSession = () => {
     // Navigate to booking page
+    
+    if(!currentUser){
+      navigate('/auth');
+      return;
+    }
     navigate(`/book-session/${tutorId}`);
   };
 
@@ -302,6 +346,47 @@ export default function TutorProfilePage() {
       if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
         window.location.href = whatsappWebUrl;
       }
+    }
+  };
+
+  const refreshReviews = async () => {
+    if (!tutorId || !tutor) return;
+    
+    try {
+      setReviewsLoading(true);
+      const reviewsResponse = await getReviewsByIndividualTutorId(tutorId);
+      
+      // Transform reviews data
+      const transformedReviews: Review[] = Array.isArray(reviewsResponse) 
+        ? reviewsResponse.map((review: any, index: number) => ({
+            id: review.review_id || `review_${index}`,
+            studentName: review.Student?.User?.name || review.Student?.name || 'Anonymous Student',
+            studentImageUrl: review.Student?.User?.photo_url || 'https://via.placeholder.com/50?text=No+Image',
+            rating: Number(review.rating) || 0,
+            comment: review.review || review.comment || 'No comment provided',
+            date: review.created_at ? new Date(review.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            subject: review.Session?.Individual_Tutor?.Course?.course_name || 'General'
+          }))
+        : [];
+      
+      // Update tutor with new reviews
+      setTutor(prev => prev ? {
+        ...prev,
+        reviews: transformedReviews,
+        reviewsCount: transformedReviews.length
+      } : prev);
+      
+    } catch (error) {
+      console.error('Failed to refresh reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleTabChange = (tab: 'overview' | 'reviews') => {
+    setActiveTab(tab);
+    if (tab === 'reviews' && tutor && tutor.reviews.length === 0) {
+      refreshReviews();
     }
   };
 
@@ -407,7 +492,7 @@ export default function TutorProfilePage() {
                     <p className="text-blue-100 text-lg">{tutor.description}</p>
                   </div>
                   
-                  <div className="flex items-center gap-3 mt-4 lg:mt-0">
+                  {/* <div className="flex items-center gap-3 mt-4 lg:mt-0">
                     <button
                       onClick={() => setIsSaved(!isSaved)}
                       className={`p-3 rounded-full border-2 border-white transition-colors ${
@@ -419,7 +504,7 @@ export default function TutorProfilePage() {
                     <button className="p-3 rounded-full border-2 border-white text-white hover:bg-white hover:text-blue-600 transition-colors">
                       <Share2 className="w-5 h-5" />
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -483,7 +568,7 @@ export default function TutorProfilePage() {
               {['overview', 'reviews'].map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab as any)}
+                  onClick={() => handleTabChange(tab as any)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
                     activeTab === tab
                       ? 'border-blue-500 text-blue-600'
@@ -556,7 +641,7 @@ export default function TutorProfilePage() {
                   <div className="space-y-6">
                     {tutor.reviews.map((review) => (
                       <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0">
-                        <div className="flex items-start justify-between mb-3">
+                        {/* <div className="flex items-start justify-between mb-3">
                           <div>
                             <h4 className="font-semibold text-gray-800">{review.studentName}</h4>
                             <div className="flex items-center mt-1">
@@ -565,6 +650,28 @@ export default function TutorProfilePage() {
                             </div>
                           </div>
                           <span className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString()}</span>
+                        </div> */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center">
+                              {/* Student image */}
+                              <img
+                                src={review.studentImageUrl} // <-- make sure your backend sends this field
+                                alt={review.studentName}
+                                className="w-8 h-8 rounded-full mr-2 object-cover"
+                              />
+                              <h4 className="font-semibold text-gray-800">{review.studentName}</h4>
+                            </div>
+
+                            <div className="flex items-center mt-1">
+                              {renderStars(review.rating, 'sm')}
+                              <span className="ml-2 text-sm text-gray-600">{review.subject}</span>
+                            </div>
+                          </div>
+
+                          <span className="text-sm text-gray-500">
+                            {new Date(review.date).toLocaleDateString()}
+                          </span>
                         </div>
                         <p className="text-gray-700">{review.comment}</p>
                       </div>
@@ -640,6 +747,7 @@ export default function TutorProfilePage() {
             </div>
 
             {/* Report Tutor */}
+            {currentUser && (
             <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Having Issues?</h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -656,6 +764,7 @@ export default function TutorProfilePage() {
                 All reports are reviewed confidentially
               </p>
             </div>
+            )}
           </div>
         </div>
       </div>

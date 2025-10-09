@@ -136,21 +136,21 @@ export class ScheduleService {
   }
 
   // Update an existing time slot
-  static async updateTimeSlot(
-    slotId: string, 
-    updateData: UpdateTimeSlotRequest
-  ): Promise<{ success: boolean; data: TimeSlot; message: string }> {
-    try {
-      const response = await apiClient.put(
-        `${this.baseUrl}/slots/${slotId}`,
-        updateData
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error('Error updating time slot:', error);
-      throw new Error(error.response?.data?.message || 'Failed to update time slot');
-    }
-  }
+  // static async updateTimeSlot(
+  //   slotId: string, 
+  //   updateData: UpdateTimeSlotRequest
+  // ): Promise<{ success: boolean; data: TimeSlot; message: string }> {
+  //   try {
+  //     const response = await apiClient.put(
+  //       `${this.baseUrl}/slots/${slotId}`,
+  //       updateData
+  //     );
+  //     return response.data;
+  //   } catch (error: any) {
+  //     console.error('Error updating time slot:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to update time slot');
+  //   }
+  // }
 
   // Delete a time slot
   static async deleteTimeSlot(

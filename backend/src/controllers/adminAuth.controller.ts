@@ -6,6 +6,7 @@ import {
   adminLogoutService,
   adminMeService,
   adminMetricsService,
+  adminAnalyticsService,
 } from '../services/admin.service';
 
 export async function adminSignup(req: Request, res: Response) {
@@ -64,5 +65,15 @@ export async function adminMetrics(req: Request, res: Response) {
     res.json(m);
   } catch (e: any) {
     res.status(500).json({ message: 'Failed to load metrics' });
+  }
+}
+
+export async function adminAnalytics(req: Request, res: Response) {
+  try {
+    const analytics = await adminAnalyticsService();
+    res.json(analytics);
+  } catch (e: any) {
+    console.error('Analytics error:', e);
+    res.status(500).json({ error: e?.message || 'Failed to fetch analytics' });
   }
 }

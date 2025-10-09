@@ -7,7 +7,7 @@ import {
   sendEmailVerification,
   signOut
 } from 'firebase/auth';
-import { auth } from '../firebase.tsx'; // Adjust path as needed
+import { auth } from '../firebase.tsx'; 
 import { useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, BookOpen, Users, ChevronRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

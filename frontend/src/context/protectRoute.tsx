@@ -4,14 +4,19 @@ import { useAuth } from './authContext';
 import React from 'react';
 
 export function TutorRoute() {
-  const { userProfile } = useAuth();
+  const { userProfile, loading } = useAuth();
+
+  // Show loading or redirect while profile is being fetched
+  if (loading || userProfile === null) {
+    return <div>Loading...</div>; // or return null for no UI
+  }
 
   if (userProfile?.role === 'Individual') {
     if (!userProfile.canAccessDashboard) {
-      if (userProfile.tutorStatus === 'pending') {
-        return <Navigate to="/tutor-pending" replace />;
-      } else if (userProfile.tutorStatus === 'suspended') {
+      if (userProfile.tutorStatus === 'suspended') {
         return <Navigate to="/tutor-suspended" replace />;
+      } else if (userProfile.tutorStatus === 'pending') {
+        return <Navigate to="/tutor-pending" replace />;
       } else if (userProfile.tutorStatus === 'rejected') {
         return <Navigate to="/tutor-rejected" replace />;
       } else if (userProfile.tutorStatus === 'not_registered') {
@@ -34,9 +39,10 @@ export function MassRoute() {
         return <Navigate to="/tutor-suspended" replace />;
       } else if (userProfile.tutorStatus === 'rejected') {
         return <Navigate to="/tutor-rejected" replace />;
-      } else if (userProfile.tutorStatus === 'not_registered') {
-        return <Navigate to="/createtutorprofile" replace />;
       }
+      //  else if (userProfile.tutorStatus === 'not_registered') {
+      //   return <Navigate to="/createtutorprofile" replace />;
+      // }
     }
     return <Outlet />;
   }

@@ -77,6 +77,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               if (payload.exp <= (currentTime + 300)) {
                 console.log('🔄 Token expiring soon, refreshing...');
                 idToken = await user.getIdToken(true);
+                console.log('Token', idToken);
               }
             } catch {
               // If validation fails, get fresh token
@@ -95,8 +96,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               }
             });
             profileData = await response.json();
-
-            console.log('👤 Fetched user profile:', profileData);
 
             if (response.ok) {
               break;

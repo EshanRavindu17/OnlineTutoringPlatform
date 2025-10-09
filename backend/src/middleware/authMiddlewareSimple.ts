@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import prisma from '../prismaClient';
 
 interface AuthRequest extends Request {
   user?: {
     uid: string;
     email?: string;
+    role?: string;
   };
 }
 
@@ -18,6 +20,7 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+    console.log('Token:', idToken);
     
     try {
       // Check if token has proper JWT structure (3 parts separated by dots)
@@ -57,6 +60,22 @@ export const verifyFirebaseTokenSimple = async (req: AuthRequest, res: Response,
       };
       
       console.log('✅ Token verified for user:', userId);
+
+      // Find user role from database
+      const user = await prisma.user.findUnique({
+        where: { firebase_uid: userId },
+        select: { role: true , id: true }
+      });
+
+      if (user) {
+        (req.user as any).role = user.role;
+        (req.user as any).userId = user.id; // Add internal user ID to request
+        console.log('🔍 User role:', user.role);
+        console.log('🔍 User ID:', user.id);
+      } else {
+        console.log('⚠️ No user record found for UID:', userId);
+
+      }
       next();
     } catch (tokenError) {
       console.error('❌ Token verification failed:', tokenError.message);

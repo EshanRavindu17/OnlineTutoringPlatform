@@ -1,55 +1,33 @@
 import React, { useState } from 'react';
 
 interface SessionAction {
-  sessionId: number;
+  sessionId: string; // Changed from number to string to match backend UUID
   studentName: string;
   subject: string;
   title: string;
   date: string;
   time: string;
   amount: number;
+  status?: string; // Added status field
 }
 
 interface SessionActionsProps {
   session: SessionAction;
-  onCancel: (sessionId: number, reason: string) => void;
-  onReschedule: (sessionId: number, newDate: string, newTime: string, reason: string) => void;
+  onCancel: (sessionId: string, reason: string) => void; // Changed sessionId type to string
   onClose: () => void;
 }
 
 const SessionActions: React.FC<SessionActionsProps> = ({
   session,
   onCancel,
-  onReschedule,
   onClose
 }) => {
-  const [actionType, setActionType] = useState<'cancel' | 'reschedule' | null>(null);
-  const [reason, setReason] = useState('');
-  const [newDate, setNewDate] = useState('');
-  const [newTime, setNewTime] = useState('');
+  const [actionType, setActionType] = useState<'cancel' | null>(null);
 
   const handleCancel = () => {
-    if (reason.trim()) {
-      onCancel(session.sessionId, reason);
-      setReason('');
-      setActionType(null);
-      onClose();
-    } else {
-      alert('Please provide a reason for cancellation');
-    }
-  };
-
-  const handleReschedule = () => {
-    if (reason.trim() && newDate && newTime) {
-      onReschedule(session.sessionId, newDate, newTime, reason);
-      setReason('');
-      setNewDate('');
-      setNewTime('');
-      setActionType(null);
-      onClose();
-    } else {
-      alert('Please fill in all fields for rescheduling');
-    }
+    onCancel(session.sessionId, '');
+    setActionType(null);
+    onClose();
   };
 
   if (!actionType) {
@@ -59,20 +37,14 @@ const SessionActions: React.FC<SessionActionsProps> = ({
           <h3 className="text-xl font-bold text-gray-800 mb-4">Session Actions</h3>
           
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-semibold text-gray-800">{session.subject} - {session.title}</h4>
+            <h4 className="font-semibold text-gray-800">{session.title}</h4>
+            <h3 className="font-semibold text-green-800">{session.subject}</h3>
             <p className="text-gray-600">Student: {session.studentName}</p>
             <p className="text-gray-600">{session.date} at {session.time}</p>
-            <p className="text-green-600 font-medium">${session.amount}</p>
+            <p className="text-green-600 font-medium">LKR {session.amount}</p>
           </div>
 
-          <div className="space-y-3">
-            <button
-              onClick={() => setActionType('reschedule')}
-              className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 font-medium"
-            >
-              🔄 Reschedule Session
-            </button>
-            
+          <div className="space-y-3">            
             <button
               onClick={() => setActionType('cancel')}
               className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 font-medium"
@@ -96,87 +68,37 @@ const SessionActions: React.FC<SessionActionsProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full mx-4">
         <h3 className="text-xl font-bold text-gray-800 mb-4">
-          {actionType === 'cancel' ? 'Cancel Session' : 'Reschedule Session'}
+          Cancel Session
         </h3>
         
         <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold text-gray-800">{session.subject} - {session.title}</h4>
+          <h4 className="font-semibold text-gray-800">{session.title}</h4>
+          <h3 className="font-semibold text-green-800">{session.subject}</h3>
           <p className="text-gray-600">Student: {session.studentName}</p>
           <p className="text-gray-600">{session.date} at {session.time}</p>
-          <p className="text-green-600 font-medium">${session.amount}</p>
+          <p className="text-green-600 font-medium">LKR {session.amount}</p>
         </div>
 
-        <div className="space-y-4">
-          {actionType === 'reschedule' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Date
-                </label>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Time
-                </label>
-                <input
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reason for {actionType === 'cancel' ? 'Cancellation' : 'Rescheduling'}
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={`Please explain why you need to ${actionType} this session...`}
-            />
-          </div>
-
+        <div className="space-y-4">          
           {actionType === 'cancel' && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-800 text-sm">
-                <strong>Important:</strong> Canceling this session will trigger an automatic refund to the student. 
-                An email will be sent to both the student and admin for approval.
+                <strong>⚠️ Important:</strong> Canceling this session will:
               </p>
-            </div>
-          )}
-
-          {actionType === 'reschedule' && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-yellow-800 text-sm">
-                <strong>Note:</strong> The student will receive a notification about the reschedule request 
-                and must approve the new time before it becomes final.
-              </p>
+              <ul className="text-red-700 text-sm mt-2 ml-4 list-disc space-y-1">
+                <li>Automatically initiate a refund to the student</li>
+                <li>Send notification to the student</li>
+                <li>Make your time slot available again</li>
+              </ul>
             </div>
           )}
 
           <div className="flex space-x-3">
             <button
-              onClick={actionType === 'cancel' ? handleCancel : handleReschedule}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium ${
-                actionType === 'cancel'
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
-              }`}
+              onClick={handleCancel}
+              className="flex-1 py-3 px-4 rounded-lg font-medium bg-red-500 text-white hover:bg-red-600"
             >
-              {actionType === 'cancel' ? 'Confirm Cancellation' : 'Send Reschedule Request'}
+              Confirm Cancellation
             </button>
             
             <button

@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../firebase.tsx';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield, Phone, MapPin, GraduationCap, DollarSign, FileText, Calendar, Upload, X } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, BookOpen, ChevronRight, Users, Star, Shield, Phone, MapPin, GraduationCap, DollarSign, FileText, Calendar, Upload, X, ChevronDown, Plus, Search } from 'lucide-react';
 import axios from 'axios';
 import { addStudent } from '../api/Student.ts';
 import { sendVerificationEmail } from '../utils/emailVerification';
+import { uploadAllDocuments } from '../api/Documents';
+import { tutorService, Subject, Title } from '../api/TutorService';
+import { STANDARD_QUALIFICATIONS } from '../constants/qualifications';
 
 export default function SignupForm({ role = 'student' }) {
   const navigate = useNavigate();
@@ -41,6 +44,93 @@ export default function SignupForm({ role = 'student' }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+
+  // State for dropdown data
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [availableTitles, setAvailableTitles] = useState<Title[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingTitles, setLoadingTitles] = useState(false);
+
+  // Predefined qualifications list (imported from shared constants)
+  const standardQualifications = STANDARD_QUALIFICATIONS;
+
+  // State for custom qualification input
+  const [customQualification, setCustomQualification] = useState('');
+
+  // State for custom subject and title inputs
+  const [customSubject, setCustomSubject] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [selectedSubjectForCustomTitle, setSelectedSubjectForCustomTitle] = useState('');
+
+  // State for filtering/searching
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
+  const [qualificationFilter, setQualificationFilter] = useState('');
+
+  // Load subjects when component mounts (only for tutors)
+  useEffect(() => {
+    if (role === 'Individual' || role === 'Mass') {
+      loadSubjects();
+    }
+  }, [role]);
+
+  // Load subjects from API
+  const loadSubjects = async () => {
+    setLoadingSubjects(true);
+    try {
+      const subjects = await tutorService.getAllSubjects();
+      setAvailableSubjects(subjects);
+    } catch (error) {
+      console.error('Failed to load subjects:', error);
+      setError('Failed to load subjects. Please refresh the page.');
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
+
+  // Load titles when subjects change
+  const loadTitlesForSubjects = async (selectedSubjectIds: string[]) => {
+    if (selectedSubjectIds.length === 0) {
+      setAvailableTitles([]);
+      return;
+    }
+
+    setLoadingTitles(true);
+    try {
+      // Load titles for all selected subjects
+      const allTitles = [];
+      for (const subjectId of selectedSubjectIds) {
+        const titles = await tutorService.getTitlesBySubject(subjectId);
+        allTitles.push(...titles);
+      }
+      
+      // Remove duplicates if any
+      const uniqueTitles = allTitles.filter((title, index, self) => 
+        index === self.findIndex(t => t.title_id === title.title_id)
+      );
+      
+      setAvailableTitles(uniqueTitles);
+      
+      // Clear selected titles that are no longer available
+      const availableTitleIds = uniqueTitles.map(t => t.title_id);
+      const validTitles = formData.titles.filter(titleId => 
+        availableTitleIds.includes(titleId)
+      );
+      
+      if (validTitles.length !== formData.titles.length) {
+        setFormData(prev => ({
+          ...prev,
+          titles: validTitles
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load titles:', error);
+      setError('Failed to load titles for selected subjects.');
+    } finally {
+      setLoadingTitles(false);
+    }
+  };
 
   const validateStep1 = () => {
     if (!formData.name.trim()) {
@@ -149,9 +239,9 @@ export default function SignupForm({ role = 'student' }) {
     return true;
   };
 
-  const validateForm = () => {
-    return currentStep === 1 ? validateStep1() : validateStep2();
-  };
+  // const validateForm = () => {
+  //   return currentStep === 1 ? validateStep1() : validateStep2();
+  // };
 
   const handleNextStep = () => {
     if (validateStep1()) {
@@ -184,6 +274,167 @@ export default function SignupForm({ role = 'student' }) {
       [inputField]: value
     }));
     setError('');
+  };
+
+  // Handle subject selection from dropdown
+  const handleSubjectChange = (subjectId: string) => {
+    const isSelected = formData.subjects.includes(subjectId);
+    let newSubjects;
+    
+    if (isSelected) {
+      // Remove subject
+      newSubjects = formData.subjects.filter(id => id !== subjectId);
+    } else {
+      // Add subject
+      newSubjects = [...formData.subjects, subjectId];
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      subjects: newSubjects
+    }));
+    
+    // Load titles for the new subject selection
+    loadTitlesForSubjects(newSubjects);
+    setError('');
+  };
+
+  // Handle title selection from dropdown
+  const handleTitleChange = (titleId: string) => {
+    const isSelected = formData.titles.includes(titleId);
+    let newTitles;
+    
+    if (isSelected) {
+      // Remove title
+      newTitles = formData.titles.filter(id => id !== titleId);
+    } else {
+      // Add title
+      newTitles = [...formData.titles, titleId];
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      titles: newTitles
+    }));
+    setError('');
+  };
+
+  // Handle qualification selection from dropdown
+  const handleQualificationChange = (qualification: string) => {
+    const isSelected = formData.qualifications.includes(qualification);
+    let newQualifications;
+    
+    if (isSelected) {
+      // Remove qualification
+      newQualifications = formData.qualifications.filter(q => q !== qualification);
+    } else {
+      // Add qualification
+      newQualifications = [...formData.qualifications, qualification];
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      qualifications: newQualifications,
+      qualificationsInput: newQualifications.join(', ')
+    }));
+    setError('');
+  };
+
+  // Handle adding custom qualification
+  const handleAddCustomQualification = () => {
+    if (customQualification.trim() && !formData.qualifications.includes(customQualification.trim())) {
+      const newQualifications = [...formData.qualifications, customQualification.trim()];
+      setFormData(prev => ({
+        ...prev,
+        qualifications: newQualifications,
+        qualificationsInput: newQualifications.join(', ')
+      }));
+      setCustomQualification('');
+      setError('');
+    }
+  };
+
+  // Handle removing qualification
+  const handleRemoveQualification = (qualification: string) => {
+    const newQualifications = formData.qualifications.filter(q => q !== qualification);
+    setFormData(prev => ({
+      ...prev,
+      qualifications: newQualifications,
+      qualificationsInput: newQualifications.join(', ')
+    }));
+  };
+
+  // Handle adding custom subject
+  const handleAddCustomSubject = async () => {
+    if (customSubject.trim() && !availableSubjects.some(s => s.name.toLowerCase() === customSubject.trim().toLowerCase())) {
+      try {
+        const newSubject = await tutorService.createSubject(customSubject.trim());
+        setAvailableSubjects(prev => [...prev, newSubject]);
+        
+        // Automatically select the new subject
+        const newSubjects = [...formData.subjects, newSubject.sub_id];
+        setFormData(prev => ({
+          ...prev,
+          subjects: newSubjects
+        }));
+        
+        setCustomSubject('');
+        setError('');
+        
+        // Load titles for the new selection
+        loadTitlesForSubjects(newSubjects);
+      } catch (error: any) {
+        console.error('Failed to create subject:', error);
+        setError(error.message || 'Failed to create subject');
+      }
+    }
+  };
+
+  // Handle adding custom title
+  const handleAddCustomTitle = async () => {
+    if (customTitle.trim() && selectedSubjectForCustomTitle && 
+        !availableTitles.some(t => t.name.toLowerCase() === customTitle.trim().toLowerCase() && t.sub_id === selectedSubjectForCustomTitle)) {
+      try {
+        const newTitle = await tutorService.createTitle(customTitle.trim(), selectedSubjectForCustomTitle);
+        setAvailableTitles(prev => [...prev, newTitle]);
+        
+        // Automatically select the new title
+        const newTitles = [...formData.titles, newTitle.title_id];
+        setFormData(prev => ({
+          ...prev,
+          titles: newTitles
+        }));
+        
+        setCustomTitle('');
+        setSelectedSubjectForCustomTitle('');
+        setError('');
+      } catch (error: any) {
+        console.error('Failed to create title:', error);
+        setError(error.message || 'Failed to create title');
+      }
+    }
+  };
+
+  // Filter functions
+  const getFilteredSubjects = () => {
+    if (!subjectFilter.trim()) return availableSubjects;
+    return availableSubjects.filter(subject => 
+      subject.name.toLowerCase().includes(subjectFilter.toLowerCase())
+    );
+  };
+
+  const getFilteredTitles = () => {
+    if (!titleFilter.trim()) return availableTitles;
+    return availableTitles.filter(title => 
+      title.name.toLowerCase().includes(titleFilter.toLowerCase())
+    );
+  };
+
+  const getFilteredQualifications = () => {
+    if (!qualificationFilter.trim()) return standardQualifications;
+    return standardQualifications.filter(qualification => 
+      qualification.toLowerCase().includes(qualificationFilter.toLowerCase())
+    );
   };
 
   const handleCVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,6 +516,32 @@ export default function SignupForm({ role = 'student' }) {
 
     setLoading(true);
     try {
+      // Step 1: Upload documents if user is a tutor
+      let cvUrl = '';
+      let certificateUrls: string[] = [];
+
+      if (role === 'Individual' || role === 'Mass') {
+        if (formData.cv_file || formData.certificate_files.length > 0) {
+          setUploadingDocuments(true);
+          try {
+            const uploadResult = await uploadAllDocuments(
+              formData.cv_file,
+              formData.certificate_files
+            );
+            cvUrl = uploadResult.cvUrl || '';
+            certificateUrls = uploadResult.certificateUrls || [];
+            console.log('✅ Documents uploaded successfully:', { cvUrl, certificateUrls });
+          } catch (uploadError: any) {
+            console.error('Document upload failed:', uploadError);
+            setError(`Document upload failed: ${uploadError.message}`);
+            return;
+          } finally {
+            setUploadingDocuments(false);
+          }
+        }
+      }
+
+      // Step 2: Create Firebase user
       const { user: newUser } = await createUserWithEmailAndPassword(
         auth, 
         formData.email, 
@@ -281,7 +558,7 @@ export default function SignupForm({ role = 'student' }) {
       // Sign out the user immediately after verification email is sent
       await signOut(auth);
 
-      // Create user in database
+      // Step 3: Create user in database
       const userData = {
         firebase_uid: newUser.uid,
         email: newUser.email,
@@ -293,13 +570,24 @@ export default function SignupForm({ role = 'student' }) {
         // Additional tutor fields
         ...(role === 'Individual' || role === 'Mass' ? {
           phone_number: formData.phone_number,
-          subjects: formData.subjects,
+          // Convert subject IDs to names
+          subjects: formData.subjects.map(subjectId => {
+            const subject = availableSubjects.find(s => s.sub_id === subjectId);
+            return subject ? subject.name : subjectId;
+          }),
           description: formData.description,
-          heading: formData.heading
+          heading: formData.heading,
+          // Document URLs from Cloudinary upload
+          ...(cvUrl && { cv_url: cvUrl }),
+          ...(certificateUrls.length > 0 && { certificate_urls: certificateUrls })
         } : {}),
         // Individual tutor specific fields
         ...(role === 'Individual' ? {
-          titles: formData.titles,
+          // Convert title IDs to names
+          titles: formData.titles.map(titleId => {
+            const title = availableTitles.find(t => t.title_id === titleId);
+            return title ? title.name : titleId;
+          }),
           hourly_rate: parseFloat(formData.hourly_rate) || 0,
           location: formData.location,
           qualifications: formData.qualifications
@@ -311,10 +599,10 @@ export default function SignupForm({ role = 'student' }) {
       };
 
       // Log the uploaded files for verification (will be used when backend is implemented)
-      if (role === 'Individual' || role === 'Mass') {
-        console.log('CV file:', formData.cv_file?.name);
-        console.log('Certificate files:', formData.certificate_files.map(f => f.name));
-      }
+      // if (role === 'Individual' || role === 'Mass') {
+      //   console.log('CV file:', formData.cv_file?.name);
+      //   console.log('Certificate files:', formData.certificate_files.map(f => f.name));
+      // }
 
       const response = await axios.post('http://localhost:5000/api/add-user', userData); 
       
@@ -327,6 +615,12 @@ export default function SignupForm({ role = 'student' }) {
             points: 0
           });
           console.log("New student added:", student);
+        } else if (role === 'Individual' || role === 'Mass') {
+          console.log("New tutor application submitted with documents:", {
+            cvUrl,
+            certificateUrls,
+            role
+          });
         }
         
         // Redirect to email verification page for all users
@@ -482,6 +776,15 @@ export default function SignupForm({ role = 'student' }) {
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {uploadingDocuments && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                <p className="text-sm text-blue-600">Uploading documents to secure cloud storage...</p>
+              </div>
             </div>
           )}
 
@@ -683,23 +986,109 @@ export default function SignupForm({ role = 'student' }) {
                         <label htmlFor="subjects" className="block text-sm font-medium text-gray-700">
                           Subjects <span className="text-red-500">*</span>
                         </label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <BookOpen size={18} className="text-gray-400" />
+                        <div className="mt-1 relative">
+                          <div className="border border-gray-300 rounded-md bg-white">
+                            {/* Search Filter */}
+                            <div className="p-2 border-b border-gray-200">
+                              <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <Search size={16} className="text-gray-400" />
+                                </div>
+                                <input
+                                  type="text"
+                                  value={subjectFilter}
+                                  onChange={(e) => setSubjectFilter(e.target.value)}
+                                  className="pl-9 block w-full py-1.5 border-0 bg-gray-50 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                  placeholder="Search subjects..."
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Subject List */}
+                            <div className="max-h-32 overflow-y-auto">
+                              {loadingSubjects ? (
+                                <div className="p-3 text-gray-500 text-sm">Loading subjects...</div>
+                              ) : getFilteredSubjects().length === 0 ? (
+                                <div className="p-3 text-gray-500 text-sm">
+                                  {subjectFilter ? `No subjects found for "${subjectFilter}"` : 'No subjects available'}
+                                </div>
+                              ) : (
+                                <div className="p-1">
+                                  {getFilteredSubjects().map((subject) => (
+                                    <label
+                                      key={subject.sub_id}
+                                      className="flex items-center p-2 hover:bg-gray-50 cursor-pointer rounded"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.subjects.includes(subject.sub_id)}
+                                        onChange={() => handleSubjectChange(subject.sub_id)}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">{subject.name}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <input
-                            id="subjects"
-                            name="subjects"
-                            type="text"
-                            required
-                            value={formData.subjectsInput}
-                            onChange={(e) => handleArrayInputChange('subjects', e.target.value)}
-                            disabled={loading}
-                            className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                            placeholder="Mathematics, Physics, Chemistry"
-                          />
+                          {formData.subjects.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {formData.subjects.map((subjectId) => {
+                                const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                                return subject ? (
+                                  <span
+                                    key={subjectId}
+                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  >
+                                    {subject.name}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSubjectChange(subjectId)}
+                                      className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:text-blue-600"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">Separate multiple subjects with commas</p>
+                        <p className="mt-1 text-xs text-gray-500">Search and select the subjects you can teach</p>
+                        
+                        {/* Add Custom Subject */}
+                        <div className="mt-3">
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={customSubject}
+                                onChange={(e) => setCustomSubject(e.target.value)}
+                                disabled={loading}
+                                className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
+                                placeholder="Add custom subject (e.g., Data Science, Robotics)"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddCustomSubject();
+                                  }
+                                }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddCustomSubject}
+                              disabled={loading || !customSubject.trim()}
+                              className="px-3 py-2 border border-blue-300 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Can't find your subject? Add it here and it will be available for other tutors too
+                          </p>
+                        </div>
                       </div>
 
                       <div>
@@ -759,7 +1148,7 @@ export default function SignupForm({ role = 'student' }) {
                               type="file"
                               accept=".pdf"
                               onChange={handleCVUpload}
-                              disabled={loading}
+                              disabled={loading || uploadingDocuments}
                               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
                             />
                           </div>
@@ -772,7 +1161,7 @@ export default function SignupForm({ role = 'student' }) {
                               <button
                                 type="button"
                                 onClick={removeCv}
-                                disabled={loading}
+                                disabled={loading || uploadingDocuments}
                                 className="text-red-600 hover:text-red-800 disabled:opacity-50"
                               >
                                 <X size={16} />
@@ -792,7 +1181,7 @@ export default function SignupForm({ role = 'student' }) {
                               accept=".pdf"
                               multiple
                               onChange={handleCertificateUpload}
-                              disabled={loading || formData.certificate_files.length >= 3}
+                              disabled={loading || uploadingDocuments || formData.certificate_files.length >= 3}
                               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
                             />
                           </div>
@@ -810,7 +1199,7 @@ export default function SignupForm({ role = 'student' }) {
                                   <button
                                     type="button"
                                     onClick={() => removeCertificate(index)}
-                                    disabled={loading}
+                                    disabled={loading || uploadingDocuments}
                                     className="text-red-600 hover:text-red-800 disabled:opacity-50"
                                   >
                                     <X size={16} />
@@ -835,23 +1224,141 @@ export default function SignupForm({ role = 'student' }) {
                           <label htmlFor="titles" className="block text-sm font-medium text-gray-700">
                             Expertise/Titles <span className="text-red-500">*</span>
                           </label>
-                          <div className="mt-1 relative rounded-md shadow-sm">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <GraduationCap size={18} className="text-gray-400" />
-                            </div>
-                            <input
-                              id="titles"
-                              name="titles"
-                              type="text"
-                              required
-                              value={formData.titlesInput}
-                              onChange={(e) => handleArrayInputChange('titles', e.target.value)}
-                              disabled={loading}
-                              className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                              placeholder="Calculus, Algebra, SAT Math"
-                            />
+                          <div className="mt-1 relative">
+                            {formData.subjects.length === 0 ? (
+                              <div className="border border-gray-300 rounded-md bg-gray-50 p-3 text-gray-500 text-sm">
+                                Please select subjects first to see available titles
+                              </div>
+                            ) : (
+                              <div className="border border-gray-300 rounded-md bg-white">
+                                {/* Search Filter */}
+                                <div className="p-2 border-b border-gray-200">
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <Search size={16} className="text-gray-400" />
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={titleFilter}
+                                      onChange={(e) => setTitleFilter(e.target.value)}
+                                      className="pl-9 block w-full py-1.5 border-0 bg-gray-50 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 sm:text-sm"
+                                      placeholder="Search titles..."
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {/* Title List */}
+                                <div className="max-h-32 overflow-y-auto">
+                                  {loadingTitles ? (
+                                    <div className="p-3 text-gray-500 text-sm">Loading titles...</div>
+                                  ) : getFilteredTitles().length === 0 ? (
+                                    <div className="p-3 text-gray-500 text-sm">
+                                      {titleFilter ? `No titles found for "${titleFilter}"` : 'No titles available for selected subjects'}
+                                    </div>
+                                  ) : (
+                                    <div className="p-1">
+                                      {getFilteredTitles().map((title) => (
+                                        <label
+                                          key={title.title_id}
+                                          className="flex items-center p-2 hover:bg-gray-50 cursor-pointer rounded"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={formData.titles.includes(title.title_id)}
+                                            onChange={() => handleTitleChange(title.title_id)}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                          />
+                                          <span className="ml-2 text-sm text-gray-700">{title.name}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {formData.titles.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {formData.titles.map((titleId) => {
+                                  const title = availableTitles.find(t => t.title_id === titleId);
+                                  return title ? (
+                                    <span
+                                      key={titleId}
+                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                                    >
+                                      {title.name}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTitleChange(titleId)}
+                                        className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-green-400 hover:text-green-600"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">Separate multiple titles with commas</p>
+                          <p className="mt-1 text-xs text-gray-500">Search and select your areas of expertise within the chosen subjects</p>
+                          
+                          {/* Add Custom Title */}
+                          {formData.subjects.length > 0 && (
+                            <div className="mt-3">
+                              <div className="space-y-3">
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <select
+                                      value={selectedSubjectForCustomTitle}
+                                      onChange={(e) => setSelectedSubjectForCustomTitle(e.target.value)}
+                                      disabled={loading}
+                                      className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm disabled:bg-gray-100"
+                                    >
+                                      <option value="">Select subject for new title</option>
+                                      {formData.subjects.map(subjectId => {
+                                        const subject = availableSubjects.find(s => s.sub_id === subjectId);
+                                        return subject ? (
+                                          <option key={subjectId} value={subjectId}>
+                                            {subject.name}
+                                          </option>
+                                        ) : null;
+                                      })}
+                                    </select>
+                                  </div>
+                                </div>
+                                {selectedSubjectForCustomTitle && (
+                                  <div className="flex gap-2">
+                                    <div className="flex-1">
+                                      <input
+                                        type="text"
+                                        value={customTitle}
+                                        onChange={(e) => setCustomTitle(e.target.value)}
+                                        disabled={loading}
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm disabled:bg-gray-100"
+                                        placeholder="Add custom title (e.g., Machine Learning, Advanced Calculus)"
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddCustomTitle();
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleAddCustomTitle}
+                                      disabled={loading || !customTitle.trim()}
+                                      className="px-3 py-2 border border-green-300 rounded-md bg-green-50 text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Plus size={16} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500">
+                                Can't find your area of expertise? Add it here and it will be available for other tutors too
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -905,23 +1412,115 @@ export default function SignupForm({ role = 'student' }) {
                           <label htmlFor="qualifications" className="block text-sm font-medium text-gray-700">
                             Qualifications <span className="text-red-500">*</span>
                           </label>
-                          <div className="mt-1 relative rounded-md shadow-sm">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FileText size={18} className="text-gray-400" />
+                          
+                          {/* Selected Qualifications Display */}
+                          {formData.qualifications.length > 0 && (
+                            <div className="mt-2 mb-3">
+                              <p className="text-sm text-gray-600 mb-2">Selected Qualifications:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {formData.qualifications.map((qualification, index) => (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                                  >
+                                    {qualification}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveQualification(qualification)}
+                                      className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-purple-400 hover:text-purple-600"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                            <input
-                              id="qualifications"
-                              name="qualifications"
-                              type="text"
-                              required
-                              value={formData.qualificationsInput}
-                              onChange={(e) => handleArrayInputChange('qualifications', e.target.value)}
-                              disabled={loading}
-                              className="pl-10 block w-full py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100"
-                              placeholder="BSc Mathematics, A/L Mathematics (A), Teaching Diploma"
-                            />
+                          )}
+
+                          {/* Standard Qualifications Dropdown */}
+                          <div className="mt-1 relative">
+                            <div className="border border-gray-300 rounded-md bg-white">
+                              {/* Search Filter */}
+                              <div className="p-2 border-b border-gray-200">
+                                <div className="relative">
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={16} className="text-gray-400" />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={qualificationFilter}
+                                    onChange={(e) => setQualificationFilter(e.target.value)}
+                                    className="pl-9 block w-full py-1.5 border-0 bg-gray-50 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 sm:text-sm"
+                                    placeholder="Search qualifications..."
+                                  />
+                                </div>
+                              </div>
+                              
+                              {/* Qualifications List */}
+                              <div className="max-h-48 overflow-y-auto">
+                                <div className="p-1">
+                                  <div className="p-2 bg-gray-50 border-b border-gray-200">
+                                    <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                                      {qualificationFilter ? `Results for "${qualificationFilter}"` : 'Standard Qualifications'}
+                                    </p>
+                                  </div>
+                                  {getFilteredQualifications().length === 0 ? (
+                                    <div className="p-3 text-gray-500 text-sm">
+                                      No qualifications found for "{qualificationFilter}"
+                                    </div>
+                                  ) : (
+                                    getFilteredQualifications().map((qualification, index) => (
+                                      <label
+                                        key={index}
+                                        className="flex items-center p-2 hover:bg-gray-50 cursor-pointer rounded"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={formData.qualifications.includes(qualification)}
+                                          onChange={() => handleQualificationChange(qualification)}
+                                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                                        />
+                                        <span className="ml-2 text-sm text-gray-700">{qualification}</span>
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">Separate multiple qualifications with commas</p>
+
+                          {/* Add Custom Qualification */}
+                          <div className="mt-3">
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  value={customQualification}
+                                  onChange={(e) => setCustomQualification(e.target.value)}
+                                  disabled={loading}
+                                  className="block w-full py-2 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm disabled:bg-gray-100"
+                                  placeholder="Add custom qualification (e.g., MSc Data Science)"
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleAddCustomQualification();
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleAddCustomQualification}
+                                disabled={loading || !customQualification.trim()}
+                                className="px-3 py-2 border border-purple-300 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Search and select from standard qualifications or add your own custom qualification
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -996,12 +1595,12 @@ export default function SignupForm({ role = 'student' }) {
                 {role === 'student' && (
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || uploadingDocuments}
                     className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center">
-                      {loading ? 'Creating account...' : 'Create account'}
-                      {!loading && <ChevronRight size={16} className="ml-2" />}
+                      {uploadingDocuments ? 'Uploading documents...' : loading ? 'Creating account...' : 'Create account'}
+                      {!loading && !uploadingDocuments && <ChevronRight size={16} className="ml-2" />}
                     </span>
                   </button>
                 )}
@@ -1012,7 +1611,7 @@ export default function SignupForm({ role = 'student' }) {
                     {currentStep === 1 && (
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || uploadingDocuments}
                         className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="flex items-center">
@@ -1026,19 +1625,19 @@ export default function SignupForm({ role = 'student' }) {
                       <div className="space-y-3">
                         <button
                           type="submit"
-                          disabled={loading}
+                          disabled={loading || uploadingDocuments}
                           className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <span className="flex items-center">
-                            {loading ? 'Creating account...' : 'Create Tutor Account'}
-                            {!loading && <ChevronRight size={16} className="ml-2" />}
+                            {uploadingDocuments ? 'Uploading documents...' : loading ? 'Creating account...' : 'Create Tutor Account'}
+                            {!loading && !uploadingDocuments && <ChevronRight size={16} className="ml-2" />}
                           </span>
                         </button>
                         
                         <button
                           type="button"
                           onClick={handlePrevStep}
-                          disabled={loading}
+                          disabled={loading || uploadingDocuments}
                           className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <span className="flex items-center">
