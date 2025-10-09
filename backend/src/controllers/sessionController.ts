@@ -319,7 +319,7 @@ export const addSessionMaterialController = async (req: Request, res: Response) 
   try {
     const { firebaseUid, sessionId } = req.params;
     const { material } = req.body;
-    
+
     if (!firebaseUid || !sessionId) {
       return res.status(400).json({
         success: false,
@@ -327,16 +327,24 @@ export const addSessionMaterialController = async (req: Request, res: Response) 
       });
     }
 
-    if (!material || typeof material !== 'string' || material.trim().length === 0) {
+    if (!material || typeof material !== 'object') {
       return res.status(400).json({
         success: false,
-        message: "Material is required and must be a non-empty string"
+        message: "Material must be a valid object"
       });
     }
 
-    // Get tutor ID from firebase UID
+    // Validate required fields in material
+    if (!material.name || !material.url) {
+      return res.status(400).json({
+        success: false,
+        message: "Material must contain 'name' and 'url'"
+      });
+    }
+
+    // Get tutor ID from Firebase UID
     const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
-    
+
     // Verify that the session belongs to this tutor
     const session = await getSessionById(tutorId, sessionId);
     if (!session) {
@@ -345,9 +353,15 @@ export const addSessionMaterialController = async (req: Request, res: Response) 
         message: "Session not found or you do not have permission to modify it"
       });
     }
-    
-    const updatedSession = await addSessionMaterial(sessionId, material.trim());
-    
+
+    // Construct material object (id and uploadDate will be added automatically)
+    const materialData = {
+      ...material
+    };
+
+    // Add the material to the session
+    const updatedSession = await addSessionMaterial(sessionId, materialData);
+
     return res.status(200).json({
       success: true,
       message: "Material added successfully",
@@ -355,15 +369,6 @@ export const addSessionMaterialController = async (req: Request, res: Response) 
     });
   } catch (error) {
     console.error("Error adding session material:", error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Session not found')) {
-        return res.status(404).json({
-          success: false,
-          message: error.message
-        });
-      }
-    }
 
     return res.status(500).json({
       success: false,
@@ -1227,6 +1232,159 @@ export const refreshZoomLinkController = async (req: Request, res: Response) => 
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : 'Failed to refresh Zoom link'
+    });
+  }
+};
+
+// Get specific material content for viewing
+export const getMaterialContentController = async (req: Request, res: Response) => {
+  try {
+    const { firebaseUid, sessionId, materialIndex } = req.params;
+    
+    if (!firebaseUid || !sessionId || !materialIndex) {
+      return res.status(400).json({
+        success: false,
+        message: "Firebase UID, session ID, and material index are required"
+      });
+    }
+
+    // Get tutor ID from firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session ownership and get session materials
+    const session = await getSessionById(tutorId, sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unauthorized'
+      });
+    }
+
+    // Get session materials using the existing service
+    const materials = await getSessionMaterials(sessionId);
+    
+    // Validate material index
+    const matIndex = parseInt(materialIndex);
+    if (isNaN(matIndex) || matIndex < 0 || matIndex >= materials.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Material not found'
+      });
+    }
+
+    const material = materials[matIndex];
+    
+    // Parse material if it's a JSON string (your current format)
+    let parsedMaterial;
+    if (typeof material === 'string') {
+      try {
+        if (material.trim().startsWith('{') && material.trim().endsWith('}')) {
+          parsedMaterial = JSON.parse(material);
+        } else {
+          parsedMaterial = { 
+            name: material, 
+            type: 'text', 
+            content: material,
+            url: null 
+          };
+        }
+      } catch (error) {
+        parsedMaterial = { 
+          name: material, 
+          type: 'text', 
+          content: material,
+          url: null 
+        };
+      }
+    } else {
+      parsedMaterial = material;
+    }
+
+    // Enhanced material content based on type and Cloudinary URL
+    let materialContent: any = {
+      id: parsedMaterial.id,
+      name: parsedMaterial.name,
+      type: parsedMaterial.type,
+      url: parsedMaterial.url,
+      content: parsedMaterial.content || '',
+      description: parsedMaterial.description || '',
+      size: parsedMaterial.size,
+      mimeType: parsedMaterial.mimeType,
+      uploadDate: parsedMaterial.uploadDate,
+      canView: true,
+      canDownload: true
+    };
+
+    // Handle different material types with Cloudinary URLs
+    if (parsedMaterial.url) {
+      switch (parsedMaterial.type) {
+        case 'document':
+        case 'presentation':
+          materialContent = {
+            ...materialContent,
+            viewUrl: parsedMaterial.url,
+            downloadUrl: parsedMaterial.url,
+            embedSupported: parsedMaterial.mimeType?.includes('pdf') || 
+                           parsedMaterial.url.includes('.pdf'),
+            viewMode: 'embed' // Can be embedded in iframe
+          };
+          break;
+          
+        case 'video':
+          materialContent = {
+            ...materialContent,
+            streamUrl: parsedMaterial.url,
+            downloadUrl: parsedMaterial.url,
+            embedSupported: true,
+            viewMode: 'video' // HTML5 video player
+          };
+          break;
+          
+        case 'image':
+          materialContent = {
+            ...materialContent,
+            imageUrl: parsedMaterial.url,
+            downloadUrl: parsedMaterial.url,
+            embedSupported: true,
+            viewMode: 'image' // Direct image display
+          };
+          break;
+          
+        case 'link':
+          materialContent = {
+            ...materialContent,
+            externalUrl: parsedMaterial.url,
+            openInNewTab: true,
+            viewMode: 'external' // Opens in new tab
+          };
+          break;
+          
+        default:
+          // For unknown types, still provide the URL
+          materialContent = {
+            ...materialContent,
+            downloadUrl: parsedMaterial.url,
+            viewMode: 'download' // Force download
+          };
+          break;
+      }
+    }
+
+    // Log material access (optional analytics)
+    console.log(`Material accessed: ${parsedMaterial.name} by tutor ${tutorId}`);
+
+    res.json({
+      success: true,
+      message: 'Material content retrieved successfully',
+      data: materialContent
+    });
+
+  } catch (error) {
+    console.error('Error getting material content:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to load material content'
     });
   }
 };

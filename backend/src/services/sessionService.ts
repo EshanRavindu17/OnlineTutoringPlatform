@@ -29,7 +29,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface MaterialData {
   id: string;
   name: string;
-  type: 'document' | 'video' | 'link' | 'image' | 'text' | 'presentation';
+  type?: string;
   url?: string;
   content?: string;
   description?: string;
@@ -44,7 +44,7 @@ export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: (string | MaterialData)[]; // Support both formats for backward compatibility
+  materials: (MaterialData)[]; 
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -52,7 +52,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
-  subject: string | null;  // Added subject column from Sessions table
+  subject: string | null;  
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -466,44 +466,32 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
 
 // Enhanced add materials to a session (stores enhanced data as JSON in materials array)
 export const addSessionMaterial = async (
-  sessionId: string, 
-  materialData: string | Omit<MaterialData, 'id' | 'uploadDate'>
-): Promise<SessionWithDetails> => {
+    sessionId: string,
+    materialData: Omit<MaterialData, 'id' | 'uploadDate'>
+  ): Promise<SessionWithDetails> => {
   try {
-    // First, get the current session
+    // Get the current session's materials
     const session = await prisma.sessions.findUnique({
       where: { session_id: sessionId },
       select: { materials: true }
     });
 
-    if (!session) {
-      throw new Error('Session not found');
-    }
+    if (!session) throw new Error('Session not found');
 
-    let updatedMaterials: string[];
+    // Create the new material object
+    const newMaterial = {
+      ...materialData,
+      id: uuidv4(),
+      uploadDate: new Date().toISOString()
+    };
 
-    if (typeof materialData === 'string') {
-      // Simple string material - backward compatibility
-      updatedMaterials = [...session.materials, materialData];
-    } else {
-      // Enhanced MaterialData object - store as JSON string in materials array
-      const newMaterial: MaterialData = {
-        id: uuidv4(),
-        uploadDate: new Date().toISOString(),
-        ...materialData
-      };
+    const materialJsonString = JSON.stringify(newMaterial);
+    const updatedMaterials = [...session.materials, materialJsonString];
 
-      // Store the enhanced material as JSON string
-      const materialJsonString = `__ENHANCED_MATERIAL__${JSON.stringify(newMaterial)}`;
-      updatedMaterials = [...session.materials, materialJsonString];
-    }
-
-    // Update the session with the new materials
+    // Update the session in the database
     const updatedSession = await prisma.sessions.update({
       where: { session_id: sessionId },
-      data: { 
-        materials: updatedMaterials
-      },
+      data: { materials: updatedMaterials },
       include: {
         Student: {
           include: {
@@ -529,47 +517,45 @@ export const addSessionMaterial = async (
     return convertPrismaSessionToSessionWithDetails(updatedSession);
   } catch (error) {
     console.error('Error adding session material:', error);
-    throw new Error(`Failed to add session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to add session material: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 };
 
 // Remove materials from a session (enhanced version)
-export const removeSessionMaterial = async (sessionId: string, materialIndex: number): Promise<SessionWithDetails> => {
+export const removeSessionMaterial = async (
+  sessionId: string, 
+  materialIndex: number
+): Promise<SessionWithDetails> => {
   try {
-    // First, get the current materials
+    // Get the current materials
     const session = await prisma.sessions.findUnique({
       where: { session_id: sessionId },
       select: { materials: true }
     });
 
-    if (!session) {
-      throw new Error('Session not found');
-    }
+    if (!session) throw new Error('Session not found');
 
     if (materialIndex < 0 || materialIndex >= session.materials.length) {
       throw new Error('Invalid material index');
     }
 
-    // Log the material being removed for debugging
+    // Optionally, log the material name being removed
     const materialToRemove = session.materials[materialIndex];
     let materialName = 'Unknown';
-    
-    if (materialToRemove.startsWith('__ENHANCED_MATERIAL__')) {
-      try {
-        const jsonString = materialToRemove.replace('__ENHANCED_MATERIAL__', '');
-        const parsedMaterial = JSON.parse(jsonString) as MaterialData;
-        materialName = parsedMaterial.name;
-      } catch (error) {
-        materialName = 'Enhanced Material';
-      }
-    } else {
-      materialName = materialToRemove;
+    try {
+      const parsedMaterial = JSON.parse(materialToRemove) as MaterialData;
+      materialName = parsedMaterial.name;
+    } catch (error) {
+      console.warn('Failed to parse material JSON:', error);
     }
+    console.log(`Removing material: ${materialName}`);
 
     // Remove the material at the specified index
     const updatedMaterials = session.materials.filter((_, index) => index !== materialIndex);
 
-    // Update the session with the new materials
+    // Update the session in the database
     const updatedSession = await prisma.sessions.update({
       where: { session_id: sessionId },
       data: { materials: updatedMaterials },
@@ -601,6 +587,7 @@ export const removeSessionMaterial = async (sessionId: string, materialIndex: nu
     throw new Error(`Failed to remove session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
+
 
 // Update session status (e.g., start session, complete session, cancel session)
 export const updateSessionStatus = async (sessionId: string, status: SessionStatus): Promise<SessionWithDetails> => {
