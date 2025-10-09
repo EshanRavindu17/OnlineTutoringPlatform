@@ -1,5 +1,5 @@
 // Base URL for all admin endpoints
-const BASE = 'http://localhost:5000/Admin';
+const BASE = 'https://onlinetutoringplatform.onrender.com/Admin';
 
 // Token management helpers
 // AT = Access Token (short-lived)

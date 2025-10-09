@@ -186,7 +186,7 @@ interface SessionData{
     date: string; // Date of the session
 }
 
-interface Student{
+interface StudentAdd{
     user_id:string;
     points:number;
 }
@@ -219,11 +219,11 @@ export const getToken = async (): Promise<string | null> => {
     }
 };
 
-export const addStudent = async (studentData: Student): Promise<Student> => {
+export const addStudent = async (studentData: StudentAdd): Promise<StudentAdd> => {
     console.log('Adding new student...', studentData);
 
     try {
-        const response = await axios.post<Student>(
+        const response = await axios.post<StudentAdd>(
             `${baseUrl2}/addStudent`,
             studentData
         );

@@ -24,7 +24,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId
     const fetchCurrentUserId = async () => {
       try {
         const token = await auth.currentUser?.getIdToken();
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://onlinetutoringplatform.onrender.com';
         
         const response = await fetch(`${API_BASE_URL}/api/getUserByUid`, {
           headers: {
