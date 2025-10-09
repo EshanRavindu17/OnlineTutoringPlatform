@@ -176,6 +176,12 @@ export default function AuthPage() {
       return;
     }
 
+    // Prevent double execution
+    if (loading) {
+      console.log('🚫 Google sign-in already in progress, ignoring duplicate request');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -194,37 +200,64 @@ export default function AuthPage() {
         dob: null
       };
 
+
+      console.log('📤 Creating user in database...');
       const response = await fetch('https://onlinetutoringplatform.onrender.com/api/add-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload)
       });
 
-      
-
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
+        console.error('❌ Failed to create user:', errJson);
         await signOut(auth);
         throw new Error(errJson.detail || "Failed to save user to database");
       }
 
       const savedUser = await response.json();
-      const user_id = savedUser.user.id;
+      console.log('✅ User created successfully:', savedUser);
 
-      const student = await addStudent({
-        user_id,
-        points: 0
-      }).then(
-        (student) => {
-          console.log('Student Add to Student Table', student);
+      // Ensure we have a valid user_id before proceeding
+      const user_id = savedUser.user?.id;
+      if (!user_id) {
+        console.error('❌ No user ID returned from user creation');
+        await signOut(auth);
+        throw new Error("Failed to get user ID from database");
+      }
+
+      console.log('📤 Creating student record with user_id:', user_id);
+      
+      // Wait for student creation to complete before proceeding
+      try {
+        const student = await addStudent({
+          user_id,
+          points: 0
+        });
+        console.log('✅ Student created successfully:', student);
+
+        // Verify student creation was successful
+        if (!student || !student.student_id) {
+          throw new Error('Student record creation returned invalid data');
         }
-      ).catch((error) => {
-        console.error('Error adding student:', error);
-      });
 
+        console.log('🎓 Student profile fully initialized:', {
+          student_id: student.student_id,
+          user_id: student.user_id,
+          points: student.points
+        });
 
-      console.log('Student Add to Student Table', student);
-      console.log('✅ Saved Google user to DB:', savedUser);
+      } catch (studentError: any) {
+        console.error('❌ Failed to create student record:', studentError);
+        
+        // If student creation fails, we still have a valid user account
+        // Log this for debugging but provide helpful user feedback
+        const errorMsg = studentError?.response?.data?.message || 
+                        studentError?.message || 
+                        'Failed to create student profile';
+        
+        throw new Error(`User account created successfully, but student profile setup encountered an issue: ${errorMsg}. Please contact support or try signing in again.`);
+      }
 
       // ✅ Set user type and role — persist for better UX
       setUserType('student');

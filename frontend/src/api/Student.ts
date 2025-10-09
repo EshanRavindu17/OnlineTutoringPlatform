@@ -186,13 +186,24 @@ interface SessionData{
     date: string; // Date of the session
 }
 
-interface StudentAdd{
+
+interface StudentCreateData{
     user_id:string;
     points:number;
 }
 
+
+interface StudentResponse{
+    student_id: string;
+    user_id: string;
+    points: number;
+    customer_id?: string;
+}
+
+
 const baseUrl = 'https://onlinetutoringplatform.onrender.com/api';
 const baseUrl2 = 'https://onlinetutoringplatform.onrender.com/student';
+
 
 
 
@@ -219,11 +230,12 @@ export const getToken = async (): Promise<string | null> => {
     }
 };
 
-export const addStudent = async (studentData: StudentAdd): Promise<StudentAdd> => {
+
+export const addStudent = async (studentData: StudentCreateData): Promise<StudentResponse> => {
     console.log('Adding new student...', studentData);
 
     try {
-        const response = await axios.post<StudentAdd>(
+        const response = await axios.post<StudentResponse>(
             `${baseUrl2}/addStudent`,
             studentData
         );
