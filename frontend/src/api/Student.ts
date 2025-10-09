@@ -191,8 +191,8 @@ interface Student{
     points:number;
 }
 
-const baseUrl = 'http://localhost:5000/api';
-const baseUrl2 = 'http://localhost:5000/student';
+const baseUrl = 'https://onlinetutoringplatform.onrender.com/api';
+const baseUrl2 = 'https://onlinetutoringplatform.onrender.com/student';
 
 
 

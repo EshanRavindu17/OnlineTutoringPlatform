@@ -88,7 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             //   new Date(JSON.parse(atob(idToken.split('.')[1])).exp * 1000).toLocaleString());
             
             
-            const response = await fetch(`http://localhost:5000/api/user/${user.uid}`, {
+            const response = await fetch(`https://onlinetutoringplatform.onrender.com/api/user/${user.uid}`, {
               method: 'GET',
               headers: { 
                 'Content-Type': 'application/json',

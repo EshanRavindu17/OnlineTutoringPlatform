@@ -91,7 +91,7 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const res = await fetch('/api/check-role', {
+        const res = await fetch('https://onlinetutoringplatform.onrender.com/api/check-role', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -194,7 +194,7 @@ export default function AuthPage() {
         dob: null
       };
 
-      const response = await fetch('http://localhost:5000/api/add-user', {
+      const response = await fetch('https://onlinetutoringplatform.onrender.com/api/add-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userPayload)

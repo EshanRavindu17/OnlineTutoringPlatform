@@ -42,7 +42,7 @@ export interface SessionStatistics {
 }
 
 class SessionService {
-  private baseURL = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/sessions`;
+  private baseURL = `${import.meta.env.VITE_BACKEND_URL || 'https://onlinetutoringplatform.onrender.com'}/api/sessions`;
 
   // Get all sessions for the tutor
   async getAllSessions(firebaseUid: string): Promise<SessionWithDetails[]> {
