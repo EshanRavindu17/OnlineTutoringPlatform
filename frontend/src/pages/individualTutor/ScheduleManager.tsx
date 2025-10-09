@@ -150,9 +150,6 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({ tutorId, onScheduleCh
   // Update weekly schedule with existing time slots
   const updateScheduleWithTimeSlots = (slots: TimeSlot[]) => {
     const schedule = initializeWeeklySchedule();
-    
-    // Backend already filters past slots correctly, so we don't need additional frontend filtering
-    // Just use all slots returned from the backend
     slots.forEach(slot => {
       const dateSlots = schedule[slot.date];
       if (dateSlots) {

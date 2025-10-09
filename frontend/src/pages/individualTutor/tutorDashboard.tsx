@@ -55,7 +55,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
 import { EarningsService, EarningsDashboard, EarningsStatistics, RecentPayment } from '../../api/EarningsService';
 import { ReviewsService, ReviewData, ReviewStatistics, ReviewAnalytics } from '../../api/ReviewsService';
-import EnhancedMaterialModal from '../../components/EnhancedMaterialModal';
+import MaterialModal from '../../components/MaterialModal';
 import SessionActions from './SessionActions';
 
 interface LocalTutorProfile {
@@ -846,33 +846,6 @@ const TutorDashboard: React.FC = () => {
   const [reviewStats, setReviewStats] = useState<ReviewStatistics | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
-  // Reviews and Ratings (keep old for backward compatibility)
-  // const [reviews, setReviews] = useState<Review[]>([
-  //   {
-  //     id: 1,
-  //     studentName: 'Emily R.',
-  //     rating: 5,
-  //     date: '2025-08-20',
-  //     comment: 'Dr. Martinez helped me improve my calculus grade from a C to an A! Her explanations are clear and she\'s incredibly patient. Highly recommend!',
-  //     subject: 'Mathematics'
-  //   },
-  //   {
-  //     id: 2,
-  //     studentName: 'Michael T.',
-  //     rating: 5,
-  //     date: '2025-08-18',
-  //     comment: 'Amazing tutor! She made physics concepts that seemed impossible actually make sense. My test scores have improved dramatically.',
-  //     subject: 'Physics'
-  //   },
-  //   {
-  //     id: 3,
-  //     studentName: 'Jessica L.',
-  //     rating: 4,
-  //     date: '2025-08-15',
-  //     comment: 'Dr. Martinez is fantastic! She helped me prepare for the SAT math section and I scored a 780. Her teaching methods are excellent.',
-  //     subject: 'Mathematics'
-  //   }
-  // ]);
 
   const [newMaterial, setNewMaterial] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -989,8 +962,9 @@ const TutorDashboard: React.FC = () => {
     const sessionStartTime = new Date();
     sessionStartTime.setHours(sessionHour, sessionMinute, 0, 0);
     
-    // Allow starting from the session time onwards
-    return now.getTime() >= sessionStartTime.getTime();
+    // Allow starting 15 minutes before the session time
+    const earlyStartTime = new Date(sessionStartTime.getTime() - 15 * 60 * 1000); // 15 minutes earlier
+    return now.getTime() >= earlyStartTime.getTime();
   };
 
   // Helper function to get time remaining until session can be started
@@ -1038,7 +1012,9 @@ const TutorDashboard: React.FC = () => {
     const sessionStartTime = new Date();
     sessionStartTime.setHours(sessionHour, sessionMinute, 0, 0);
     
-    const timeDiff = sessionStartTime.getTime() - now.getTime();
+    // Calculate early start time (15 minutes before session)
+    const earlyStartTime = new Date(sessionStartTime.getTime() - 15 * 60 * 1000);
+    const timeDiff = earlyStartTime.getTime() - now.getTime();
     
     if (timeDiff <= 0) return '';
     
@@ -1092,7 +1068,7 @@ const TutorDashboard: React.FC = () => {
       review: session.Rating_N_Review_Session?.[0]?.review || undefined,
       status: session.status || undefined,
       meeting_urls: session.meeting_urls || [],
-      refunded: false, // TODO: Add refund status to backend
+      refunded: false,
       reason: undefined // TODO: Add cancellation reason to backend
     };
   };
@@ -1239,13 +1215,13 @@ const TutorDashboard: React.FC = () => {
         loadTitlesForSubjects(newSubjects);
         
         // Show success message
-        alert(`✅ Subject "${newSubject.name}" created successfully and added to your profile!`);
+        alert(`Subject "${newSubject.name}" created successfully and added to your profile!`);
       } catch (error: any) {
         console.error('Failed to create subject:', error);
-        alert(`❌ Failed to create subject: ${error.message || 'Unknown error'}`);
+        alert(`Failed to create subject: ${error.message || 'Unknown error'}`);
       }
     } else if (customSubject.trim() && availableSubjects.some(s => s.name.toLowerCase() === customSubject.trim().toLowerCase())) {
-      alert('⚠️ This subject already exists. Please choose a different name.');
+      alert('This subject already exists. Please choose a different name.');
     }
   };
 
@@ -1284,13 +1260,13 @@ const TutorDashboard: React.FC = () => {
         setSelectedSubjectForCustomTitle('');
       } catch (error: any) {
         console.error('Failed to create title:', error);
-        alert(`❌ Failed to create title: ${error.message || 'Unknown error'}`);
+        alert(`Failed to create title: ${error.message || 'Unknown error'}`);
       }
     } else if (customTitle.trim() && selectedSubjectForCustomTitle && 
                availableTitles.some(t => t.name.toLowerCase() === customTitle.trim().toLowerCase() && t.sub_id === selectedSubjectForCustomTitle)) {
-      alert('⚠️ This title already exists for the selected subject. Please choose a different name.');
+      alert('This title already exists for the selected subject. Please choose a different name.');
     } else if (!selectedSubjectForCustomTitle) {
-      alert('⚠️ Please select a subject first.');
+      alert('Please select a subject first.');
     }
   };
 
@@ -1510,7 +1486,7 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  // Enhanced material management functions
+  // Material management functions
   const addEnhancedMaterial = async (materialData: Omit<Material, 'id' | 'uploadDate'>) => {
     if (!selectedSessionForMaterial || !currentUser?.uid) return;
     
@@ -1525,10 +1501,10 @@ const TutorDashboard: React.FC = () => {
       loadSessionsData();
       setShowMaterialModal(false);
       setSelectedSessionForMaterial(null);
-      alert('Enhanced material added successfully!');
+      alert('Material added successfully!');
     } catch (error) {
-      console.error('Error adding enhanced material:', error);
-      alert('Failed to add enhanced material. Please try again.');
+      console.error('Error adding material:', error);
+      alert('Failed to add material. Please try again.');
     }
   };
 
@@ -1606,11 +1582,11 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  const handleSessionReschedule = async (sessionId: string, newDate: string, newTime: string, reason: string) => {
-    // TODO: Implement reschedule functionality when backend endpoint is available
-    alert(`Reschedule functionality will be implemented soon.\n\nSession: ${sessionId}\nNew Date: ${newDate}\nNew Time: ${newTime}\nReason: ${reason}`);
-    closeSessionActions();
-  };
+  // const handleSessionReschedule = async (sessionId: string, newDate: string, newTime: string, reason: string) => {
+  //   // TODO: Implement reschedule functionality when backend endpoint is available
+  //   alert(`Reschedule functionality will be implemented soon.\n\nSession: ${sessionId}\nNew Date: ${newDate}\nNew Time: ${newTime}\nReason: ${reason}`);
+  //   closeSessionActions();
+  // };
 
   const completeSession = async (sessionId: string, studentName: string) => {
     try {
@@ -1672,14 +1648,12 @@ const TutorDashboard: React.FC = () => {
 
   const handleZoomMeeting = async (sessionId: string, studentName: string, meetingUrls?: string[]) => {
     try {
-      // First, start the session (change status from scheduled to ongoing)
+      // Step 1: Update session status to "ongoing"
       if (currentUser?.uid) {
         await sessionService.startSession(currentUser.uid, sessionId);
-        
-        // Reload sessions to reflect the status change
         await loadSessionsData();
         
-        // Show success message briefly
+        // Show success message
         const tempMessage = document.createElement('div');
         tempMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
         tempMessage.textContent = `Session with ${studentName} has been started!`;
@@ -1690,24 +1664,38 @@ const TutorDashboard: React.FC = () => {
         }, 3000);
       }
 
-      // Then open Zoom link
-      const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
+      // Step 2: Handle Zoom meeting URL with ZAK refresh
+      let zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
       
       if (zoomLink) {
-        // Confirm before opening the meeting
         const confirmed = window.confirm(
           `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab and mark the session as ongoing.`
         );
         
         if (confirmed) {
-          // Open the actual Zoom meeting in a new tab
-          window.open(zoomLink, '_blank');
+          try {
+            const refreshedZoomLink = await refreshZoomLinkIfNeeded(zoomLink, sessionId);
+            window.open(refreshedZoomLink, '_blank');
+          } catch (error) {
+            console.error('Error refreshing Zoom link:', error);
+            
+            // Show user-friendly error and fallback to original link
+            const useOriginal = window.confirm(
+              `Unable to refresh the meeting link. This might mean the link has expired.\n\n` +
+              `Would you like to try the original link anyway?\n\n` +
+              `If it doesn't work, you may need to create a new meeting.`
+            );
+            
+            if (useOriginal) {
+              window.open(zoomLink, '_blank');
+            }
+          }
         }
       } else {
-        // No zoom link available - provide options to add one
+        // Handle case where no meeting URL exists
         const addUrl = window.confirm(
           `Session started successfully!\n\n` +
-          `❌ No Zoom meeting URL found for this session with ${studentName}.\n\n` +
+          `No Zoom meeting URL found for this session with ${studentName}.\n\n` +
           `Would you like to add a meeting URL now?`
         );
         
@@ -1716,12 +1704,9 @@ const TutorDashboard: React.FC = () => {
           if (meetingUrl && meetingUrl.trim() && currentUser?.uid) {
             try {
               await sessionService.addMeetingUrl(currentUser.uid, sessionId, meetingUrl.trim());
-              
-              // Show success and reload sessions
               alert(`Meeting URL added successfully!\n\nURL: ${meetingUrl}`);
               await loadSessionsData();
               
-              // Offer to open the newly added URL
               if (window.confirm('Would you like to open the meeting now?')) {
                 window.open(meetingUrl.trim(), '_blank');
               }
@@ -1738,7 +1723,38 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-
+  const refreshZoomLinkIfNeeded = async (originalZoomLink: string, sessionId: string): Promise<string> => {
+    try {
+      if (!currentUser?.uid) {
+        throw new Error('User ID is undefined. Cannot refresh Zoom link.');
+      }
+      if (originalZoomLink.includes('zak=')) {
+        const refreshedLink = await sessionService.refreshZoomLink(currentUser.uid, sessionId, originalZoomLink);
+        
+        if (refreshedLink && refreshedLink !== originalZoomLink) {
+          console.log('Zoom link refreshed successfully');
+          
+          // Show success message
+          const tempMessage = document.createElement('div');
+          tempMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          tempMessage.textContent = 'Meeting link refreshed successfully!';
+          document.body.appendChild(tempMessage);
+          
+          setTimeout(() => {
+            document.body.removeChild(tempMessage);
+          }, 2000);
+          
+          return refreshedLink;
+        }
+      }
+      
+      // Return original link if no refresh needed or available
+      return originalZoomLink;
+    } catch (error) {
+      console.error('Error refreshing Zoom link:', error);
+      throw error;
+    }
+  };
 
   const EditButton = ({ section, className = "" }: { section: keyof typeof editMode, className?: string }) => (
     <button
@@ -2379,21 +2395,21 @@ const TutorDashboard: React.FC = () => {
         {editMode.pricing ? (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hourly Rate (Maximum: LKR 300)
+              Hourly Rate (Maximum: LKR 3000)
             </label>
             <div className="flex items-center space-x-2">
               <span className="text-2xl font-bold text-gray-800">LKR</span>
               <input
                 type="number"
-                max="300"
+                max="3000"
                 value={tutorProfile.hourlyRate}
-                onChange={(e) => handleProfileChange('hourlyRate', Math.min(300, parseInt(e.target.value)))}
+                onChange={(e) => handleProfileChange('hourlyRate', Math.min(3000, parseInt(e.target.value)))}
                 className="text-2xl font-bold p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
               />
               <span className="text-gray-600">per hour</span>
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              Admin has set a maximum limit of $300 per hour
+              Admin has set a maximum limit of LKR 3000 per hour
             </p>
           </div>
         ) : (
@@ -2463,16 +2479,6 @@ const TutorDashboard: React.FC = () => {
               </h2>
               <p className="text-gray-600 mt-1">Manage your tutoring sessions and materials</p>
             </div>
-            {/* <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                <div className="text-2xl font-bold">{stats.completedSessions}</div>
-                <div className="text-blue-200 text-sm">Total Completed</div>
-              </div>
-              <div className="bg-white bg-opacity-20 rounded-lg p-4">
-                <div className="text-2xl font-bold">{stats.upcomingSessions}</div>
-                <div className="text-blue-200 text-sm">Upcoming</div>
-              </div>
-            </div> */}
           </div>
         </div>
 
@@ -2702,13 +2708,16 @@ const TutorDashboard: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Materials Section for Upcoming Sessions */}
-                      {activeSessionTab === 'upcoming' && (
+                      {/* Materials Section - Available for All Session Types */}
+                      {(activeSessionTab === 'upcoming' || activeSessionTab === 'ongoing' || activeSessionTab === 'previous') && (
                         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-medium text-gray-800 flex items-center">
                               <FileText className="w-4 h-4 mr-2" />
                               Session Materials
+                              {activeSessionTab === 'previous' && (
+                                <span className="ml-2 text-xs text-gray-500 font-normal">(Session Completed)</span>
+                              )}
                             </h4>
                           </div>
                           
@@ -2732,28 +2741,39 @@ const TutorDashboard: React.FC = () => {
                                       </div>
                                       <span className="text-sm font-medium text-gray-700">{materialName}</span>
                                     </div>
-                                    <button
-                                      onClick={() => removeMaterial(session.id, index, materialName)}
-                                      className="text-red-500 hover:text-red-700 transition-colors p-1"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
+                                    {/* Only show remove button for upcoming and ongoing sessions */}
+                                    {(activeSessionTab === 'upcoming' || activeSessionTab === 'ongoing') && (
+                                      <button
+                                        onClick={() => removeMaterial(session.id, index, materialName)}
+                                        className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               })}
                             </div>
                           ) : (
-                            <p className="text-sm text-gray-500 italic mb-4">No materials added yet</p>
+                            <p className="text-sm text-gray-500 italic mb-4">
+                              {activeSessionTab === 'previous' 
+                                ? 'No materials were added for this session' 
+                                : 'No materials added yet'}
+                            </p>
                           )}
                           
-                          {/* Add material form */}
+                          {/* Add material form - Available for upcoming, ongoing, and previous sessions */}
                           {selectedSessionId === session.id ? (
                             <div className="flex space-x-2">
                               <input
                                 type="text"
                                 value={newMaterial}
                                 onChange={(e) => setNewMaterial(e.target.value)}
-                                placeholder="Enter material name, URL, or description..."
+                                placeholder={
+                                  activeSessionTab === 'previous'
+                                    ? "Add reference material or notes..."
+                                    : "Enter material name, URL, or description..."
+                                }
                                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                               <button
@@ -2790,7 +2810,7 @@ const TutorDashboard: React.FC = () => {
                                 className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
                               >
                                 <Upload className="w-4 h-4 mr-1" />
-                                Advanced
+                                {activeSessionTab === 'previous' ? 'Add Reference' : 'Advanced'}
                               </button>
                             </div>
                           )}
@@ -2807,20 +2827,55 @@ const TutorDashboard: React.FC = () => {
                             const timeUntilStart = originalSession ? getTimeUntilCanStart(originalSession) : '';
                             
                             if (canStart) {
+                              // Check if we're in the early start window (15 minutes before)
+                              const now = new Date();
+                              const sessionStartTime = new Date();
+                              if (originalSession?.slots && originalSession.slots.length > 0) {
+                                const firstSlot: any = originalSession.slots[0];
+                                if (firstSlot instanceof Date) {
+                                  sessionStartTime.setHours(firstSlot.getUTCHours(), firstSlot.getUTCMinutes(), 0, 0);
+                                } else {
+                                  const timeStr = String(firstSlot);
+                                  if (timeStr.includes('T')) {
+                                    const timePart = timeStr.split('T')[1];
+                                    const [hours, minutes] = timePart.split(':').map(Number);
+                                    sessionStartTime.setHours(hours, minutes || 0, 0, 0);
+                                  } else if (timeStr.includes(':')) {
+                                    const [hours, minutes] = timeStr.split(':').map(Number);
+                                    sessionStartTime.setHours(hours, minutes || 0, 0, 0);
+                                  }
+                                }
+                              }
+                              
+                              const isEarlyStart = now.getTime() < sessionStartTime.getTime();
+                              
                               return (
-                                <button
-                                  onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
-                                  className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                                >
-                                  <Video className="mr-2" size={18} />
-                                  {session.meeting_urls && session.meeting_urls.length > 0 ? 'Start Session & Join Meeting' : 'Start Session'}
-                                </button>
+                                <div className="flex flex-col gap-2">
+                                  <button
+                                    onClick={() => handleZoomMeeting(session.id, session.studentName, session.meeting_urls)}
+                                    className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                  >
+                                    <Video className="mr-2" size={18} />
+                                    {session.meeting_urls && session.meeting_urls.length > 0 ? 'Start Session & Join Meeting' : 'Start Session'}
+                                  </button>
+                                  {isEarlyStart && (
+                                    <div className="flex items-center text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded">
+                                      <Clock className="mr-1" size={12} />
+                                      <span>Early start available (15 min before scheduled time)</span>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             } else {
                               return (
-                                <div className="flex items-center px-6 py-3 bg-gray-100 text-gray-500 rounded-lg border-2 border-dashed border-gray-300">
-                                  <Clock className="mr-2" size={18} />
-                                  {timeUntilStart ? `Available in ${timeUntilStart}` : 'Session not ready'}
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center px-6 py-3 bg-gray-100 text-gray-500 rounded-lg border-2 border-dashed border-gray-300">
+                                    <Clock className="mr-2" size={18} />
+                                    {timeUntilStart ? `Available in ${timeUntilStart}` : 'Session not ready'}
+                                  </div>
+                                  {/* <div className="flex items-center text-xs text-gray-500 px-3 py-1">
+                                    <span>Session can be started 15 minutes early</span>
+                                  </div> */}
                                 </div>
                               );
                             }
@@ -2900,9 +2955,6 @@ const TutorDashboard: React.FC = () => {
       </div>
     );
   };
-
-
-
 
   const renderEarnings = () => (
     <div className="space-y-6">
@@ -3118,7 +3170,7 @@ const TutorDashboard: React.FC = () => {
           Reviews & Ratings Overview
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Average Rating */}
           <div className="text-center bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
             <div className="text-5xl font-bold text-yellow-600 mb-3">
@@ -3145,7 +3197,7 @@ const TutorDashboard: React.FC = () => {
           </div>
 
           {/* Response Rate */}
-          <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+          {/* <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
             <div className="text-5xl font-bold text-blue-600 mb-3">
               {reviewStats?.responseRate?.toFixed(0) || 0}%
             </div>
@@ -3153,7 +3205,7 @@ const TutorDashboard: React.FC = () => {
               <MessageSquare className="text-blue-500" size={24} />
             </div>
             <p className="text-gray-700 font-medium">Response Rate</p>
-          </div>
+          </div> */}
 
           {/* Monthly Reviews */}
           <div className="text-center bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
@@ -4255,9 +4307,9 @@ const TutorDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Enhanced Material Modal */}
+      {/* Material Modal */}
       {showMaterialModal && selectedSessionForMaterial && (
-        <EnhancedMaterialModal
+        <MaterialModal
           sessionId={selectedSessionForMaterial}
           onClose={() => {
             setShowMaterialModal(false);

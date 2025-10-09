@@ -80,7 +80,7 @@ class ReviewsService {
           }
         },
         orderBy: {
-          r_id: 'desc' // Use r_id instead of review_date
+          r_id: 'asc' // Use r_id instead of review_date
         },
         skip: options.offset || 0,
         take: options.limit || 50
@@ -89,7 +89,7 @@ class ReviewsService {
       return reviews.map(review => ({
         review_id: review.r_id,
         student_name: review.Sessions?.Student?.User?.name || 'Anonymous Student',
-        student_photo: review.Sessions?.Student?.User?.photo_url || null,
+        // student_photo: review.Sessions?.Student?.User?.photo_url || null,
         rating: Number(review.rating || 0),
         review: review.review || '',
         subject: review.Sessions?.title || 'General',
@@ -164,7 +164,7 @@ class ReviewsService {
       const subjectRatings: { [subject: string]: { count: number; average: number } } = {};
       
       allReviews.forEach(review => {
-        const subject = review.Sessions?.title || 'General';
+        const subject = review.Sessions?.subject;
         if (!subjectRatings[subject]) {
           subjectRatings[subject] = { count: 0, average: 0 };
         }
@@ -173,9 +173,9 @@ class ReviewsService {
 
       // Calculate averages for each subject
       Object.keys(subjectRatings).forEach(subject => {
-        const subjectReviews = allReviews.filter(r => (r.Sessions?.title || 'General') === subject);
+        const subjectReviews = allReviews.filter(r => (r.Sessions?.subject || 'General') === subject);
         const average = subjectReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / subjectReviews.length;
-        subjectRatings[subject].average = Math.round(average * 10) / 10; // Round to 1 decimal
+        subjectRatings[subject].average = Math.round(average * 10) / 10; 
       });
 
       // Calculate monthly reviews for the last 12 months

@@ -18,7 +18,7 @@ import {
   autoExpireScheduledSessions,
   autoCompleteLongRunningSessions
 } from "../services/sessionService";
-import { SessionStatus } from "@prisma/client";
+import { SessionStatus, PrismaClient } from "@prisma/client";
 import { getTutorIdByFirebaseUid } from "../services/scheduleService";
 
 // Get all sessions for a tutor
@@ -589,7 +589,6 @@ export const requestSessionCancellationController = async (req: Request, res: Re
     
     if (error instanceof Error) {
       if (error.message.includes('Session not found') || 
-          error.message.includes('permission to cancel') ||
           error.message.includes('Only scheduled sessions')) {
         return res.status(400).json({
           success: false,
@@ -896,32 +895,6 @@ export const uploadMaterialFileController = async (req: Request, res: Response) 
       });
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (req.file.size > maxSize) {
-      return res.status(400).json({
-        success: false,
-        message: "File size exceeds 10MB limit"
-      });
-    }
-
-    // Validate file type
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain', 'text/csv',
-      'video/mp4', 'video/avi', 'video/mov', 'video/wmv'
-    ];
-
-    if (!allowedTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({
-        success: false,
-        message: "File type not supported"
-      });
-    }
-
     // Get tutor ID from firebase UID
     const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
     
@@ -934,34 +907,16 @@ export const uploadMaterialFileController = async (req: Request, res: Response) 
       });
     }
 
-    // Generate unique filename
-    const fileExtension = req.file.originalname.split('.').pop();
-    const uniqueFilename = `${sessionId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
-    
-    // For now, create a mock URL - in production, upload to cloud storage (AWS S3, Cloudinary, etc.)
-    const mockFileUrl = `${req.protocol}://${req.get('host')}/uploads/materials/${uniqueFilename}`;
+    // File is already uploaded to Cloudinary via multer middleware
+    // The URL is available in req.file.path for Cloudinary
+    const fileUrl = req.file.path || req.file.filename;
     const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // In production, you would:
-    // 1. Upload to cloud storage (AWS S3, Google Cloud, Cloudinary, etc.)
-    // 2. Get the real URL from the cloud service
-    // 3. Store file metadata in database
-    
-    // Example for AWS S3:
-    // const uploadResult = await s3.upload({
-    //   Bucket: 'your-bucket-name',
-    //   Key: `session-materials/${uniqueFilename}`,
-    //   Body: req.file.buffer,
-    //   ContentType: req.file.mimetype,
-    //   ACL: 'private'
-    // }).promise();
-    // const fileUrl = uploadResult.Location;
 
     res.status(200).json({
       success: true,
       message: 'File uploaded successfully',
       data: {
-        url: mockFileUrl,
+        url: fileUrl,
         fileId: fileId,
         originalName: req.file.originalname,
         size: req.file.size,
@@ -1212,6 +1167,66 @@ export const autoCompleteSessionsController = async (req: Request, res: Response
       success: false,
       message: "Failed to auto-complete sessions",
       error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+};
+
+export const refreshZoomLinkController = async (req: Request, res: Response) => {
+  const prisma = new PrismaClient();
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    const { oldZoomUrl } = req.body;
+
+    if (!oldZoomUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Old Zoom URL is required'
+      });
+    }
+
+    // Get tutor ID from Firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session belongs to this tutor
+    const session = await prisma.sessions.findFirst({
+      where: {
+        session_id: sessionId,
+        i_tutor_id: tutorId
+      }
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or access denied'
+      });
+    }
+
+    // Use the getZak function to refresh the Zoom link
+    const { getZak } = require('../services/zoom.service');
+    const newZoomUrl = await getZak(oldZoomUrl);
+
+    // Update the session with the new Zoom URL
+    await prisma.sessions.update({
+      where: { session_id: sessionId },
+      data: { meeting_urls: [newZoomUrl] }
+    });
+
+    res.json({
+      success: true,
+      message: 'Zoom link refreshed successfully',
+      data: {
+        newZoomUrl,
+        oldZoomUrl,
+        sessionId
+      }
+    });
+
+  } catch (error) {
+    console.error('Error refreshing Zoom link:', error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to refresh Zoom link'
     });
   }
 };
