@@ -150,7 +150,7 @@ model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
   status                  SessionStatus?
-  materials               String[]                  @db.VarChar
+  materials               String[]
   created_at              DateTime?                 @db.Timestamp(6)
   date                    DateTime?                 @db.Date
   i_tutor_id              String?                   @db.Uuid
@@ -206,8 +206,10 @@ model User {
   photo_url        String?
   id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   Candidates       Candidates[]
+  ChatParticipant  ChatParticipant[]
   Individual_Tutor Individual_Tutor[]
   Mass_Tutor       Mass_Tutor[]
+  Message          Message[]
   Notifications    Notifications[]
   Student          Student[]
   admin_sessions   admin_sessions[]
@@ -225,6 +227,7 @@ model Class {
   description           String?
   product_id            String?                 @db.VarChar
   price_id              String?                 @db.VarChar
+  Chat                  Chat[]
   Mass_Tutor            Mass_Tutor?             @relation(fields: [m_tutor_id], references: [m_tutor_id], onDelete: Cascade)
   ClassSlot             ClassSlot[]
   Enrolment             Enrolment[]
@@ -334,11 +337,53 @@ model admin_sessions {
   User           User?          @relation(fields: [receiver_email], references: [email])
 }
 
+model Chat {
+  chat_id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type            ChatType
+  name            String?
+  class_id        String?           @db.Uuid
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  Class           Class?            @relation(fields: [class_id], references: [class_id], onDelete: Cascade, onUpdate: NoAction, map: "chat_class_fk")
+  ChatParticipant ChatParticipant[]
+  Message         Message[]
+}
+
+model ChatParticipant {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat_id   String    @db.Uuid
+  user_id   String    @db.Uuid
+  joined_at DateTime  @default(now()) @db.Timestamptz(6)
+  last_read DateTime? @db.Timestamptz(6)
+  Chat      Chat      @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade, onUpdate: NoAction, map: "chatparticipant_chat_fk")
+  User      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chatparticipant_user_fk")
+
+  @@unique([chat_id, user_id], map: "chatparticipant_chat_user_unique")
+}
+
+model Message {
+  message_id   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chat_id      String      @db.Uuid
+  sender_id    String      @db.Uuid
+  content      String
+  message_type MessageType @default(text)
+  file_url     String?
+  file_name    String?
+  is_read      Boolean     @default(false)
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  edited_at    DateTime?   @db.Timestamptz(6)
+  Chat         Chat        @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade, onUpdate: NoAction, map: "message_chat_fk")
+  User         User        @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "message_user_fk")
+
+  @@index([chat_id, created_at], map: "message_chat_created_idx")
+}
+
 /// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 enum CandidateStatus {
   pending
   approved
   rejected
+  suspended
 }
 
 enum ReportStatus {
@@ -402,4 +447,15 @@ enum payment_type {
 enum status_type {
   active
   deactivated
+}
+
+enum ChatType {
+  direct
+  group
+}
+
+enum MessageType {
+  text
+  file
+  image
 }

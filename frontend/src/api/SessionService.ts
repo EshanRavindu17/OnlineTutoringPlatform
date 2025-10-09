@@ -615,6 +615,33 @@ class SessionService {
     }
   }
 
+  // Get material content for viewing
+  async getMaterialContent(firebaseUid: string, sessionId: string, materialIndex: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/${sessionId}/materials/${materialIndex}/content`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to get material content');
+      }
+    } catch (error) {
+      console.error('Error getting material content:', error);
+      throw error;
+    }
+  }
+
   // Helper method to format session data for display
   // formatSessionForDisplay(session: SessionWithDetails) {
   //   return {
