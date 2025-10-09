@@ -604,7 +604,7 @@ export default function SignupForm({ role = 'student' }) {
       //   console.log('Certificate files:', formData.certificate_files.map(f => f.name));
       // }
 
-      const response = await axios.post('http://localhost:5000/api/add-user', userData); 
+      const response = await axios.post('https://onlinetutoringplatform.onrender.com/api/add-user', userData); 
       
       const user_id = response.data.user.id;
 
