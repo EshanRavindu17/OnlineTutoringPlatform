@@ -18,7 +18,7 @@ import {
   autoExpireScheduledSessions,
   autoCompleteLongRunningSessions
 } from "../services/sessionService";
-import { SessionStatus } from "@prisma/client";
+import { SessionStatus, PrismaClient } from "@prisma/client";
 import { getTutorIdByFirebaseUid } from "../services/scheduleService";
 
 // Get all sessions for a tutor
@@ -589,7 +589,6 @@ export const requestSessionCancellationController = async (req: Request, res: Re
     
     if (error instanceof Error) {
       if (error.message.includes('Session not found') || 
-          error.message.includes('permission to cancel') ||
           error.message.includes('Only scheduled sessions')) {
         return res.status(400).json({
           success: false,
@@ -1168,6 +1167,66 @@ export const autoCompleteSessionsController = async (req: Request, res: Response
       success: false,
       message: "Failed to auto-complete sessions",
       error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+};
+
+export const refreshZoomLinkController = async (req: Request, res: Response) => {
+  const prisma = new PrismaClient();
+  try {
+    const { firebaseUid, sessionId } = req.params;
+    const { oldZoomUrl } = req.body;
+
+    if (!oldZoomUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Old Zoom URL is required'
+      });
+    }
+
+    // Get tutor ID from Firebase UID
+    const tutorId = await getTutorIdByFirebaseUid(firebaseUid);
+    
+    // Verify session belongs to this tutor
+    const session = await prisma.sessions.findFirst({
+      where: {
+        session_id: sessionId,
+        i_tutor_id: tutorId
+      }
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or access denied'
+      });
+    }
+
+    // Use the getZak function to refresh the Zoom link
+    const { getZak } = require('../services/zoom.service');
+    const newZoomUrl = await getZak(oldZoomUrl);
+
+    // Update the session with the new Zoom URL
+    await prisma.sessions.update({
+      where: { session_id: sessionId },
+      data: { meeting_urls: [newZoomUrl] }
+    });
+
+    res.json({
+      success: true,
+      message: 'Zoom link refreshed successfully',
+      data: {
+        newZoomUrl,
+        oldZoomUrl,
+        sessionId
+      }
+    });
+
+  } catch (error) {
+    console.error('Error refreshing Zoom link:', error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to refresh Zoom link'
     });
   }
 };

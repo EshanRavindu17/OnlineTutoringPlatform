@@ -4,7 +4,7 @@ export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: (string | Material)[]; // Support both formats for backward compatibility
+  materials: (string | Material)[]; 
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -12,7 +12,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
-  subject: string | null;  // Added subject column from Sessions table
+  subject: string | null; 
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -244,8 +244,6 @@ class SessionService {
     }
   }
 
-  // Enhanced Material Management Methods
-
   // Add enhanced material to session
   async addEnhancedSessionMaterial(
     firebaseUid: string, 
@@ -460,7 +458,7 @@ class SessionService {
   }
 
   // Request session cancellation
-  async requestCancellation(firebaseUid: string, sessionId: string, reason?: string): Promise<{ success: boolean; message: string }> {
+  async requestCancellation(firebaseUid: string, sessionId: string, reason?: string): Promise<{ success: boolean; message: string; refund?: { id: string; amount: number; currency: string } | null }> {
     try {
       const response = await fetch(`${this.baseURL}/${firebaseUid}/session/${sessionId}/cancel`, {
         method: 'POST',
@@ -475,7 +473,11 @@ class SessionService {
       }
 
       const data = await response.json();
-      return { success: data.success, message: data.message };
+      return { 
+        success: data.success, 
+        message: data.message,
+        refund: data.refund || null
+      };
     } catch (error) {
       console.error('Error requesting session cancellation:', error);
       throw error;
@@ -582,6 +584,33 @@ class SessionService {
       return data.data;
     } catch (error) {
       console.error('Error auto-completing sessions:', error);
+      throw error;
+    }
+  }
+
+  async refreshZoomLink(firebaseUid: string, sessionId: string, oldZoomUrl: string): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseURL}/${firebaseUid}/${sessionId}/refresh-zoom-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ oldZoomUrl })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        return result.data.newZoomUrl;
+      } else {
+        throw new Error(result.message || 'Failed to refresh Zoom link');
+      }
+    } catch (error) {
+      console.error('Error refreshing Zoom link:', error);
       throw error;
     }
   }

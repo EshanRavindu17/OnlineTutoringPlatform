@@ -1648,14 +1648,12 @@ const TutorDashboard: React.FC = () => {
 
   const handleZoomMeeting = async (sessionId: string, studentName: string, meetingUrls?: string[]) => {
     try {
-      // First, start the session (change status from scheduled to ongoing)
+      // Step 1: Update session status to "ongoing"
       if (currentUser?.uid) {
         await sessionService.startSession(currentUser.uid, sessionId);
-        
-        // Reload sessions to reflect the status change
         await loadSessionsData();
         
-        // Show success message briefly
+        // Show success message
         const tempMessage = document.createElement('div');
         tempMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
         tempMessage.textContent = `Session with ${studentName} has been started!`;
@@ -1666,21 +1664,35 @@ const TutorDashboard: React.FC = () => {
         }, 3000);
       }
 
-      // Then open Zoom link
-      const zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
+      // Step 2: Handle Zoom meeting URL with ZAK refresh
+      let zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
       
       if (zoomLink) {
-        // Confirm before opening the meeting
         const confirmed = window.confirm(
           `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab and mark the session as ongoing.`
         );
         
         if (confirmed) {
-          // Open the actual Zoom meeting in a new tab
-          window.open(zoomLink, '_blank');
+          try {
+            const refreshedZoomLink = await refreshZoomLinkIfNeeded(zoomLink, sessionId);
+            window.open(refreshedZoomLink, '_blank');
+          } catch (error) {
+            console.error('Error refreshing Zoom link:', error);
+            
+            // Show user-friendly error and fallback to original link
+            const useOriginal = window.confirm(
+              `Unable to refresh the meeting link. This might mean the link has expired.\n\n` +
+              `Would you like to try the original link anyway?\n\n` +
+              `If it doesn't work, you may need to create a new meeting.`
+            );
+            
+            if (useOriginal) {
+              window.open(zoomLink, '_blank');
+            }
+          }
         }
       } else {
-        // No zoom link available - provide options to add one
+        // Handle case where no meeting URL exists
         const addUrl = window.confirm(
           `Session started successfully!\n\n` +
           `No Zoom meeting URL found for this session with ${studentName}.\n\n` +
@@ -1692,12 +1704,9 @@ const TutorDashboard: React.FC = () => {
           if (meetingUrl && meetingUrl.trim() && currentUser?.uid) {
             try {
               await sessionService.addMeetingUrl(currentUser.uid, sessionId, meetingUrl.trim());
-              
-              // Show success and reload sessions
               alert(`Meeting URL added successfully!\n\nURL: ${meetingUrl}`);
               await loadSessionsData();
               
-              // Offer to open the newly added URL
               if (window.confirm('Would you like to open the meeting now?')) {
                 window.open(meetingUrl.trim(), '_blank');
               }
@@ -1714,7 +1723,38 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-
+  const refreshZoomLinkIfNeeded = async (originalZoomLink: string, sessionId: string): Promise<string> => {
+    try {
+      if (!currentUser?.uid) {
+        throw new Error('User ID is undefined. Cannot refresh Zoom link.');
+      }
+      if (originalZoomLink.includes('zak=')) {
+        const refreshedLink = await sessionService.refreshZoomLink(currentUser.uid, sessionId, originalZoomLink);
+        
+        if (refreshedLink && refreshedLink !== originalZoomLink) {
+          console.log('Zoom link refreshed successfully');
+          
+          // Show success message
+          const tempMessage = document.createElement('div');
+          tempMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          tempMessage.textContent = 'Meeting link refreshed successfully!';
+          document.body.appendChild(tempMessage);
+          
+          setTimeout(() => {
+            document.body.removeChild(tempMessage);
+          }, 2000);
+          
+          return refreshedLink;
+        }
+      }
+      
+      // Return original link if no refresh needed or available
+      return originalZoomLink;
+    } catch (error) {
+      console.error('Error refreshing Zoom link:', error);
+      throw error;
+    }
+  };
 
   const EditButton = ({ section, className = "" }: { section: keyof typeof editMode, className?: string }) => (
     <button
