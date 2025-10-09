@@ -246,10 +246,23 @@ export const getAllSessionByStudentId = async (student_id: string) => {
                         }
                     }
                 }
+            },
+            Rating_N_Review_Session:{
+                where:{student_id},
+                select:{
+                    r_id: true,
+                }
             }
         }
     });
-    return sessions;
+
+
+    const result = sessions.map((session) => ({
+    ...session,
+    reviewed: session.Rating_N_Review_Session.length > 0, // true if student has reviewed
+    }));
+
+    return result;
 }
 
 // Get Student ID by User ID

@@ -141,6 +141,7 @@ export interface Session {
   reason?: string;
   cancelledBy?: string;
   refunded?: boolean;
+  reviewed?: boolean; // New field to indicate if reviewed  
   Individual_Tutor: {
     User: {
       name: string;
