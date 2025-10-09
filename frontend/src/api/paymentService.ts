@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from './Student';
 
-const API_URL = 'http://localhost:5000'; // Adjust this to your backend URL
+const API_URL = 'https://onlinetutoringplatform.onrender.com'; // Adjust this to your backend URL
 
 export interface PaymentIntentData {
   amount: number;

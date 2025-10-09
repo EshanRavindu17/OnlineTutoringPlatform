@@ -186,10 +186,12 @@ interface SessionData{
     date: string; // Date of the session
 }
 
+
 interface StudentCreateData{
     user_id:string;
     points:number;
 }
+
 
 interface StudentResponse{
     student_id: string;
@@ -198,8 +200,10 @@ interface StudentResponse{
     customer_id?: string;
 }
 
-const baseUrl = 'http://localhost:5000/api';
-const baseUrl2 = 'http://localhost:5000/student';
+
+const baseUrl = 'https://onlinetutoringplatform.onrender.com/api';
+const baseUrl2 = 'https://onlinetutoringplatform.onrender.com/student';
+
 
 
 
@@ -225,6 +229,7 @@ export const getToken = async (): Promise<string | null> => {
         return null;
     }
 };
+
 
 export const addStudent = async (studentData: StudentCreateData): Promise<StudentResponse> => {
     console.log('Adding new student...', studentData);

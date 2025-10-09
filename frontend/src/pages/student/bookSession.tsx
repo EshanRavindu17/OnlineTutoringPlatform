@@ -414,8 +414,32 @@ export default function BookSessionPage() {
               const shouldShow = shouldRenderSlot(slot.lastAccessTime);
               if (!shouldShow) {
                 console.log(`Slot ${slot.time} hidden due to recent access (within 5 minutes)`);
+                return false;
               }
-              return shouldShow;
+
+              // Check if the selected date is today
+              const today = new Date();
+              const selectedDateObj = new Date(selectedDate);
+              console.log(`Comparing selected date ${selectedDate} with today's date ${today}`);
+              const isToday = selectedDateObj.toDateString() === today.toDateString();
+
+              if (isToday) {
+                // Parse the slot time and compare with current hour
+                const [slotHours] = slot.time.split(':').map(Number);
+                const currentHour = today.getHours();
+                
+                console.log(`Checking slot ${slot.time} (hour: ${slotHours}) against current hour: ${currentHour}`);
+                
+                // Don't render slots that are at or before the current hour
+                if (slotHours <= currentHour) {
+                  console.log(`Slot ${slot.time} hidden because it's at or before current hour (${currentHour})`);
+                  return false;
+                }
+                
+                console.log(`Slot ${slot.time} will be shown (hour ${slotHours} > current hour ${currentHour})`);
+              }
+
+              return true;
             });
 
           console.log(`Showing ${processedSlots.length} available slots after 5-minute access control`);
@@ -426,15 +450,38 @@ export default function BookSessionPage() {
         }
       } catch (error) {
         console.error('Failed to fetch time slots:', error);
-        // Fallback to hardcoded slots if API fails
-        setAvailableSlots([
+        // Fallback to hardcoded slots if API fails, but apply the same filtering logic
+        let fallbackSlots = [
           { time: '09:00', lastAccessTime: null, slot_id: 'fallback-1' },
           { time: '10:00', lastAccessTime: null, slot_id: 'fallback-2' },
           { time: '11:00', lastAccessTime: null, slot_id: 'fallback-3' },
           { time: '13:00', lastAccessTime: null, slot_id: 'fallback-4' },
           { time: '14:00', lastAccessTime: null, slot_id: 'fallback-5' },
           { time: '15:00', lastAccessTime: null, slot_id: 'fallback-6' }
-        ]);
+        ];
+
+        // Apply the same current hour filtering to fallback slots
+        const today = new Date();
+        const selectedDateObj = new Date(selectedDate);
+        const isToday = selectedDateObj.toDateString() === today.toDateString();
+
+        console.log(`Processing fallback slots. Selected date: ${selectedDate}, is today: ${isToday}, current hour: ${today.getHours()}`);
+
+        if (isToday) {
+          const currentHour = today.getHours();
+          fallbackSlots = fallbackSlots.filter(slot => {
+            const [slotHours] = slot.time.split(':').map(Number);
+            const shouldShow = slotHours > currentHour;
+            if (!shouldShow) {
+              console.log(`Fallback slot ${slot.time} (hour: ${slotHours}) hidden because it's at or before current hour (${currentHour})`);
+            } else {
+              console.log(`Fallback slot ${slot.time} (hour: ${slotHours}) will be shown (> current hour ${currentHour})`);
+            }
+            return shouldShow;
+          });
+        }
+
+        setAvailableSlots(fallbackSlots);
       } finally {
         setSlotsLoading(false);
       }

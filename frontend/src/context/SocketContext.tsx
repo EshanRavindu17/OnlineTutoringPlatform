@@ -88,7 +88,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         console.log('🎫 Got Firebase token (length:', token.length, ')');
         
         // Connect to Socket.io server
-        const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://onlinetutoringplatform.onrender.com';
         console.log('🔌 Connecting to Socket.io server:', socketUrl);
         
         const newSocket = io(socketUrl, {

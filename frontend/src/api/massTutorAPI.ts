@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { auth } from '../firebase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://onlinetutoringplatform.onrender.com';
 
 // Get Firebase ID token for authentication
 const getAuthHeaders = async () => {
