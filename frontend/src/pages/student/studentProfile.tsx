@@ -19,7 +19,8 @@ import {
   Eye,
   MessageSquare,
   X,
-  Send
+  Send,
+  ThumbsUp
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -1098,13 +1099,13 @@ const StudentProfile: React.FC = () => {
                       {session.materials.map((link, index) => (
                         <a
                           key={index}
-                          href={link}
+                          href={JSON.parse(link).url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center px-3 py-2 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors text-sm text-green-700 mr-2 mb-2"
                         >
                           <FileText className="w-4 h-4 mr-2" />
-                          Material {index + 1}
+                          {JSON.parse(link).name || `Material ${index + 1}`}
                         </a>
                       ))}
                     </div>
@@ -1128,7 +1129,22 @@ const StudentProfile: React.FC = () => {
 
               {showRating && !session.rating && session.status === 'completed' && (
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-t border-blue-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  {session.reviewed == true ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">You Have rated this session</h4>
+                      <p className="text-sm text-gray-600">Thank you for your feedback!</p>
+                    </div>
+                    <button
+                      // onClick={() => openRatingModal(session)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      <ThumbsUp className="w-4 h-4 mr-2" />
+                      Reviewed
+                    </button>
+                  </div>
+                  ):(
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                     <div>
                       <h4 className="font-medium text-gray-700 mb-1">Share Your Experience</h4>
                       <p className="text-sm text-gray-600">Rate and review this session to help other students</p>
@@ -1141,6 +1157,9 @@ const StudentProfile: React.FC = () => {
                       Rate & Review
                     </button>
                   </div>
+                  )}
+                  
+                  
                 </div>
               )}
 
@@ -1357,7 +1376,7 @@ const StudentProfile: React.FC = () => {
                 <div className="text-blue-900 text-xs sm:text-sm font-bold">Sessions Completed</div>
             </div>
             <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">${individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + Number(tutor.prices), 0)}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">LKR {individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + Number(tutor.prices), 0)}</div>
               <div className="text-blue-900 text-xs sm:text-sm font-bold">Total Invested</div>
             </div>
           </div>
