@@ -57,6 +57,7 @@ import { SessionWithDetails, SessionStatistics, Material } from '../../types/ses
 // import { NotificationCenter } from './NotificationCenter';
 import { STANDARD_QUALIFICATIONS } from '../../constants/qualifications';
 import { EarningsService, EarningsDashboard, EarningsStatistics, RecentPayment } from '../../api/EarningsService';
+import { zoomService } from '../../api/ZoomService';
 import { ReviewsService, ReviewData, ReviewStatistics, ReviewAnalytics } from '../../api/ReviewsService';
 import MaterialModal from '../../components/MaterialModal';
 import SessionActions from './SessionActions';
@@ -1813,59 +1814,60 @@ const TutorDashboard: React.FC = () => {
         }, 3000);
       }
 
-      // Step 2: Handle Zoom meeting URL with ZAK refresh
-      let zoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
+      // Step 2: Handle Zoom meeting URL - get fresh link from /get-zak
+      let originalZoomLink = meetingUrls && meetingUrls.length > 0 ? meetingUrls[0] : null;
       
-      if (zoomLink) {
+      if (originalZoomLink) {
         const confirmed = window.confirm(
           `Join Zoom meeting with ${studentName}?\n\nThis will open the meeting in a new tab and mark the session as ongoing.`
         );
         
         if (confirmed) {
           try {
-            const refreshedZoomLink = await refreshZoomLinkIfNeeded(zoomLink, sessionId);
-            window.open(refreshedZoomLink, '_blank');
+            const freshZoomLink = await zoomService.getRefreshedZoomLink(originalZoomLink);
+            window.open(freshZoomLink, '_blank');
           } catch (error) {
-            console.error('Error refreshing Zoom link:', error);
+            console.error('Error getting fresh Zoom link:', error);
             
-            // Show user-friendly error and fallback to original link
+            // Fallback to original link
             const useOriginal = window.confirm(
-              `Unable to refresh the meeting link. This might mean the link has expired.\n\n` +
+              `Unable to get a fresh meeting link.\n\n` +
               `Would you like to try the original link anyway?\n\n` +
               `If it doesn't work, you may need to create a new meeting.`
             );
             
             if (useOriginal) {
-              window.open(zoomLink, '_blank');
+              window.open(originalZoomLink, '_blank');
             }
           }
         }
-      } else {
-        // Handle case where no meeting URL exists
-        const addUrl = window.confirm(
-          `Session started successfully!\n\n` +
-          `No Zoom meeting URL found for this session with ${studentName}.\n\n` +
-          `Would you like to add a meeting URL now?`
-        );
+      } 
+      // else {
+      //   // Handle case where no meeting URL exists
+      //   const addUrl = window.confirm(
+      //     `Session started successfully!\n\n` +
+      //     `No Zoom meeting URL found for this session with ${studentName}.\n\n` +
+      //     `Would you like to add a meeting URL now?`
+      //   );
         
-        if (addUrl) {
-          const meetingUrl = prompt('Please enter the meeting URL:');
-          if (meetingUrl && meetingUrl.trim() && currentUser?.uid) {
-            try {
-              await sessionService.addMeetingUrl(currentUser.uid, sessionId, meetingUrl.trim());
-              alert(`Meeting URL added successfully!\n\nURL: ${meetingUrl}`);
-              await loadSessionsData();
+      //   if (addUrl) {
+      //     const meetingUrl = prompt('Please enter the meeting URL:');
+      //     if (meetingUrl && meetingUrl.trim() && currentUser?.uid) {
+      //       try {
+      //         await sessionService.addMeetingUrl(currentUser.uid, sessionId, meetingUrl.trim());
+      //         alert(`Meeting URL added successfully!\n\nURL: ${meetingUrl}`);
+      //         await loadSessionsData();
               
-              if (window.confirm('Would you like to open the meeting now?')) {
-                window.open(meetingUrl.trim(), '_blank');
-              }
-            } catch (error) {
-              console.error('Error adding meeting URL:', error);
-              alert('Failed to add meeting URL. Please try again.');
-            }
-          }
-        }
-      }
+      //         if (window.confirm('Would you like to open the meeting now?')) {
+      //           window.open(meetingUrl.trim(), '_blank');
+      //         }
+      //       } catch (error) {
+      //         console.error('Error adding meeting URL:', error);
+      //         alert('Failed to add meeting URL. Please try again.');
+      //       }
+      //     }
+      //   }
+      // }
     } catch (error) {
       console.error('Error starting session:', error);
       alert(`Failed to start session: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1963,38 +1965,7 @@ const TutorDashboard: React.FC = () => {
     }
   };
 
-  const refreshZoomLinkIfNeeded = async (originalZoomLink: string, sessionId: string): Promise<string> => {
-    try {
-      if (!currentUser?.uid) {
-        throw new Error('User ID is undefined. Cannot refresh Zoom link.');
-      }
-      if (originalZoomLink.includes('zak=')) {
-        const refreshedLink = await sessionService.refreshZoomLink(currentUser.uid, sessionId, originalZoomLink);
-        
-        if (refreshedLink && refreshedLink !== originalZoomLink) {
-          console.log('Zoom link refreshed successfully');
-          
-          // Show success message
-          const tempMessage = document.createElement('div');
-          tempMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-          tempMessage.textContent = 'Meeting link refreshed successfully!';
-          document.body.appendChild(tempMessage);
-          
-          setTimeout(() => {
-            document.body.removeChild(tempMessage);
-          }, 2000);
-          
-          return refreshedLink;
-        }
-      }
-      
-      // Return original link if no refresh needed or available
-      return originalZoomLink;
-    } catch (error) {
-      console.error('Error refreshing Zoom link:', error);
-      throw error;
-    }
-  };
+
 
   const EditButton = ({ section, className = "" }: { section: keyof typeof editMode, className?: string }) => (
     <button
@@ -3246,11 +3217,28 @@ const TutorDashboard: React.FC = () => {
                         <div className="flex flex-wrap gap-3">
                           {session.meeting_urls && session.meeting_urls.length > 0 && (
                             <button
-                              onClick={() => {
-                                // For ongoing sessions, just open the meeting without changing status
-                                const zoomLink = session.meeting_urls && session.meeting_urls.length > 0 ? session.meeting_urls[0] : null;
-                                if (zoomLink) {
-                                  window.open(zoomLink, '_blank');
+                              onClick={async () => {
+                                // For ongoing sessions, refresh the zoom link before opening
+                                const originalZoomLink = session.meeting_urls && session.meeting_urls.length > 0 ? session.meeting_urls[0] : null;
+                                if (originalZoomLink) {
+                                  try {
+                                    // Get fresh zoom link without storing in database
+                                    const freshZoomLink = await zoomService.getRefreshedZoomLink(originalZoomLink);
+                                    window.open(freshZoomLink, '_blank');
+                                  } catch (error) {
+                                    console.error('Error getting fresh Zoom link:', error);
+                                    
+                                    // Fallback to original link
+                                    const useOriginal = window.confirm(
+                                      `Unable to get a fresh meeting link.\n\n` +
+                                      `Would you like to try the original link anyway?\n\n` +
+                                      `If it doesn't work, you may need to create a new meeting.`
+                                    );
+                                    
+                                    if (useOriginal) {
+                                      window.open(originalZoomLink, '_blank');
+                                    }
+                                  }
                                 } else {
                                   alert('No meeting URL available for this session');
                                 }
