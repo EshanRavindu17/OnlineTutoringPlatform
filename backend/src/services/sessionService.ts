@@ -6,8 +6,6 @@ import { refundPayment } from './paymentService';
 // Helper function to get session time range from slots
 const getSessionTimeRange = (slots: (string | Date)[]): string => {
   if (!slots || slots.length === 0) return 'Time not available';
-  
-  // Sort slots to ensure proper order
   const sortedSlots = slots.map(slot => new Date(slot)).sort((a, b) => a.getTime() - b.getTime());
   
   const extractTime = (slot: Date): string => {
@@ -15,8 +13,6 @@ const getSessionTimeRange = (slots: (string | Date)[]): string => {
   };
   
   const startTime = extractTime(sortedSlots[0]);
-  
-  // Calculate end time: start time + number of slots (each slot = 1 hour)
   const endDate = new Date(sortedSlots[0]);
   endDate.setHours(endDate.getHours() + slots.length);
   const endTime = extractTime(endDate);
@@ -71,7 +67,6 @@ export interface SessionWithDetails {
 
 // Helper function to convert Prisma sessions to SessionWithDetails
 const convertPrismaSessionToSessionWithDetails = (session: any): SessionWithDetails => {
-  // Parse enhanced materials from materials array (stored as JSON strings with prefix)
   let parsedMaterials: (string | MaterialData)[] = [];
   
   if (session.materials && Array.isArray(session.materials)) {
@@ -159,7 +154,6 @@ export const getTutorSessionsByStatus = async (
   status: SessionStatus
 ): Promise<SessionWithDetails[]> => {
   try {
-    // For canceled sessions, limit to the latest 10 to avoid overwhelming the UI
     const queryOptions: any = {
       where: {
         i_tutor_id: tutorId,
@@ -197,13 +191,13 @@ export const getTutorSessionsByStatus = async (
 
     // Limit canceled sessions to the latest 10 for better UX
     if (status === 'canceled') {
-      queryOptions.take = 10; // Limit to 10 latest canceled sessions
+      queryOptions.take = 10; 
       queryOptions.orderBy = [
         {
-          date: 'desc' // Most recent cancellations first
+          date: 'desc' 
         },
         {
-          created_at: 'desc' // Then by creation time (most recent first)
+          created_at: 'desc'
         }
       ];
     }
@@ -246,13 +240,13 @@ export const getTutorRecentCanceledSessions = async (tutorId: string, limit: num
       },
       orderBy: [
         {
-          date: 'desc' // Most recent cancellations first
+          date: 'desc' 
         },
         {
-          created_at: 'desc' // Then by creation time (most recent first)
+          created_at: 'desc' 
         }
       ],
-      take: limit // Limit the number of results
+      take: limit 
     });
 
     return sessions.map(convertPrismaSessionToSessionWithDetails);
@@ -380,8 +374,6 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
       }
     });
 
-    // Get upcoming sessions count (scheduled and in future) 
-    // We'll use the same logic as getTutorUpcomingSessions to get accurate count
     const upcomingSessionsResult = await getTutorUpcomingSessions(tutorId);
     const upcomingSessions = upcomingSessionsResult.length;
 
