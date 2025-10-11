@@ -68,6 +68,10 @@ export const addStudent = async (data: any) => {
   const user_id = data.user_id;
   const points = Number(data.points);
 
+  if(!user_id){
+    throw new Error("User_id is not provided !");
+  }
+
   // Fetch user details (name + email)
   const user = await prisma.user.findUnique({
     where: { id:user_id },
@@ -135,8 +139,12 @@ export const getAllIndividualTutors = async (name: string,subjects:string,titles
             // Now filter by subject and title names instead of IDs
             ...(subjects &&  { subjects: { hasSome: subjects.split(',').map(subject => subject.trim()) } }),
             ...(titles && { titles: { hasSome: titles.split(',').map(title => title.trim()) } }),
-            ...(min_hourly_rate && { hourly_rate: { gte: min_hourly_rate } }),
-            ...(max_hourly_rate && { hourly_rate: { lte: max_hourly_rate } }),
+            ...(min_hourly_rate || max_hourly_rate ? {
+                hourly_rate: {
+                    ...(min_hourly_rate && { gte: min_hourly_rate }),
+                    ...(max_hourly_rate && { lte: max_hourly_rate })
+                }
+            } : {}),
             ...(rating && { rating: { gte: rating } }),
             ...(name && { User: { name: { contains: name, mode: 'insensitive' } } }),
             status: 'active'

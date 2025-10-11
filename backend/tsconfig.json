@@ -13,7 +13,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "allowImportingTsExtensions": false,
     "noEmit": false
   },
