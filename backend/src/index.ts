@@ -319,4 +319,10 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
+const time = new Date('1970-01-01T08:00:00.000Z');
+console.log(time);
+const timeString = time.toISOString().split('T')[1].substring(0,8);
+
+console.log(timeString);
+
 export default app;
