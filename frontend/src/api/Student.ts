@@ -828,6 +828,8 @@ export interface MassTutor {
   rating: string; // you might convert this to number if needed
   prices: string; // you might convert this to number if needed
   User: MassTutorUser;
+  _count: { Class: number;  // count of classes
+  };
 }
 
 export interface ClassCount {
