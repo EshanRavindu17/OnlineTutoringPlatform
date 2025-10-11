@@ -1448,7 +1448,7 @@ function MassClassPage() {
           </div>
 
           {/* Sidebar Info */}
-          <div className="space-y-6">
+          {/* <div className="space-y-6">
             <div className="bg-white rounded-xl p-6">
               <h4 className="font-semibold text-gray-900 mb-4">Class Information</h4>
               <div className="space-y-3 text-sm">
@@ -1474,7 +1474,7 @@ function MassClassPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

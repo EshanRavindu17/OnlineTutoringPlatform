@@ -253,6 +253,9 @@ export const getAllSessionByStudentId = async (student_id: string) => {
                     r_id: true,
                 }
             }
+        },
+        orderBy:{
+            date: 'desc',
         }
     });
 
@@ -606,8 +609,8 @@ export const getPaymentSummaryByStudentId = async (student_id: string, page: num
             }
         },
         orderBy: { payment_date_time: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit
+        // skip: (page - 1) * limit,
+        // take: limit
     });
 
 
@@ -659,7 +662,9 @@ export const getPaymentSummaryByStudentId = async (student_id: string, page: num
         orderBy: { payment_date_time: 'desc' },
     });
 
-    const totalAmount = paidsessions.reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
+    const totalAmount = paidsessions
+        .filter(payment => payment.status !== 'refund')
+        .reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
 
     const successfulPayments = paidsessions.filter(payment => payment.status === 'success');
 
@@ -1101,7 +1106,8 @@ export const getMassTutorsByStudentId = async (student_id: string) => {
                    name: true,
                    photo_url: true
                }
-           }
+           },
+           _count: { select: { Class: true } }
        }
    });
 
@@ -1113,6 +1119,7 @@ export const createMassPayment = async (
     student_id: string,
     class_id: string,
     paid_amount: number,
+    payment_intent_id: string,
 ) => {
     // Create a payment intent for the mass payment
     const monthNames = [
@@ -1129,6 +1136,8 @@ export const createMassPayment = async (
             amount: paid_amount,
             paidMonth: monthNames[currentMonth],
             status: 'success',
+            payment_intent_id,
+            method: 'card',
         }
     });
 
@@ -1171,6 +1180,7 @@ export const createEnrolment = async (
       where: { enrol_id: existingEnrolment.enrol_id },
       data: {
         status: 'valid', // assuming you have a 'status' field
+        created_at: new Date(), // update the timestamp
       },
     });
     return updatedEnrolment;
@@ -1312,8 +1322,8 @@ export const getMassPaymentsByStudentId=async(student_id:string,page:number,limi
          },
        },
        orderBy:{payment_time:'desc'},
-       skip:(page-1)*limit,
-       take:limit
+    //    skip:(page-1)*limit,
+    //    take:limit
    })
 
    return payments;
