@@ -432,6 +432,8 @@ enum UserRole {
 enum ClassSlotStatus {
   completed
   upcoming
+  live
+  cancelled
 }
 
 enum EnrolmentStatus {
