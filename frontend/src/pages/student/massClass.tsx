@@ -179,19 +179,19 @@ function MassClassPage() {
       case 'completed':
         return {
           label: 'Completed',
-          bgColor: 'bg-green-100',
-          textColor: 'text-green-800',
-          barColor: 'bg-green-500',
-          buttonBg: 'bg-green-50 hover:bg-green-100',
+          bgColor: 'bg-slate-100',
+          textColor: 'text-slate-800',
+          barColor: 'bg-slate-500',
+          buttonBg: 'bg-slate-50 hover:bg-slate-100',
           icon: <CheckCircle className="w-3 h-3" />
         };
       case 'live':
         return {
           label: 'Live Now',
-          bgColor: 'bg-red-100',
-          textColor: 'text-red-800',
-          barColor: 'bg-red-500',
-          buttonBg: 'bg-red-50 hover:bg-red-100',
+          bgColor: 'bg-green-100',
+          textColor: 'text-green-800',
+          barColor: 'bg-green-500',
+          buttonBg: 'bg-green-50 hover:bg-green-100',
           icon: <PlayCircle className="w-3 h-3" />
         };
       case 'upcoming':
@@ -202,6 +202,15 @@ function MassClassPage() {
           barColor: 'bg-blue-500',
           buttonBg: 'bg-blue-50 hover:bg-blue-100',
           icon: <Clock className="w-3 h-3" />
+        };
+      case 'cancelled':
+        return {
+          label: 'Cancelled',
+          bgColor: 'bg-red-100',
+          textColor: 'text-red-800',
+          barColor: 'bg-red-500',
+          buttonBg: 'bg-red-50 hover:bg-red-100',
+          icon: <X className="w-3 h-3" />
         };
       default:
         return {
@@ -231,6 +240,7 @@ function MassClassPage() {
 
   // Check if join button should be shown
   const canJoinClass = (status: string, dateTime: string) => {
+    if (status === 'cancelled') return false;
     if (status === 'live') return true;
     if (status === 'upcoming') return isWithin15Minutes(dateTime);
     return false;
@@ -1019,6 +1029,7 @@ function MassClassPage() {
               const isCompleted = slotStatus === 'completed';
               const isUpcoming = slotStatus === 'upcoming';
               const isLive = slotStatus === 'live';
+              const isCancelled = slotStatus === 'cancelled';
               const statusDisplay = getStatusDisplay(slotStatus);
               
               return (
@@ -1037,7 +1048,8 @@ function MassClassPage() {
                               {slotDate.toLocaleDateString('en-US', { 
                                 weekday: 'long',
                                 month: 'long', 
-                                day: 'numeric'
+                                day: 'numeric',
+                                timeZone: 'UTC'
                               })}
                             </h3>
                             <div className={`${statusDisplay.bgColor} ${statusDisplay.textColor} text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1 ${
@@ -1048,7 +1060,7 @@ function MassClassPage() {
                             </div>
                           </div>
                           <div className="text-sm text-gray-600">
-                            {slotDate.toLocaleDateString()} • {slotDate.toLocaleTimeString([], { 
+                            {slotDate.toLocaleDateString([], { timeZone: 'UTC' })} • {slotDate.toLocaleTimeString([], {
                               hour: '2-digit', 
                               minute: '2-digit',
                               timeZone: 'UTC'
@@ -1101,7 +1113,9 @@ function MassClassPage() {
                           <div className="text-center py-8 text-gray-500">
                             <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <p>
-                              {isCompleted 
+                              {isCancelled
+                                ? "This class has been cancelled"
+                                : isCompleted 
                                 ? "No materials available for this session"
                                 : isLive 
                                 ? "Materials will be shared during the live class"
@@ -1115,10 +1129,10 @@ function MassClassPage() {
                         {slot.meetingURLs && slot.meetingURLs.length > 0 && canJoinClass(slotStatus, slot.dateTime) && (
                           <div className="mt-4 pt-4 border-t">
                             <button
-                              onClick={() => window.open(slot.meetingURLs[0], '_blank')}
+                              onClick={() => window.open(slot.meetingURLs[1], '_blank')}
                               className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
                                 isLive
-                                  ? 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 shadow-lg animate-pulse'
+                                  ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 shadow-lg animate-pulse'
                                   : isUpcoming && isJoinButtonRecentlyAvailable(slot.dateTime)
                                   ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg animate-pulse shadow-md'
                                   : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-md'
@@ -1162,6 +1176,23 @@ function MassClassPage() {
                                   minute: '2-digit',
                                   timeZone: 'UTC'
                                 })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Cancelled Class Message */}
+                        {isCancelled && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <div className="flex items-center">
+                                <X className="w-4 h-4 text-red-600 mr-2" />
+                                <p className="text-red-800 text-sm font-medium">
+                                  This class has been cancelled
+                                </p>
+                              </div>
+                              <div className="mt-1 text-xs text-red-700">
+                                You will be notified if the class is rescheduled
                               </div>
                             </div>
                           </div>
