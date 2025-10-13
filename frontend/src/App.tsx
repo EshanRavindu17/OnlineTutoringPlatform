@@ -47,6 +47,7 @@ import MassClassPage from './pages/student/massClass';
 
 // ===== Admin portal imports =====
 import AdminAuth from './admin/AdminAuth';
+import AdminSignup from './admin/AdminSignup';
 import AdminGate from './admin/AdminGate';
 import AdminLayout from './admin/AdminLayout';
 import AdminDashboard from './admin/Dashboard';
@@ -139,6 +140,7 @@ const App = () => {
 
         {/* ===== Admin portal ===== */}
         <Route path="/admin/auth" element={<AdminAuth />} />
+        <Route path="/admin/signup" element={<AdminSignup />} />
         <Route path="/admin" element={<AdminGate />}>
           <Route element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
