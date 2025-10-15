@@ -34,7 +34,7 @@ interface ClassSlot {
   cslot_id: string;
   dateTime: string;
   duration: number;
-  status: 'upcoming' | 'completed';
+  status: 'upcoming' | 'completed' | 'cancelled' | 'live';
   meetingURLs: string[];
   materials: string[];
   recording: string;
@@ -160,8 +160,10 @@ export default function Sessions() {
       scheduled: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
       upcoming: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
       ongoing: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+      live: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 animate-pulse',
       completed: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
       canceled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
+      cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
     };
 
     return (
@@ -170,6 +172,8 @@ export default function Sessions() {
           colors[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
         }`}
       >
+        {status === 'live' && '🔴 '}
+        {(status === 'canceled' || status === 'cancelled') && '🚫 '}
         {status.toUpperCase()}
       </span>
     );
@@ -333,7 +337,9 @@ export default function Sessions() {
               ) : (
                 <>
                   <option value="upcoming">Upcoming</option>
+                  <option value="live">Live</option>
                   <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
                 </>
               )}
             </select>

@@ -115,7 +115,7 @@ export async function getIndividualSessionsService(filters?: {
  * Get all mass class slots with filters
  */
 export async function getMassClassSlotsService(filters?: {
-  status?: 'upcoming' | 'completed';
+  status?: 'upcoming' | 'completed' | 'cancelled' | 'live';
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -124,7 +124,7 @@ export async function getMassClassSlotsService(filters?: {
     const where: any = {};
 
     // Only set status filter if it's a valid ClassSlotStatus
-    if (filters?.status && ['upcoming', 'completed'].includes(filters.status)) {
+    if (filters?.status && ['upcoming', 'completed', 'cancelled', 'live'].includes(filters.status)) {
       where.status = filters.status;
     }
 
@@ -389,7 +389,7 @@ export async function updateIndividualSessionStatusService(
  */
 export async function updateMassSlotStatusService(
   slotId: string,
-  status: 'upcoming' | 'completed'
+  status: 'upcoming' | 'completed' | 'cancelled' | 'live'
 ) {
   try {
     const slot = await prisma.classSlot.findUnique({
