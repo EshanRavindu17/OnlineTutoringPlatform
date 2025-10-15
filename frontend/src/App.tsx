@@ -58,8 +58,10 @@ import Complaints from './admin/Complaints';
 import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import AdminThemeWrapper from './admin/AdminThemeWrapper';
 import Sessions from './admin/Sessions';
 import Meetings from './admin/Meetings';
+import ThemeTest from './admin/ThemeTest';
 
 import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
@@ -138,20 +140,23 @@ const App = () => {
         </Route>
 
         {/* ===== Admin portal ===== */}
-        <Route path="/admin/auth" element={<AdminAuth />} />
-        <Route path="/admin" element={<AdminGate />}>
-          <Route element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="tutors/approval" element={<TutorApproval />} />
-            <Route path="tutors/suspend" element={<TutorSuspend />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="broadcast" element={<Broadcast />} />
-            <Route path="complaints" element={<Complaints />} />
-            <Route path="finance" element={<Finance />} />
-            <Route path="policies" element={<Policies />} />
-            <Route path="profile" element={<AdminProfile />} />
-            <Route path="sessions" element={<Sessions />} />
-            <Route path="meetings" element={<Meetings />} />
+        <Route element={<AdminThemeWrapper />}>
+          <Route path="/admin/auth" element={<AdminAuth />} />
+          <Route path="/admin/theme-test" element={<ThemeTest />} />
+          <Route path="/admin" element={<AdminGate />}>
+            <Route element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="tutors/approval" element={<TutorApproval />} />
+              <Route path="tutors/suspend" element={<TutorSuspend />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="broadcast" element={<Broadcast />} />
+              <Route path="complaints" element={<Complaints />} />
+              <Route path="finance" element={<Finance />} />
+              <Route path="policies" element={<Policies />} />
+              <Route path="profile" element={<AdminProfile />} />
+              <Route path="sessions" element={<Sessions />} />
+              <Route path="meetings" element={<Meetings />} />
+            </Route>
           </Route>
         </Route>
 
