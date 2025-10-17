@@ -1,11 +1,12 @@
 import prisma from '../prismaClient';
+import { ClassSlotStatus, SessionStatus } from '@prisma/client';
 import axios from 'axios';
 
 /**
  * Get all individual sessions with filters
  */
 export async function getIndividualSessionsService(filters?: {
-  status?: 'scheduled' | 'ongoing' | 'completed' | 'canceled';
+  status?: SessionStatus;
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -14,7 +15,7 @@ export async function getIndividualSessionsService(filters?: {
     const where: any = {};
 
     // Only set status filter if it's a valid SessionStatus
-    if (filters?.status && ['scheduled', 'ongoing', 'completed', 'canceled'].includes(filters.status)) {
+    if (filters?.status && Object.values(SessionStatus).includes(filters.status)) {
       where.status = filters.status;
     }
 
@@ -115,7 +116,7 @@ export async function getIndividualSessionsService(filters?: {
  * Get all mass class slots with filters
  */
 export async function getMassClassSlotsService(filters?: {
-  status?: 'upcoming' | 'completed' | 'cancelled' | 'live';
+  status?: ClassSlotStatus;
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -124,7 +125,7 @@ export async function getMassClassSlotsService(filters?: {
     const where: any = {};
 
     // Only set status filter if it's a valid ClassSlotStatus
-    if (filters?.status && ['upcoming', 'completed', 'cancelled', 'live'].includes(filters.status)) {
+    if (filters?.status && Object.values(ClassSlotStatus).includes(filters.status)) {
       where.status = filters.status;
     }
 
@@ -315,7 +316,7 @@ export async function getSessionStatsService() {
  */
 export async function updateIndividualSessionStatusService(
   sessionId: string,
-  status: 'scheduled' | 'ongoing' | 'completed' | 'canceled'
+  status: SessionStatus
 ) {
   try {
     const session = await prisma.sessions.findUnique({
@@ -389,7 +390,7 @@ export async function updateIndividualSessionStatusService(
  */
 export async function updateMassSlotStatusService(
   slotId: string,
-  status: 'upcoming' | 'completed' | 'cancelled' | 'live'
+  status: ClassSlotStatus
 ) {
   try {
     const slot = await prisma.classSlot.findUnique({

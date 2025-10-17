@@ -435,7 +435,8 @@ export default function Sessions() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {session.meeting_urls && session.meeting_urls.length > 0 && (
+                        {session.meeting_urls && session.meeting_urls.length > 0 && 
+                         session.status !== 'completed' && session.status !== 'canceled' && (
                           <button
                             onClick={() => handleJoinMeeting(session.meeting_urls[0])}
                             className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm rounded-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1.5 whitespace-nowrap"
@@ -450,7 +451,7 @@ export default function Sessions() {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2 2v8a2 2 0 002 2z"
                               />
                             </svg>
                             Join
@@ -524,7 +525,8 @@ export default function Sessions() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {slot.meetingURLs && slot.meetingURLs.length > 0 && (
+                        {slot.meetingURLs && slot.meetingURLs.length > 0 && 
+                         slot.status !== 'completed' && slot.status !== 'cancelled' && (
                           <button
                             onClick={() => handleJoinMeeting(slot.meetingURLs[0])}
                             className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm rounded-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1.5 whitespace-nowrap"
@@ -545,7 +547,7 @@ export default function Sessions() {
                             Join
                           </button>
                         )}
-                        {slot.status !== 'completed' && (
+                        {slot.status !== 'completed' && slot.status !== 'cancelled' && (
                           <button
                             onClick={() =>
                               handleUpdateStatus(slot.cslot_id, 'completed', 'mass')
