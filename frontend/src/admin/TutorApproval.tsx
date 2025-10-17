@@ -23,9 +23,9 @@ const fmtDateTime = (iso: string | null) => {
 
 const StatusPill = ({ status }: { status: Candidate['status'] }) => {
   const colorMap = {
-    pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
-    approved: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800',
-    rejected: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800',
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    approved: 'bg-green-100 text-green-800 border-green-200',
+    rejected: 'bg-red-100 text-red-800 border-red-200',
   };
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colorMap[status]} capitalize`}>
@@ -75,31 +75,31 @@ function ConfirmDialog({
   if (!open) return null;
   const confirmClasses =
     variant === 'red'
-      ? 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
-      : 'bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600';
+      ? 'bg-red-600 hover:bg-red-700'
+      : 'bg-green-600 hover:bg-green-700';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={busy ? undefined : onCancel} />
+      <div className="absolute inset-0 bg-black/40" onClick={busy ? undefined : onCancel} />
       <div
         role="dialog"
         aria-modal="true"
-        className="relative bg-white dark:bg-gray-800 w-full max-w-md mx-4 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-6"
+        className="relative bg-white w-full max-w-md mx-4 rounded-2xl shadow-xl border border-gray-200 p-6"
       >
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-        {description && <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">{description}</p>}
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        {description && <p className="mt-2 text-gray-600 text-sm">{description}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button
             onClick={onCancel}
             disabled={busy}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             {cancelText}
           </button>
           <button
             onClick={onConfirm}
             disabled={busy}
-            className={`px-4 py-2 rounded-lg text-white ${confirmClasses} disabled:opacity-50 transition-colors`}
+            className={`px-4 py-2 rounded-lg text-white ${confirmClasses} disabled:opacity-50`}
           >
             {busy ? 'Working…' : confirmText}
           </button>
@@ -189,10 +189,10 @@ export default function TutorApproval() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 p-8 border border-transparent dark:border-gray-700">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
           </div>
         </div>
       </div>
@@ -204,27 +204,27 @@ export default function TutorApproval() {
       {/* Compact Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Tutor Applications 📋</h1>
-          <p className="text-gray-600 dark:text-gray-400">Review and manage tutor applications</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tutor Applications 📋</h1>
+          <p className="text-gray-600">Review and manage tutor applications</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-3 py-2 text-center">
-            <div className="text-lg font-bold text-yellow-800 dark:text-yellow-400">{counts.pending}</div>
-            <div className="text-xs text-yellow-600 dark:text-yellow-500">Pending</div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-yellow-800">{counts.pending}</div>
+            <div className="text-xs text-yellow-600">Pending</div>
           </div>
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-center">
-            <div className="text-lg font-bold text-green-800 dark:text-green-400">{counts.approved}</div>
-            <div className="text-xs text-green-600 dark:text-green-500">Approved</div>
+          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-green-800">{counts.approved}</div>
+            <div className="text-xs text-green-600">Approved</div>
           </div>
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 text-center">
-            <div className="text-lg font-bold text-red-800 dark:text-red-400">{counts.rejected}</div>
-            <div className="text-xs text-red-600 dark:text-red-500">Rejected</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
+            <div className="text-lg font-bold text-red-800">{counts.rejected}</div>
+            <div className="text-xs text-red-600">Rejected</div>
           </div>
         </div>
       </div>
 
       {/* Compact Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/30 border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* Status Filter Tabs */}
           <div className="flex flex-wrap gap-2">
@@ -239,8 +239,8 @@ export default function TutorApproval() {
                 onClick={() => setStatusTab(key as any)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   statusTab === key
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 {label} ({count})
@@ -252,7 +252,7 @@ export default function TutorApproval() {
           <select
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value as any)}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Types</option>
             <option value="Individual">Individual</option>
@@ -261,7 +261,7 @@ export default function TutorApproval() {
 
           {/* Search */}
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
               <IconSearch />
             </div>
             <input
@@ -269,18 +269,18 @@ export default function TutorApproval() {
               placeholder="Search by name or email..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              className="pl-9 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 w-64"
+              className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
             />
           </div>
 
           {/* Results Info & Refresh */}
           <div className="flex items-center gap-4 ml-auto">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <span className="text-sm text-gray-600">
               <strong>{filtered.length}</strong> of <strong>{counts.all}</strong>
             </span>
             <button 
               onClick={load}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               ↻
             </button>
@@ -289,26 +289,26 @@ export default function TutorApproval() {
       </div>
 
       {/* Applications Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-auto">
           <table className="min-w-full">
-            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-48">Applicant</th>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-64">Contact</th>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-32">Type</th>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-40">Applied</th>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-32">Status</th>
-                <th className="text-left font-semibold text-gray-900 dark:text-gray-100 p-4 w-48">Actions</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-48">Applicant</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-64">Contact</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-32">Type</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-40">Applied</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-32">Status</th>
+                <th className="text-left font-semibold text-gray-900 p-4 w-48">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center">
                     <div className="text-6xl mb-4">📭</div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No applications found</h3>
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No applications found</h3>
+                    <p className="text-gray-500">
                       {q.trim() || statusTab !== 'all' || roleFilter !== 'all' 
                         ? 'Try adjusting your filters or search terms'
                         : 'No tutor applications have been submitted yet'
@@ -323,7 +323,7 @@ export default function TutorApproval() {
                   const displayName = candidate.name || candidate.User?.name || candidate.email || candidate.User?.email || 'this candidate';
                   
                   return (
-                    <tr key={candidate.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
                       {/* Applicant Info */}
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -331,15 +331,15 @@ export default function TutorApproval() {
                             <img 
                               src={candidate.User.photo_url} 
                               alt={candidate.User.name || 'User'} 
-                              className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
+                              className="w-10 h-10 rounded-full object-cover"
                             />
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            <div className="font-medium text-gray-900 truncate">
                               {candidate.name || candidate.User?.name || 'Unknown'}
                             </div>
                             {candidate.bio && (
-                              <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                              <div className="text-sm text-gray-500 truncate max-w-[200px]">
                                 {candidate.bio}
                               </div>
                             )}
@@ -350,11 +350,11 @@ export default function TutorApproval() {
                       {/* Contact Info */}
                       <td className="p-4">
                         <div className="text-sm">
-                          <div className="text-gray-900 dark:text-gray-100 font-medium">
+                          <div className="text-gray-900 font-medium">
                             {candidate.email || candidate.User?.email || '—'}
                           </div>
                           {candidate.phone_number && (
-                            <div className="text-gray-500 dark:text-gray-400">
+                            <div className="text-gray-500">
                               {candidate.phone_number}
                             </div>
                           )}
@@ -365,15 +365,15 @@ export default function TutorApproval() {
                       <td className="p-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           candidate.role === 'Individual' 
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
-                            : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-purple-100 text-purple-700'
                         }`}>
                           {candidate.role}
                         </span>
                       </td>
                       
                       {/* Applied Date */}
-                      <td className="p-4 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="p-4 text-sm text-gray-600">
                         {fmtDateTime(candidate.applied_at)}
                       </td>
                       
@@ -389,7 +389,7 @@ export default function TutorApproval() {
                             <button
                               onClick={() => setConfirm({ open: true, id: candidate.id, name: displayName, mode: 'approve' })}
                               disabled={isProcessing}
-                              className="flex items-center gap-1 px-3 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
+                              className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
                             >
                               <IconCheck />
                               {isProcessing ? 'Processing...' : 'Approve'}
@@ -397,17 +397,17 @@ export default function TutorApproval() {
                             <button
                               onClick={() => setConfirm({ open: true, id: candidate.id, name: displayName, mode: 'reject' })}
                               disabled={isProcessing}
-                              className="flex items-center gap-1 px-3 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
+                              className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs transition-colors"
                             >
                               <IconX />
                               {isProcessing ? 'Processing...' : 'Reject'}
                             </button>
                             {isProcessing && (
-                              <div className="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-blue-600 dark:border-t-blue-400 rounded-full ml-2"></div>
+                              <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full ml-2"></div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-500 dark:text-gray-400 italic">
+                          <span className="text-sm text-gray-500 italic">
                             {candidate.status === 'approved' ? 'Approved' : 'Rejected'}
                           </span>
                         )}
@@ -422,13 +422,13 @@ export default function TutorApproval() {
       </div>
 
       {err && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center">
-            <span className="text-red-500 dark:text-red-400 mr-2">⚠️</span>
-            <span className="text-red-700 dark:text-red-300">{err}</span>
+            <span className="text-red-500 mr-2">⚠️</span>
+            <span className="text-red-700">{err}</span>
             <button 
               onClick={load}
-              className="ml-auto text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium transition-colors"
+              className="ml-auto text-red-600 hover:text-red-700 text-sm font-medium"
             >
               Retry
             </button>
@@ -437,7 +437,7 @@ export default function TutorApproval() {
       )}
       
       {toast && (
-        <div className="fixed bottom-6 right-6 bg-green-600 dark:bg-green-500 text-white text-sm px-4 py-3 rounded-xl shadow-lg dark:shadow-green-900/30 z-50 flex items-center gap-2 animate-slide-in-right">
+        <div className="fixed bottom-6 right-6 bg-green-600 text-white text-sm px-4 py-3 rounded-xl shadow-lg z-50 flex items-center gap-2">
           <span>✅</span>
           {toast}
         </div>

@@ -16,9 +16,7 @@ import {
   createEnrollmentConfirmationEmail,
   createNewEnrollmentNotificationEmail,
   createCustomMessageEmail,
-  createAdminMeetingInvitationEmail,
-  createClassCancellationEmail,
-  createClassCancellationAdminEmail
+  createAdminMeetingInvitationEmail
 } from '../templates/emails';
 
 dotenv.config();
@@ -43,10 +41,7 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
 
     const msg = {
         to,
-        from: {
-            email: FROM_EMAIL,
-            name: 'Tutorly'
-        },
+        from: FROM_EMAIL,
         subject,
         text,
         html,
@@ -371,40 +366,5 @@ export const sendAutoCancellationEmail = async (
         refundAmount
     });
 
-    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
-};
-
-// Class slot cancellation email for students
-export const sendClassCancellationEmail = async (
-    to: string,
-    data: {
-        studentName: string;
-        className: string;
-        tutorName: string;
-        classDate: string;
-        classTime: string;
-        reason?: string;
-        refundInfo?: string;
-    }
-) => {
-    const emailContent = createClassCancellationEmail(data);
-    await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
-};
-
-// Class slot cancellation notification for admin
-export const sendClassCancellationAdminEmail = async (
-    to: string,
-    data: {
-        tutorName: string;
-        tutorEmail: string;
-        className: string;
-        classDate: string;
-        classTime: string;
-        reason?: string;
-        affectedStudentsCount: number;
-        classId: string;
-    }
-) => {
-    const emailContent = createClassCancellationAdminEmail(data);
     await sendEmail(to, emailContent.subject, emailContent.text, emailContent.html);
 };

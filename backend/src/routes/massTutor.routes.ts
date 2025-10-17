@@ -23,8 +23,6 @@ router.get('/classes/:classId/slots', massTutorController.getClassSlotsControlle
 router.post('/classes/:classId/slots', massTutorController.createClassSlotController);
 router.put('/slots/:slotId', massTutorController.updateClassSlotController);
 router.delete('/slots/:slotId', massTutorController.deleteClassSlotController);
-router.post('/slots/:slotId/cancel', massTutorController.cancelClassSlotController);
-router.post('/slots/:slotId/set-live', massTutorController.setClassSlotLiveController);
 
 // Class enrollment routes
 router.get('/classes/:classId/enrollments', massTutorController.getClassEnrollmentsController);

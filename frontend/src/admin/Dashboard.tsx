@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { adminApi } from './api';
 
 // ------------------ Types ------------------
@@ -21,28 +21,6 @@ export type Metrics = {
     day: string; // e.g., Mon, Tue
   }>;
   lastUpdated: string;
-};
-
-// ------------------ Helpers ------------------
-const formatNumber = (n: number) =>
-  Number.isFinite(n) ? n.toLocaleString() : '0';
-
-const safePercent = (value: number) => {
-  if (!Number.isFinite(value)) return 0;
-  return Math.round(value * 10) / 10; // keep 1 decimal place
-};
-
-const relativeTimeFromISO = (iso: string) => {
-  const d = new Date(iso);
-  const diffMs = Date.now() - d.getTime();
-  const sec = Math.max(1, Math.floor(diffMs / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  return `${day}d ago`;
 };
 
 // ------------------ Component ------------------
@@ -69,7 +47,6 @@ export default function Dashboard() {
     }
   };
 
-  // Safe fallback object for first paint / null state
   const m: Metrics =
     data || ({
       students: 0,
@@ -84,6 +61,11 @@ export default function Dashboard() {
       lastUpdated: new Date().toISOString(),
     } as Metrics);
 
+  const safePercent = (value: number) => {
+    if (!Number.isFinite(value)) return 0;
+    return Math.round(value * 10) / 10; // keep 1 decimal place
+  };
+
   // Derived % changes (guarded against /0)
   const newUsersPct = safePercent(
     (m.recentActivity.users / Math.max(m.totalUsers - m.recentActivity.users, 1)) * 100
@@ -93,40 +75,14 @@ export default function Dashboard() {
     (m.recentActivity.sessions / Math.max(m.sessions - m.recentActivity.sessions, 1)) * 100
   );
 
-  // Chart data (fallback + memoized computations)
-  const { activity, maxSessions } = useMemo(() => {
-    const fallback = [
-      { day: 'Mon', sessions: 40 },
-      { day: 'Tue', sessions: 65 },
-      { day: 'Wed', sessions: 45 },
-      { day: 'Thu', sessions: 80 },
-      { day: 'Fri', sessions: 55 },
-      { day: 'Sat', sessions: 70 },
-      { day: 'Sun', sessions: 85 },
-    ];
-    const a = m.weeklyActivity.length > 0 ? m.weeklyActivity : (fallback as any);
-    const max = Math.max(1, ...a.map((d: any) => d.sessions || 0));
-    return { activity: a, maxSessions: max };
-  }, [m.weeklyActivity]);
-
   if (loading) {
     return (
-      <div className="space-y-8" aria-busy="true" aria-live="polite">
-        {/* Welcome Skeleton */}
-        <div className="rounded-2xl p-8 bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
-          <div className="h-6 w-64 bg-white/20 rounded mb-3 animate-pulse" />
-          <div className="h-4 w-80 bg-white/10 rounded animate-pulse" />
-        </div>
-
-        {/* Metric Cards Skeleton */}
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm animate-pulse border border-transparent dark:border-gray-700"
-            >
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4" />
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+            <div key={i} className="bg-white rounded-xl p-6 shadow-sm animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
             </div>
           ))}
         </div>
@@ -136,143 +92,118 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome */}
-      <section
-        className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 rounded-2xl p-6 md:p-8 text-white shadow-lg"
-        aria-label="Welcome"
-      >
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">Welcome back, Admin! 👋</h1>
-            <p className="text-blue-100 dark:text-blue-200 text-base md:text-lg">
-              Here&apos;s what&apos;s happening on your platform today.
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, Admin! 👋</h1>
+            <p className="text-blue-100 text-lg">Here's what's happening on your platform today.</p>
           </div>
           <div className="hidden lg:block">
-            <div className="bg-white/10 dark:bg-white/5 backdrop-blur rounded-xl p-4">
-              <div className="text-sm text-blue-100 dark:text-blue-200">Today</div>
-              <div className="text-xl font-semibold">
-                {new Date().toLocaleDateString()}
-              </div>
+            <div className="bg-white/10 backdrop-blur rounded-xl p-4">
+              <div className="text-sm text-blue-100">Today's Date</div>
+              <div className="text-xl font-semibold">{new Date().toLocaleDateString()}</div>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Key Metrics */}
-      <section aria-label="Key metrics">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Students"
-            value={m.students}
-            change={newUsersPct}
-            icon="👥"
-            color="blue"
-            subtitle={`${m.recentActivity.users} new this month`}
-          />
-          <MetricCard
-            title="Active Tutors"
-            value={m.individualTutors + m.massTutors}
-            change={8}
-            icon="🎓"
-            color="green"
-            subtitle={`${m.individualTutors} individual, ${m.massTutors} mass`}
-          />
-          <MetricCard
-            title="Pending Reviews"
-            value={m.recentActivity.pendingReviews}
-            change={m.recentActivity.pendingReviews > 10 ? -5 : 2}
-            icon="⏳"
-            color="yellow"
-            subtitle="Applications to review"
-          />
-          <MetricCard
-            title="Total Sessions"
-            value={m.sessions}
-            change={recentSessionsPct}
-            icon="📚"
-            color="purple"
-            subtitle={`${m.recentActivity.sessions} this month`}
-          />
-        </div>
-      </section>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Students"
+          value={m.students}
+          change={newUsersPct}
+          icon="👥"
+          color="blue"
+          subtitle={`${m.recentActivity.users} new this month`}
+        />
+        <MetricCard
+          title="Active Tutors"
+          value={m.individualTutors + m.massTutors}
+          change={8}
+          icon="🎓"
+          color="green"
+          subtitle={`${m.individualTutors} individual, ${m.massTutors} mass`}
+        />
+        <MetricCard
+          title="Pending Reviews"
+          value={m.recentActivity.pendingReviews}
+          change={m.recentActivity.pendingReviews > 10 ? -5 : 2}
+          icon="⏳"
+          color="yellow"
+          subtitle="Applications to review"
+        />
+        <MetricCard
+          title="Total Sessions"
+          value={m.sessions}
+          change={recentSessionsPct}
+          icon="📚"
+          color="purple"
+          subtitle={`${m.recentActivity.sessions} this month`}
+        />
+      </div>
 
       {/* Main Content Grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Activity Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 p-6 border border-transparent dark:border-gray-700">
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Platform Activity</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Sessions over the last 7 days</p>
+              <h3 className="text-lg font-semibold text-gray-900">Platform Activity</h3>
+              <p className="text-sm text-gray-500">Sessions over the last 7 days</p>
             </div>
-            <button
-              onClick={loadMetrics}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg px-2 py-1"
-              aria-label="Refresh metrics"
-            >
+            <button onClick={loadMetrics} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
               Refresh →
             </button>
           </div>
 
-          {/* Bars + Gridlines */}
-          <div
-            className="relative h-64 rounded-lg bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 border border-gray-100 dark:border-gray-700"
-            role="img"
-            aria-label="Bar chart of sessions over the last 7 days"
-          >
-            {/* Horizontal grid lines */}
-            {[25, 50, 75].map((pct) => (
-              <div
-                key={pct}
-                className="absolute inset-x-0 h-px bg-gray-200/70 dark:bg-gray-700"
-                style={{ top: `${100 - pct}%` }}
-                aria-hidden="true"
-              />
-            ))}
+          {/* Fixed Activity Chart (bars now visible) */}
+          <div className="h-64 flex items-end justify-between space-x-2">
+            {(() => {
+              const fallback = [
+                { day: 'Mon', sessions: 40 },
+                { day: 'Tue', sessions: 65 },
+                { day: 'Wed', sessions: 45 },
+                { day: 'Thu', sessions: 80 },
+                { day: 'Fri', sessions: 55 },
+                { day: 'Sat', sessions: 70 },
+                { day: 'Sun', sessions: 85 },
+              ];
+              const activity = m.weeklyActivity.length > 0 ? m.weeklyActivity : (fallback as any);
+              const maxSessions = Math.max(1, ...activity.map((d: any) => d.sessions || 0));
 
-            {/* Bars */}
-            <div className="absolute inset-3 flex items-end justify-between space-x-2">
-              {activity.map((dayData: any, i: number) => {
-                const heightPct = Math.max((dayData.sessions / maxSessions) * 100, 8);
+              return activity.map((dayData: any, i: number) => {
+                const heightPct = Math.max((dayData.sessions / maxSessions) * 100, 10);
                 return (
                   <div key={i} className="relative flex-1 h-full group">
                     <div
-                      className="absolute inset-x-0 bottom-0 rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 opacity-90 group-hover:opacity-100 transition-[opacity,height,transform] duration-300 will-change-transform"
-                      style={{ height: `${heightPct}%`, transform: 'translateZ(0)' }}
-                      aria-label={`${dayData.day}: ${dayData.sessions} sessions`}
+                      className="absolute inset-x-0 bottom-0 rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400 opacity-80 group-hover:opacity-100 transition-opacity"
+                      style={{ height: `${heightPct}%` }}
                     />
-                    {/* Tooltip */}
-                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow">
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {dayData.sessions} sessions
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              });
+            })()}
           </div>
 
-          {/* X-axis labels */}
-          <div className="flex justify-between mt-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between mt-4 text-xs text-gray-500">
             {(m.weeklyActivity.length > 0
               ? m.weeklyActivity
               : [{ day: 'Mon' }, { day: 'Tue' }, { day: 'Wed' }, { day: 'Thu' }, { day: 'Fri' }, { day: 'Sat' }, { day: 'Sun' }]
             ).map((dayData: any, i: number) => (
-              <span key={i} className="tabular-nums">{dayData.day}</span>
+              <span key={i}>{dayData.day}</span>
             ))}
-          </div>
-
-          {/* Last updated */}
-          <div className="mt-4 text-xs text-gray-400 dark:text-gray-500">
-            Last updated: <span className="tabular-nums">{relativeTimeFromISO(m.lastUpdated)}</span>
           </div>
         </div>
 
-        {/* Right column */}
+        {/* Quick Actions */}
         <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 p-6 border border-transparent dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="space-y-3">
               <ActionButton
                 href="/admin/tutors/approval"
@@ -287,8 +218,8 @@ export default function Dashboard() {
           </div>
 
           {/* System Status */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 p-6 border border-transparent dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">System Status</h3>
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">System Status</h3>
             <div className="space-y-3">
               <StatusItem label="API Services" status="operational" />
               <StatusItem label="Database" status="operational" />
@@ -297,22 +228,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Error Banner */}
       {err && (
-        <div
-          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4"
-          role="alert"
-          aria-live="assertive"
-        >
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center">
-            <span className="text-red-500 dark:text-red-400 mr-2">⚠️</span>
-            <span className="text-red-700 dark:text-red-300">{err}</span>
-            <button
-              onClick={loadMetrics}
-              className="ml-auto text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-sm font-medium transition-colors underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded"
-            >
+            <span className="text-red-500 mr-2">⚠️</span>
+            <span className="text-red-700">{err}</span>
+            <button onClick={loadMetrics} className="ml-auto text-red-600 hover:text-red-700 text-sm font-medium">
               Retry
             </button>
           </div>
@@ -323,14 +246,7 @@ export default function Dashboard() {
 }
 
 // ------------------ Subcomponents ------------------
-function MetricCard({
-  title,
-  value,
-  change,
-  icon,
-  color,
-  subtitle,
-}: {
+function MetricCard({ title, value, change, icon, color, subtitle }: {
   title: string;
   value: number;
   change: number; // percentage, can be negative
@@ -339,47 +255,35 @@ function MetricCard({
   subtitle?: string;
 }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    yellow: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
-    purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-green-50 text-green-600',
+    yellow: 'bg-yellow-50 text-yellow-600',
+    purple: 'bg-purple-50 text-purple-600',
   };
 
   const isUp = change >= 0;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm dark:shadow-gray-900/30 p-6 border border-transparent dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
+    <div className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl ${colorClasses[color]}`} aria-hidden="true">
+        <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
           <span className="text-xl">{icon}</span>
         </div>
-        <div
-          className={`flex items-center text-sm font-medium ${isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-          aria-label={`${Math.abs(change)}% ${isUp ? 'increase' : 'decrease'}`}
-          title={`${Math.abs(change)}% ${isUp ? 'increase' : 'decrease'}`}
-        >
-          <span className="select-none" aria-hidden="true">{isUp ? '↗️' : '↘️'}</span>
-          <span className="ml-1 tabular-nums">{Math.abs(change)}%</span>
+        <div className={`flex items-center text-sm font-medium ${isUp ? 'text-green-600' : 'text-red-600'}`}>
+          <span>{isUp ? '↗️' : '↘️'}</span>
+          <span className="ml-1">{Math.abs(change)}%</span>
         </div>
       </div>
       <div>
-        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 tabular-nums">
-          {formatNumber(value)}
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-        {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{subtitle}</p>}
+        <p className="text-2xl font-bold text-gray-900 mb-1">{value.toLocaleString()}</p>
+        <p className="text-sm text-gray-500">{title}</p>
+        {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
       </div>
     </div>
   );
 }
 
-function ActionButton({
-  href,
-  icon,
-  title,
-  description,
-  urgent = false,
-}: {
+function ActionButton({ href, icon, title, description, urgent = false }: {
   href: string;
   icon: string;
   title: string;
@@ -389,26 +293,17 @@ function ActionButton({
   return (
     <a
       href={href}
-      className={`block p-4 rounded-xl border-2 transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-        ${
-          urgent
-            ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 hover:border-orange-300 dark:hover:border-orange-700'
-            : 'border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-        }`}
-      title={title}
-      aria-label={`${title}: ${description}`}
+      className={`block p-4 rounded-xl border-2 transition-all hover:shadow-md ${
+        urgent ? 'border-orange-200 bg-orange-50 hover:border-orange-300' : 'border-gray-100 hover:border-gray-200'
+      }`}
     >
       <div className="flex items-center">
-        <span className="text-xl mr-3" aria-hidden="true">
-          {icon}
-        </span>
+        <span className="text-xl mr-3">{icon}</span>
         <div className="flex-1">
-          <div className="font-medium text-gray-900 dark:text-gray-100">{title}</div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">{description}</div>
+          <div className="font-medium text-gray-900">{title}</div>
+          <div className="text-sm text-gray-500">{description}</div>
         </div>
-        <span className="text-gray-400 dark:text-gray-500" aria-hidden="true">
-          →
-        </span>
+        <span className="text-gray-400">→</span>
       </div>
     </a>
   );
@@ -416,16 +311,16 @@ function ActionButton({
 
 function StatusItem({ label, status }: { label: string; status: 'operational' | 'degraded' | 'down' }) {
   const statusConfig = {
-    operational: { color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30', text: 'Operational' },
-    degraded: { color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'Degraded' },
-    down: { color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30', text: 'Down' },
+    operational: { color: 'text-green-600', bg: 'bg-green-100', text: 'Operational' },
+    degraded: { color: 'text-yellow-600', bg: 'bg-yellow-100', text: 'Degraded' },
+    down: { color: 'text-red-600', bg: 'bg-red-100', text: 'Down' },
   } as const;
 
   const config = statusConfig[status];
 
   return (
     <div className="flex items-center justify-between">
-      <span className="text-gray-700 dark:text-gray-300">{label}</span>
+      <span className="text-gray-700">{label}</span>
       <div className={`px-2 py-1 rounded-full text-xs font-medium ${config.color} ${config.bg}`}>{config.text}</div>
     </div>
   );
