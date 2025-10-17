@@ -24,7 +24,7 @@ import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import NotFound from './pages/notfoundpage';
-import { TutorRoute, StudentRoute, MassRoute} from './context/protectRoute';
+import { TutorRoute, StudentRoute, MassRoute, AuthenticatedRoute } from './context/protectRoute';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -63,7 +63,6 @@ import Sessions from './admin/Sessions';
 import Meetings from './admin/Meetings';
 import ThemeTest from './admin/ThemeTest';
 
-import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
 
 
@@ -111,6 +110,11 @@ const App = () => {
         <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
         <Route path="/tutor-rejected" element={<TutorRejected/>}/>
 
+        {/* Shared Authenticated Routes - All logged-in users */}
+        <Route element={<AuthenticatedRoute />}>
+          <Route path="/chat" element={<ChatPage />} />
+        </Route>
+
         {/* Student Protected Routes */}
         <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
@@ -119,9 +123,7 @@ const App = () => {
           <Route path="/mycalendar" element={<MyCalendarPage />} />
           <Route path="/payment-demo" element={<PaymentDemoPage />} />
           <Route path="/mass-class/:classId" element={<MassClassPage />} />
-          <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/saved" element={<SavedPage />} />
-          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Individual Tutor Protected Routes */}
@@ -130,13 +132,11 @@ const App = () => {
           {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
-          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
           {massTutorRoutes()}
-          <Route path="/mass-tutor/chat" element={<ChatPage />} />
         </Route>
 
         {/* ===== Admin portal ===== */}

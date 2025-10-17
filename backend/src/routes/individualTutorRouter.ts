@@ -1,9 +1,12 @@
 import express from 'express';
 import { getAllSubjectsController, getAllTitlesController,getAllTitlesBySubjectController, createSubjectController, createTitleController, getTutorProfileController, getTutorStatsController, updateUserPhotoController, uploadUserPhotoController, updateTutorQualificationsController, updateTutorHourlyRateController, updateTutorSubjectsAndTitlesController, updateTutorPersonalInfoController } from '../controllers/individualTutorController';
 import upload from '../config/multer';
+import { verifyFirebaseTokenSimple } from '../middleware/authMiddlewareSimple';
+import { verifyRole } from '../middleware/verifyRole';
 
 const router = express.Router();
 
+router.use(verifyFirebaseTokenSimple,verifyRole('Individual'));
 
 // Define routes
 router.get('/subjects', getAllSubjectsController);
