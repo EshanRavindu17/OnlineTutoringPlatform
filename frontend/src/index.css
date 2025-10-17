@@ -1,6 +1,22 @@
 
 @import "tailwindcss";
 
+/* Configure Tailwind v4 dark mode with class strategy */
+@variant dark (&:where(.dark, .dark *));
+
+/* Ensure body, html, and root have proper backgrounds for dark mode */
+html, body, #root {
+  background-color: #f9fafb; /* gray-50 */
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  height: 100%;
+}
+
+html.dark, html.dark body, html.dark #root {
+  background-color: #111827; /* gray-900 */
+}
+
 /* === Admin theme tokens & utilities === */
 :root{
   --brand-50:#eef4ff;

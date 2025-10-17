@@ -229,7 +229,7 @@ export const adminApi = {
   },
 
   // Update mass class slot status
-  async updateClassSlotStatus(slotId: string, status: 'upcoming' | 'completed') {
+  async updateClassSlotStatus(slotId: string, status: 'upcoming' | 'completed' | 'cancelled' | 'live') {
     return request(`/sessions/mass/${slotId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
