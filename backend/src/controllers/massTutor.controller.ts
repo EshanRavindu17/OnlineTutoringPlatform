@@ -660,3 +660,48 @@ export const getMonthlyRateThresholdController = async (req: Request, res: Respo
     });
   }
 };
+
+/**
+ * Cancel a class slot - sends emails to students and admin
+ */
+export const cancelClassSlotController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { slotId } = req.params;
+    const { reason } = req.body;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const result = await massTutorService.cancelClassSlotService(slotId, tutorId, reason);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in cancelClassSlotController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to cancel class slot',
+    });
+  }
+};
+
+/**
+ * Set class slot status to 'live' when tutor joins
+ */
+export const setClassSlotLiveController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { slotId } = req.params;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const result = await massTutorService.setClassSlotLiveService(slotId, tutorId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in setClassSlotLiveController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to set class slot to live',
+    });
+  }
+};

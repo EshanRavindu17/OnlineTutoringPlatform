@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   CalendarDays, UploadCloud, Users2, FileText, Loader2, Plus, 
-  Video, ExternalLink, Clock, Check, BookOpen
+  Video, ExternalLink, Clock, Check, BookOpen, X
 } from 'lucide-react';
 import { massTutorAPI } from '../../api/massTutorAPI';
 import toast from 'react-hot-toast';
@@ -15,7 +15,7 @@ interface ClassSlot {
   meetingURLs: string[];
   announcement: string | null;
   recording: string | null;
-  status: 'upcoming' | 'completed';
+  status: 'upcoming' | 'completed' | 'cancelled' | 'live';
 }
 
 interface ClassDetail {
@@ -118,13 +118,16 @@ export default function ClassDetailPage() {
     }
   };
 
-  const handleJoinZoom = async (meetingURLs: string[]) => {
+  const handleJoinZoom = async (slotId: string, meetingURLs: string[]) => {
     if (meetingURLs.length === 0) {
       toast.error('No meeting URL available');
       return;
     }
 
     try {
+      // Set class status to live
+      await massTutorAPI.setClassSlotLive(slotId);
+      
       // First URL is host URL
       const oldHostUrl = meetingURLs[0];
       
@@ -133,9 +136,35 @@ export default function ClassDetailPage() {
       
       // Open in new tab
       window.open(result.newHostUrl, '_blank');
+      
+      // Refresh slots to show updated status
+      fetchSlots();
+      toast.success('Class is now live!');
     } catch (error: any) {
       console.error('Error joining Zoom:', error);
-      toast.error('Failed to join Zoom meeting');
+      toast.error(error.response?.data?.error || 'Failed to join Zoom meeting');
+    }
+  };
+
+  const handleCancelSlot = async (slotId: string) => {
+    const reason = prompt('Please provide a reason for cancellation (optional):');
+    
+    // User clicked cancel on prompt
+    if (reason === null) return;
+
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel this class session? All enrolled students will be notified via email.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const result = await massTutorAPI.cancelClassSlot(slotId, reason || undefined);
+      toast.success(`Class cancelled. ${result.notifiedStudents} students notified.`);
+      fetchSlots(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error cancelling slot:', error);
+      toast.error(error.response?.data?.error || 'Failed to cancel class session');
     }
   };
 
@@ -154,10 +183,13 @@ export default function ClassDetailPage() {
   };
 
   const groupedSlots = groupSlotsByDate();
+  const liveSlots = slots
+    .filter(s => s.status === 'live')
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
   const upcomingSlots = slots
     .filter(s => s.status === 'upcoming' && new Date(s.dateTime) > new Date())
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-  const pastSlots = slots.filter(s => s.status === 'completed' || new Date(s.dateTime) <= new Date());
+  const completedSlots = slots.filter(s => s.status === 'completed');
 
   if (loading) {
     return (
@@ -204,13 +236,17 @@ export default function ClassDetailPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
+          <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+            <div className="text-xl font-bold text-gray-900 mb-0.5">{liveSlots.length}</div>
+            <div className="text-xs text-gray-600">Live Now</div>
+          </div>
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
             <div className="text-xl font-bold text-gray-900 mb-0.5">{upcomingSlots.length}</div>
             <div className="text-xs text-gray-600">Upcoming</div>
           </div>
-          <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-            <div className="text-xl font-bold text-gray-900 mb-0.5">{pastSlots.length}</div>
+          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="text-xl font-bold text-gray-900 mb-0.5">{completedSlots.length}</div>
             <div className="text-xs text-gray-600">Completed</div>
           </div>
           <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
@@ -223,6 +259,38 @@ export default function ClassDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sessions Section */}
         <section className="lg:col-span-2 space-y-5">
+          {/* Live Sessions */}
+          {liveSlots.length > 0 && (
+            <div className="bg-white rounded-lg border border-green-200 shadow-sm">
+              <div className="px-5 py-3 border-b border-green-200 bg-green-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <h3 className="font-semibold text-green-900 text-sm">Live Sessions</h3>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                      {liveSlots.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-5">
+                <div className="space-y-3">
+                  {liveSlots.map((slot) => (
+                    <SessionCard 
+                      key={slot.cslot_id} 
+                      slot={slot} 
+                      onJoinZoom={handleJoinZoom}
+                      onFileUpload={handleFileUpload}
+                      onCancelSlot={handleCancelSlot}
+                      uploading={uploading === slot.cslot_id}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Upcoming Sessions */}
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
@@ -254,6 +322,7 @@ export default function ClassDetailPage() {
                       slot={slot} 
                       onJoinZoom={handleJoinZoom}
                       onFileUpload={handleFileUpload}
+                      onCancelSlot={handleCancelSlot}
                       uploading={uploading === slot.cslot_id}
                     />
                   ))}
@@ -262,37 +331,38 @@ export default function ClassDetailPage() {
             </div>
           </div>
 
-          {/* Past Sessions */}
+          {/* Completed Sessions */}
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-gray-600" />
                   <h3 className="font-semibold text-gray-900 text-sm">Completed Sessions</h3>
-                  <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                    {pastSlots.length}
+                  <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                    {completedSlots.length}
                   </span>
                 </div>
               </div>
             </div>
             
             <div className="p-5">
-              {pastSlots.length === 0 ? (
+              {completedSlots.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg mb-3">
                     <Check className="w-6 h-6 text-gray-400" />
                   </div>
-                  <p className="text-gray-600 text-sm font-medium">No past sessions yet</p>
+                  <p className="text-gray-600 text-sm font-medium">No completed sessions yet</p>
                   <p className="text-xs text-gray-500 mt-1">Completed sessions will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {pastSlots.map((slot) => (
+                  {completedSlots.map((slot) => (
                     <SessionCard 
                       key={slot.cslot_id} 
                       slot={slot} 
                       onJoinZoom={handleJoinZoom}
                       onFileUpload={handleFileUpload}
+                      onCancelSlot={handleCancelSlot}
                       uploading={uploading === slot.cslot_id}
                       isPast
                     />
@@ -369,12 +439,14 @@ function SessionCard({
   slot, 
   onJoinZoom, 
   onFileUpload, 
+  onCancelSlot,
   uploading,
   isPast = false 
 }: { 
   slot: ClassSlot; 
-  onJoinZoom: (urls: string[]) => void;
+  onJoinZoom: (slotId: string, urls: string[]) => void;
   onFileUpload: (slotId: string, file: File, type: 'material' | 'recording', customName?: string) => void;
+  onCancelSlot: (slotId: string) => void;
   uploading: boolean;
   isPast?: boolean;
 }) {
@@ -465,11 +537,17 @@ function SessionCard({
             </div>
           </div>
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-            isPast 
-              ? 'bg-green-100 text-green-700' 
+            slot.status === 'cancelled' 
+              ? 'bg-red-100 text-red-700' 
+              : slot.status === 'live'
+              ? 'bg-green-100 text-green-700 animate-pulse'
+              : slot.status === 'completed'
+              ? 'bg-gray-100 text-gray-700'
               : 'bg-blue-100 text-blue-700'
           }`}>
-            {isPast ? 'Completed' : 'Upcoming'}
+            {slot.status === 'cancelled' && '🚫 '}
+            {slot.status === 'live' && '🔴 '}
+            {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
           </span>
         </div>
 
@@ -560,13 +638,27 @@ function SessionCard({
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-          {!isPast && slot.meetingURLs.length > 0 && (
+          {!isPast && slot.status !== 'cancelled' && slot.meetingURLs.length > 0 && (
             <button 
-              onClick={() => onJoinZoom(slot.meetingURLs)}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+              onClick={() => onJoinZoom(slot.cslot_id, slot.meetingURLs)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                slot.status === 'live' 
+                  ? 'bg-green-600 hover:bg-green-700 text-white' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               <Video className="w-4 h-4" />
-              Join Session
+              {slot.status === 'live' ? 'Join Live Session' : 'Join Session'}
+            </button>
+          )}
+
+          {!isPast && slot.status === 'upcoming' && (
+            <button 
+              onClick={() => onCancelSlot(slot.cslot_id)}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 rounded text-sm font-medium transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Cancel Class
             </button>
           )}
 
