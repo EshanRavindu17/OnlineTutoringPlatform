@@ -43,7 +43,10 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
 
     const msg = {
         to,
-        from: FROM_EMAIL,
+        from: {
+            email: FROM_EMAIL,
+            name: 'Tutorly'
+        },
         subject,
         text,
         html,
