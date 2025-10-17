@@ -239,7 +239,7 @@ export default function ClassesPage() {
                   <span>{c.day}</span>
                   <span>•</span>
                   <Clock className="w-3.5 h-3.5 text-gray-400" />
-                  <span>{formatTime(c.time)}</span>
+                  <span>{new Date(c.time.replace('Z', '')).toTimeString().split(' ')[0]}</span>
                 </div>
 
                 {c.upcomingSlots > 0 && (

@@ -24,7 +24,7 @@ import ScheduleMeeting from './pages/individualTutor/ScheduleMeeting';
 // import StripePaymentPage from './student/stripePaymentPage';
 import SelectUser from './pages/selectUser';
 import NotFound from './pages/notfoundpage';
-import { TutorRoute, StudentRoute, MassRoute} from './context/protectRoute';
+import { TutorRoute, StudentRoute, MassRoute, AuthenticatedRoute } from './context/protectRoute';
 import SignupForm from './components/SignupForm';
 import AboutUs from './pages/aboutUs';
 import MyCalendarPage from './pages/student/myCalender';
@@ -58,10 +58,11 @@ import Complaints from './admin/Complaints';
 import Finance from './admin/Finance';
 import Policies from './admin/Policies';
 import AdminProfile from './admin/Profile';
+import AdminThemeWrapper from './admin/AdminThemeWrapper';
 import Sessions from './admin/Sessions';
 import Meetings from './admin/Meetings';
+import ThemeTest from './admin/ThemeTest';
 
-import NotificationPage from './pages/student/notification';
 import SavedPage from './pages/student/saved';
 
 
@@ -109,6 +110,11 @@ const App = () => {
         <Route path="/tutor-suspended" element={<TutorSuspended/>}/>
         <Route path="/tutor-rejected" element={<TutorRejected/>}/>
 
+        {/* Shared Authenticated Routes - All logged-in users */}
+        <Route element={<AuthenticatedRoute />}>
+          <Route path="/chat" element={<ChatPage />} />
+        </Route>
+
         {/* Student Protected Routes */}
         <Route element={<StudentRoute />}>          
           <Route path="/studentprofile" element={<StudentProfile/>}/>
@@ -117,9 +123,7 @@ const App = () => {
           <Route path="/mycalendar" element={<MyCalendarPage />} />
           <Route path="/payment-demo" element={<PaymentDemoPage />} />
           <Route path="/mass-class/:classId" element={<MassClassPage />} />
-          <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/saved" element={<SavedPage />} />
-          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Individual Tutor Protected Routes */}
@@ -128,30 +132,31 @@ const App = () => {
           {/* <Route path="/startzoom" element={<StartZoom />} /> */}
           <Route path="/schedulemeeting" element={<ScheduleMeeting />} />
           <Route path="/manageSchedule" element={<ScheduleMeeting />} />
-          <Route path="/chat" element={<ChatPage />} />
         </Route>
 
         {/* Mass Tutor Protected Routes */}
         <Route element={<MassRoute />}>
           {massTutorRoutes()}
-          <Route path="/mass-tutor/chat" element={<ChatPage />} />
         </Route>
 
         {/* ===== Admin portal ===== */}
-        <Route path="/admin/auth" element={<AdminAuth />} />
-        <Route path="/admin" element={<AdminGate />}>
-          <Route element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="tutors/approval" element={<TutorApproval />} />
-            <Route path="tutors/suspend" element={<TutorSuspend />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="broadcast" element={<Broadcast />} />
-            <Route path="complaints" element={<Complaints />} />
-            <Route path="finance" element={<Finance />} />
-            <Route path="policies" element={<Policies />} />
-            <Route path="profile" element={<AdminProfile />} />
-            <Route path="sessions" element={<Sessions />} />
-            <Route path="meetings" element={<Meetings />} />
+        <Route element={<AdminThemeWrapper />}>
+          <Route path="/admin/auth" element={<AdminAuth />} />
+          <Route path="/admin/theme-test" element={<ThemeTest />} />
+          <Route path="/admin" element={<AdminGate />}>
+            <Route element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="tutors/approval" element={<TutorApproval />} />
+              <Route path="tutors/suspend" element={<TutorSuspend />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="broadcast" element={<Broadcast />} />
+              <Route path="complaints" element={<Complaints />} />
+              <Route path="finance" element={<Finance />} />
+              <Route path="policies" element={<Policies />} />
+              <Route path="profile" element={<AdminProfile />} />
+              <Route path="sessions" element={<Sessions />} />
+              <Route path="meetings" element={<Meetings />} />
+            </Route>
           </Route>
         </Route>
 
