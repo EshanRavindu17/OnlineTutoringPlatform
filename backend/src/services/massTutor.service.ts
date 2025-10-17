@@ -1,4 +1,5 @@
 import prisma from '../prismaClient';
+import { ClassSlotStatus } from '@prisma/client';
 import { sendNewMassClassNotificationEmail, sendClassApprovedEmail, sendCustomMessageEmail } from './email.service';
 
 /**
@@ -54,7 +55,7 @@ export const getTutorClassesService = async (tutorId: string) => {
         created_at: classItem.created_at,
         studentCount,
         avgRating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
-        upcomingSlots: classItem.ClassSlot.filter((slot) => slot.status === 'upcoming').length,
+        upcomingSlots: classItem.ClassSlot.filter((slot) => slot.status === ClassSlotStatus.upcoming).length,
       };
     });
 
@@ -417,7 +418,7 @@ export const createClassSlotService = async (
         meetingURLs: data.meetingURLs || [],
         materials: data.materials || [],
         announcement: data.announcement,
-        status: 'upcoming',
+        status: ClassSlotStatus.upcoming,
       },
     });
 
@@ -441,7 +442,7 @@ export const updateClassSlotService = async (
     materials?: string[];
     announcement?: string;
     recording?: string;
-    status?: 'upcoming' | 'completed' | 'cancelled' | 'live';
+    status?: ClassSlotStatus;
   }
 ) => {
   try {
@@ -530,7 +531,7 @@ export const getClassStatsService = async (tutorId: string) => {
         Class: {
           m_tutor_id: tutorId,
         },
-        status: 'upcoming',
+        status: ClassSlotStatus.upcoming,
         dateTime: {
           gte: new Date(),
         },
@@ -542,7 +543,7 @@ export const getClassStatsService = async (tutorId: string) => {
         Class: {
           m_tutor_id: tutorId,
         },
-        status: 'completed',
+        status: ClassSlotStatus.completed,
       },
     });
 
@@ -1187,8 +1188,8 @@ export const getDashboardAnalyticsService = async (tutorId: string) => {
     const sessionsPerClass = classes.map((c) => ({
       className: c.title,
       subject: c.subject,
-      upcoming: c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length,
-      completed: c.ClassSlot.filter((s) => s.status === 'completed').length,
+      upcoming: c.ClassSlot.filter((s) => s.status === ClassSlotStatus.upcoming && new Date(s.dateTime) > new Date()).length,
+      completed: c.ClassSlot.filter((s) => s.status === ClassSlotStatus.completed).length,
       total: c.ClassSlot.length,
     })).sort((a, b) => b.total - a.total);
 
@@ -1197,7 +1198,7 @@ export const getDashboardAnalyticsService = async (tutorId: string) => {
     const totalRevenue = Array.from(revenueByClass.values()).reduce((sum, r) => sum + r, 0);
     const totalSessions = classes.reduce((sum, c) => sum + c.ClassSlot.length, 0);
     const upcomingSessions = classes.reduce((sum, c) => 
-      sum + c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length, 0
+      sum + c.ClassSlot.filter((s) => s.status === ClassSlotStatus.upcoming && new Date(s.dateTime) > new Date()).length, 0
     );
     const avgRating = ratingsPerClass.filter((r) => r.rating > 0).reduce((sum, r, _, arr) => 
       sum + r.rating / arr.length, 0
@@ -1399,7 +1400,7 @@ export const cancelClassSlotService = async (
     // Update slot status to cancelled
     const updatedSlot = await prisma.classSlot.update({
       where: { cslot_id: slotId },
-      data: { status: 'cancelled' },
+      data: { status: ClassSlotStatus.cancelled },
     });
 
     const classData = slot.Class!;
@@ -1485,7 +1486,7 @@ export const setClassSlotLiveService = async (slotId: string, tutorId: string) =
     }
 
     // If already live, return success (idempotent operation)
-    if (slot.status === 'live') {
+    if (slot.status === ClassSlotStatus.live) {
       return {
         success: true,
         message: 'Class is already live',
@@ -1494,14 +1495,14 @@ export const setClassSlotLiveService = async (slotId: string, tutorId: string) =
     }
 
     // Check if slot is upcoming
-    if (slot.status !== 'upcoming') {
+    if (slot.status !== ClassSlotStatus.upcoming) {
       throw new Error(`Cannot set slot to live. Current status: ${slot.status}`);
     }
 
     // Update slot status to live
     const updatedSlot = await prisma.classSlot.update({
       where: { cslot_id: slotId },
-      data: { status: 'live' },
+      data: { status: ClassSlotStatus.live },
     });
 
     return {
