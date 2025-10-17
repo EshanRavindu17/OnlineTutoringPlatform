@@ -1,7 +1,7 @@
 // src/components/Navbar
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, User, MessageCircle } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase.tsx';
@@ -81,7 +81,7 @@ export default function Navbar() {
   };
 
   // Common navigation items
-  const commonLinks: { to: string; label: string; icon?: any }[] = [
+  const commonLinks = [
     { to: '/',        label: 'Home'       },
     // { to: '/findtutors', label: 'Find Tutors' },
   ];
@@ -91,7 +91,7 @@ export default function Navbar() {
     { to: '/findtutors', label: 'Find Tutors' },
     { to: '/mycalendar', label: 'My Calendar' },
     { to: '/payment-history', label: 'Payments'   },
-    { to: '/chat', label: 'Chat', icon: MessageCircle },
+    // { to: '/notifications', label: 'Notifications' },
     // { to: '/saved', label: 'Saved' }
   ];
 
@@ -99,20 +99,18 @@ export default function Navbar() {
     // { to: '/addnewcourse', label: 'Create Course' },
     // { to: '/mycourses',     label: 'My Courses'},
     { to: '/manageSchedule',     label: 'Manage Schedule'},
-    { to: '/chat', label: 'Chat', icon: MessageCircle },
   ];
 
   const massTutorLinks = [
     { to: '/mass-tutor-dashboard', label: 'Dashboard' },
-    { to: '/chat', label: 'Chat', icon: MessageCircle },
   ];
 
-  const LastLink: { to: string; label: string; icon?: any }[] = [
+  const LastLink =[
     { to: '/about', label: 'About Us' }
   ]
 
   // Pick the right extras
-  let extraLinks: { to: string; label: string; icon?: any }[] = [];
+  let extraLinks: { to: string; label: string }[] = [];
   if (userProfile?.role === 'student') extraLinks = studentLinks;
   else if (userProfile?.role === 'Individual')   extraLinks = tutorLinks;
   else if (userProfile?.role === 'Mass')   extraLinks = massTutorLinks;
@@ -200,11 +198,8 @@ export default function Navbar() {
             <div className="hidden lg:flex lg:items-center lg:space-x-2">
               {/* Navigation Links */}
               <div className="flex items-center space-x-1 mr-8">
-                {commonLinks.concat(extraLinks).map(({ to, label, icon: Icon }) => (
+                {commonLinks.concat(extraLinks).map(({ to, label }) => (
                   <NavLink key={to} to={to} className={desktopClass}>
-                    {Icon && (
-                      <Icon className="w-4 h-4 mr-1.5" />
-                    )}
                     {label}
                   </NavLink>
                 ))}
@@ -277,19 +272,14 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="lg:hidden bg-gradient-to-r from-white via-blue-50 to-purple-50 border-t border-gray-100">
             <div className="pt-4 pb-4 space-y-2 px-4">
-              {commonLinks.concat(extraLinks).map(({ to, label, icon: Icon }) => (
+              {commonLinks.concat(extraLinks).map(({ to, label }) => (
                 <NavLink
                   key={to}
                   to={to}
                   onClick={() => setIsMenuOpen(false)}
                   className={mobileClass}
                 >
-                  <div className="flex items-center">
-                    {Icon && (
-                      <Icon className="w-5 h-5 mr-2" />
-                    )}
-                    {label}
-                  </div>
+                  {label}
                 </NavLink>
               ))}
             </div>

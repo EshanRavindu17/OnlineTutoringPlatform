@@ -3,8 +3,7 @@ import { Chat, Message, chatApi } from '../../api/chat.api';
 import { useSocket } from '../../context/SocketContext';
 import { MessageBubble } from './MessageBubble';
 import { auth } from '../../firebase';
-import { Send, Users, Circle } from 'lucide-react';
-import chatunknown from '../../assets/chatunknown.avif';
+import './ChatWindow.css';
 
 interface ChatWindowProps {
   chat: Chat;
@@ -227,57 +226,34 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="chat-window">
       {/* Chat Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{getChatName()}</h2>
-              {chat.type === 'direct' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Circle 
-                    className={`w-2 h-2 ${getOnlineStatus() ? 'fill-green-500 text-green-500' : 'fill-gray-400 text-gray-400'}`}
-                  />
-                  <span className={`text-sm font-medium ${getOnlineStatus() ? 'text-green-600' : 'text-gray-500'}`}>
-                    {getOnlineStatus() ? 'Online' : 'Offline'}
-                  </span>
-                </div>
-              )}
-              {chat.type === 'group' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Users className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">
-                    {chat.participants.length} participants
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="chat-header">
+        <div className="chat-header-info">
+          <h2>{getChatName()}</h2>
+          {chat.type === 'direct' && (
+            <span className={`status ${getOnlineStatus() ? 'online' : 'offline'}`}>
+              {getOnlineStatus() ? 'Online' : 'Offline'}
+            </span>
+          )}
+          {chat.type === 'group' && (
+            <span className="participants-count">
+              {chat.participants.length} participants
+            </span>
+          )}
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-blue-50/30 p-6">
+      <div className="messages-container">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium">Loading messages...</p>
-            </div>
-          </div>
+          <div className="loading-messages">Loading messages...</div>
         ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center p-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">💬</span>
-              </div>
-              <p className="text-gray-600 text-lg font-medium">No messages yet.</p>
-              <p className="text-gray-500 mt-2">Start the conversation!</p>
-            </div>
+          <div className="empty-messages">
+            <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="messages-list">
             {messages.map((message, index) => {
               const isOwn = message.sender_id === currentUserId;
               const showAvatar =
@@ -301,47 +277,35 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
 
         {/* Typing Indicator */}
         {typingUsers.size > 0 && (
-          <div className="flex items-center gap-2 mt-4 px-4 py-3 bg-white rounded-2xl shadow-sm inline-flex">
-            <div className="flex gap-1">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          <div className="typing-indicator">
+            <div className="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
-            <span className="text-sm text-gray-600 font-medium">Someone is typing...</span>
+            <span className="typing-text">Someone is typing...</span>
           </div>
         )}
       </div>
 
       {/* Message Input */}
-      <form className="px-6 py-4 bg-white border-t border-gray-200" onSubmit={handleSendMessage}>
-        <div className="flex items-end gap-3">
-          <textarea
-            value={newMessage}
-            onChange={handleTyping}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e);
-              }
-            }}
-            placeholder="Type a message..."
-            rows={1}
-            disabled={sending}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-all bg-gray-50 focus:bg-white"
-            style={{ minHeight: '48px', maxHeight: '120px' }}
-          />
-          <button 
-            type="submit" 
-            disabled={!newMessage.trim() || sending}
-            className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-110 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-          >
-            {sending ? (
-              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <Send className="w-6 h-6" />
-            )}
-          </button>
-        </div>
+      <form className="message-input-container" onSubmit={handleSendMessage}>
+        <textarea
+          value={newMessage}
+          onChange={handleTyping}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSendMessage(e);
+            }
+          }}
+          placeholder="Type a message..."
+          rows={1}
+          disabled={sending}
+        />
+        <button type="submit" disabled={!newMessage.trim() || sending}>
+          {sending ? '...' : '➤'}
+        </button>
       </form>
     </div>
   );

@@ -1049,7 +1049,7 @@ function MassClassPage() {
                                 weekday: 'long',
                                 month: 'long', 
                                 day: 'numeric',
-                                timeZone: 'Asia/Colombo'
+                                timeZone: 'UTC'
                               })}
                             </h3>
                             <div className={`${statusDisplay.bgColor} ${statusDisplay.textColor} text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1 ${
@@ -1063,7 +1063,7 @@ function MassClassPage() {
                             {slotDate.toLocaleDateString([], { timeZone: 'UTC' })} • {slotDate.toLocaleTimeString([], {
                               hour: '2-digit', 
                               minute: '2-digit',
-                              timeZone: 'Asia/Colombo'
+                              timeZone: 'UTC'
                             })} • {slot.duration} Hours
                           </div>
                           {slot.announcement && (
@@ -1170,11 +1170,11 @@ function MassClassPage() {
                                 Class starts at {new Date(slot.dateTime).toLocaleTimeString([], { 
                                   hour: '2-digit', 
                                   minute: '2-digit',
-                                  timeZone: 'Asia/Colombo'
+                                  timeZone: 'UTC'
                                 })} • Join available from {new Date(new Date(slot.dateTime).getTime() - (15 * 60 * 1000)).toLocaleTimeString([], { 
                                   hour: '2-digit', 
                                   minute: '2-digit',
-                                  timeZone: 'Asia/Colombo'
+                                  timeZone: 'UTC'
                                 })}
                               </div>
                             </div>
