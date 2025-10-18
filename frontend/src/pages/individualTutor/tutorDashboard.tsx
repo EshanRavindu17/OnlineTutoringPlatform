@@ -1823,6 +1823,7 @@ const TutorDashboard: React.FC = () => {
         );
         
         if (confirmed) {
+
           try {
             const freshZoomLink = await zoomService.getRefreshedZoomLink(originalZoomLink);
             window.open(freshZoomLink, '_blank');
@@ -3058,6 +3059,7 @@ const TutorDashboard: React.FC = () => {
                                         )}
                                       </div>
                                     </div>
+
                                     
                                     {/* Material Content Preview */}
                                     {materialType === 'text' && materialContent && (
