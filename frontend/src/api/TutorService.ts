@@ -100,11 +100,7 @@ export const tutorService = {
       if (filters.page) params.append('page', filters.page.toString());
       if (filters.limit) params.append('limit', filters.limit.toString());
 
-      const response = await apiClient.get(`/student/getAllIndividualTutors?${params.toString()}`, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : undefined
-        }
-      });
+      const response = await apiClient.get(`/student/getAllIndividualTutors?${params.toString()}`)
       return response.data;
     } catch (error) {
       console.error('Error fetching individual tutors:', error);
@@ -116,11 +112,7 @@ export const tutorService = {
   getAllSubjects: async (): Promise<Subject[]> => {
     try {
       const token = await getToken();
-      const response = await apiClient.get('/individual-tutor/subjects', {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : undefined
-        }
-      });
+      const response = await apiClient.get('/individual-tutor/subjects');
       console.log('Fetched subjects:', response.data);
       return response.data;
       
@@ -135,11 +127,7 @@ export const tutorService = {
     console.log('Fetching titles for subject:', subjectId);
     try {
       const token = await getToken();
-      const response = await apiClient.get(`/individual-tutor/titles/${subjectId}`, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : undefined
-        }
-      });
+      const response = await apiClient.get(`/individual-tutor/titles/${subjectId}`)
       return response.data;
     } catch (error) {
       console.error('Error fetching titles:', error);
@@ -151,12 +139,8 @@ export const tutorService = {
   getAllTitlesWithSubjects: async (): Promise<TitleWithSubject[]> => {
     try {
       const token = await getToken();
-      const response = await apiClient.get('/individual-tutor/titles', {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : undefined
-        }
-      });
-      console.log('Fetched all titles with subjects:', response.data);  
+      const response = await apiClient.get('/individual-tutor/titles');
+      console.log('Fetched all titles with subjects:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching all titles:', error);
