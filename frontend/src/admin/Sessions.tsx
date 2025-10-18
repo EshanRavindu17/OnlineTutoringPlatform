@@ -34,7 +34,7 @@ interface ClassSlot {
   cslot_id: string;
   dateTime: string;
   duration: number;
-  status: 'upcoming' | 'completed';
+  status: 'upcoming' | 'completed' | 'cancelled' | 'live';
   meetingURLs: string[];
   materials: string[];
   recording: string;
@@ -157,19 +157,23 @@ export default function Sessions() {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      scheduled: 'bg-blue-100 text-blue-800',
-      upcoming: 'bg-blue-100 text-blue-800',
-      ongoing: 'bg-green-100 text-green-800',
-      completed: 'bg-gray-100 text-gray-800',
-      canceled: 'bg-red-100 text-red-800',
+      scheduled: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+      upcoming: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+      ongoing: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+      live: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 animate-pulse',
+      completed: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
+      canceled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
+      cancelled: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400',
     };
 
     return (
       <span
         className={`px-3 py-1 rounded-full text-xs font-semibold ${
-          colors[status] || 'bg-gray-100 text-gray-800'
+          colors[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
         }`}
       >
+        {status === 'live' && '🔴 '}
+        {(status === 'canceled' || status === 'cancelled') && '🚫 '}
         {status.toUpperCase()}
       </span>
     );
@@ -191,7 +195,7 @@ export default function Sessions() {
   if (loading && !stats) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
@@ -201,45 +205,45 @@ export default function Sessions() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Session Management</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage all tutoring sessions</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Session Management</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor and manage all tutoring sessions</p>
         </div>
       </div>
 
       {/* Statistics Cards - Compact */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-lg p-4 text-white shadow-lg dark:shadow-blue-900/30">
             <div className="flex items-center gap-3">
-              <div className="bg-white/20 rounded-lg p-2">
+              <div className="bg-white/20 dark:bg-white/10 rounded-lg p-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
                 </svg>
               </div>
               <div>
-                <p className="text-blue-100 text-xs">Individual</p>
+                <p className="text-blue-100 dark:text-blue-200 text-xs">Individual</p>
                 <p className="text-2xl font-bold">{stats.individual.total}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-lg p-4 text-white shadow-lg dark:shadow-purple-900/30">
             <div className="flex items-center gap-3">
-              <div className="bg-white/20 rounded-lg p-2">
+              <div className="bg-white/20 dark:bg-white/10 rounded-lg p-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
                 </svg>
               </div>
               <div>
-                <p className="text-purple-100 text-xs">Mass Classes</p>
+                <p className="text-purple-100 dark:text-purple-200 text-xs">Mass Classes</p>
                 <p className="text-2xl font-bold">{stats.mass.total}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-lg p-4 text-white shadow-lg dark:shadow-green-900/30">
             <div className="flex items-center gap-3">
-              <div className="bg-white/20 rounded-lg p-2">
+              <div className="bg-white/20 dark:bg-white/10 rounded-lg p-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
@@ -249,7 +253,7 @@ export default function Sessions() {
                 </svg>
               </div>
               <div>
-                <p className="text-green-100 text-xs">Completed</p>
+                <p className="text-green-100 dark:text-green-200 text-xs">Completed</p>
                 <p className="text-2xl font-bold">
                   {stats.individual.completedMonth + stats.mass.completedMonth}
                 </p>
@@ -257,9 +261,9 @@ export default function Sessions() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 rounded-lg p-4 text-white shadow-lg dark:shadow-orange-900/30">
             <div className="flex items-center gap-3">
-              <div className="bg-white/20 rounded-lg p-2">
+              <div className="bg-white/20 dark:bg-white/10 rounded-lg p-2">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
@@ -269,7 +273,7 @@ export default function Sessions() {
                 </svg>
               </div>
               <div>
-                <p className="text-orange-100 text-xs">Active Now</p>
+                <p className="text-orange-100 dark:text-orange-200 text-xs">Active Now</p>
                 <p className="text-2xl font-bold">
                   {(stats.individual.byStatus?.ongoing || 0) +
                     (stats.mass.byStatus?.ongoing || 0)}
@@ -281,15 +285,15 @@ export default function Sessions() {
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/30 border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex">
             <button
               onClick={() => setActiveTab('individual')}
               className={`px-6 py-3 font-medium transition-colors ${
                 activeTab === 'individual'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               Individual Sessions ({stats?.individual.total || 0})
@@ -298,8 +302,8 @@ export default function Sessions() {
               onClick={() => setActiveTab('mass')}
               className={`px-6 py-3 font-medium transition-colors ${
                 activeTab === 'mass'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               Mass Class Slots ({stats?.mass.total || 0})
@@ -308,19 +312,19 @@ export default function Sessions() {
         </div>
 
         {/* Filters */}
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
+        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
             >
               <option value="">All Statuses</option>
               {activeTab === 'individual' ? (
@@ -333,14 +337,16 @@ export default function Sessions() {
               ) : (
                 <>
                   <option value="upcoming">Upcoming</option>
+                  <option value="live">Live</option>
                   <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
                 </>
               )}
             </select>
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value as any)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
             >
               <option value="all">All Time</option>
               <option value="recent">Recent (Last 6h)</option>
@@ -354,7 +360,7 @@ export default function Sessions() {
                 setTimeFilter('all');
               }}
               placeholder="Start Date"
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
             />
             <input
               type="date"
@@ -364,7 +370,7 @@ export default function Sessions() {
                 setTimeFilter('all');
               }}
               placeholder="End Date"
-              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
             />
           </div>
         </div>
@@ -373,66 +379,67 @@ export default function Sessions() {
         <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
             </div>
           ) : activeTab === 'individual' ? (
             <div className="space-y-4">
               {sessions.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   No individual sessions found
                 </div>
               ) : (
                 sessions.map((session) => (
                   <div
                     key={session.session_id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow bg-white dark:bg-gray-800"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                             {session.title || 'Untitled Session'}
                           </h3>
                           {getStatusBadge(session.status)}
                         </div>
                         <div className="grid grid-cols-3 gap-3 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs">Subject</p>
-                            <p className="font-medium">{session.subject || 'N/A'}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Subject</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{session.subject || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Date & Time</p>
-                            <p className="font-medium text-xs">
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Date & Time</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-xs">
                               {formatDateTime(session.date, session.start_time)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Student</p>
-                            <p className="font-medium truncate">{session.student?.name || 'N/A'}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Student</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{session.student?.name || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Tutor</p>
-                            <p className="font-medium truncate">{session.tutor?.name || 'N/A'}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Tutor</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{session.tutor?.name || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Price</p>
-                            <p className="font-medium">
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Price</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
                               LKR {session.price?.toLocaleString() || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Payment</p>
-                            <p className="font-medium">
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Payment</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
                               {session.payment?.status || 'Pending'}
                             </p>
                           </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {session.meeting_urls && session.meeting_urls.length > 0 && (
+                        {session.meeting_urls && session.meeting_urls.length > 0 && 
+                         session.status !== 'completed' && session.status !== 'canceled' && (
                           <button
                             onClick={() => handleJoinMeeting(session.meeting_urls[0])}
-                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm rounded-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1.5 whitespace-nowrap"
                           >
                             <svg
                               className="w-4 h-4"
@@ -444,7 +451,7 @@ export default function Sessions() {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2 2v8a2 2 0 002 2z"
                               />
                             </svg>
                             Join
@@ -455,7 +462,7 @@ export default function Sessions() {
                             onClick={() =>
                               handleUpdateStatus(session.session_id, 'completed', 'individual')
                             }
-                            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+                            className="px-3 py-1.5 bg-blue-600 dark:bg-blue-500 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors whitespace-nowrap"
                           >
                             Complete
                           </button>
@@ -469,59 +476,60 @@ export default function Sessions() {
           ) : (
             <div className="space-y-4">
               {slots.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   No mass class slots found
                 </div>
               ) : (
                 slots.map((slot) => (
                   <div
                     key={slot.cslot_id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow bg-white dark:bg-gray-800"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                             {slot.class?.title || 'Untitled Class'}
                           </h3>
                           {getStatusBadge(slot.status)}
                         </div>
                         <div className="grid grid-cols-3 gap-3 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs">Subject</p>
-                            <p className="font-medium">{slot.class?.subject || 'N/A'}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Subject</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{slot.class?.subject || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Date & Time</p>
-                            <p className="font-medium text-xs">{formatDateTime(slot.dateTime)}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Date & Time</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-xs">{formatDateTime(slot.dateTime)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Duration</p>
-                            <p className="font-medium">{slot.duration || 0} min</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Duration</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">{slot.duration || 0} min</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Tutor</p>
-                            <p className="font-medium truncate">{slot.tutor?.name || 'N/A'}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Tutor</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{slot.tutor?.name || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Students</p>
-                            <p className="font-medium">
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Students</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
                               {slot.class?.enrollmentCount || 0} enrolled
                             </p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Recording</p>
-                            <p className="font-medium text-xs">
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">Recording</p>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-xs">
                               {slot.recording ? '✓ Available' : '✗ Not available'}
                             </p>
                           </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {slot.meetingURLs && slot.meetingURLs.length > 0 && (
+                        {slot.meetingURLs && slot.meetingURLs.length > 0 && 
+                         slot.status !== 'completed' && slot.status !== 'cancelled' && (
                           <button
                             onClick={() => handleJoinMeeting(slot.meetingURLs[0])}
-                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm rounded-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-1.5 whitespace-nowrap"
                           >
                             <svg
                               className="w-4 h-4"
@@ -539,12 +547,12 @@ export default function Sessions() {
                             Join
                           </button>
                         )}
-                        {slot.status !== 'completed' && (
+                        {slot.status !== 'completed' && slot.status !== 'cancelled' && (
                           <button
                             onClick={() =>
                               handleUpdateStatus(slot.cslot_id, 'completed', 'mass')
                             }
-                            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+                            className="px-3 py-1.5 bg-blue-600 dark:bg-blue-500 text-white text-sm rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors whitespace-nowrap"
                           >
                             Complete
                           </button>

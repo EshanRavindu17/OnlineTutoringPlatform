@@ -57,3 +57,18 @@ export function StudentRoute() {
   }
   return <Outlet />;
 }
+
+// General authenticated route for all logged-in users
+export function AuthenticatedRoute() {
+  const { currentUser, userProfile, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!currentUser || !userProfile) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <Outlet />;
+}

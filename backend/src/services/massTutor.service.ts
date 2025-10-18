@@ -1,4 +1,5 @@
 import prisma from '../prismaClient';
+import { ClassSlotStatus } from '@prisma/client';
 import { sendNewMassClassNotificationEmail, sendClassApprovedEmail, sendCustomMessageEmail } from './email.service';
 
 /**
@@ -54,7 +55,7 @@ export const getTutorClassesService = async (tutorId: string) => {
         created_at: classItem.created_at,
         studentCount,
         avgRating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
-        upcomingSlots: classItem.ClassSlot.filter((slot) => slot.status === 'upcoming').length,
+        upcomingSlots: classItem.ClassSlot.filter((slot) => slot.status === ClassSlotStatus.upcoming).length,
       };
     });
 
@@ -417,7 +418,7 @@ export const createClassSlotService = async (
         meetingURLs: data.meetingURLs || [],
         materials: data.materials || [],
         announcement: data.announcement,
-        status: 'upcoming',
+        status: ClassSlotStatus.upcoming,
       },
     });
 
@@ -441,7 +442,7 @@ export const updateClassSlotService = async (
     materials?: string[];
     announcement?: string;
     recording?: string;
-    status?: 'upcoming' | 'completed';
+    status?: ClassSlotStatus;
   }
 ) => {
   try {
@@ -530,7 +531,7 @@ export const getClassStatsService = async (tutorId: string) => {
         Class: {
           m_tutor_id: tutorId,
         },
-        status: 'upcoming',
+        status: ClassSlotStatus.upcoming,
         dateTime: {
           gte: new Date(),
         },
@@ -542,7 +543,7 @@ export const getClassStatsService = async (tutorId: string) => {
         Class: {
           m_tutor_id: tutorId,
         },
-        status: 'completed',
+        status: ClassSlotStatus.completed,
       },
     });
 
@@ -1187,8 +1188,8 @@ export const getDashboardAnalyticsService = async (tutorId: string) => {
     const sessionsPerClass = classes.map((c) => ({
       className: c.title,
       subject: c.subject,
-      upcoming: c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length,
-      completed: c.ClassSlot.filter((s) => s.status === 'completed').length,
+      upcoming: c.ClassSlot.filter((s) => s.status === ClassSlotStatus.upcoming && new Date(s.dateTime) > new Date()).length,
+      completed: c.ClassSlot.filter((s) => s.status === ClassSlotStatus.completed).length,
       total: c.ClassSlot.length,
     })).sort((a, b) => b.total - a.total);
 
@@ -1197,7 +1198,7 @@ export const getDashboardAnalyticsService = async (tutorId: string) => {
     const totalRevenue = Array.from(revenueByClass.values()).reduce((sum, r) => sum + r, 0);
     const totalSessions = classes.reduce((sum, c) => sum + c.ClassSlot.length, 0);
     const upcomingSessions = classes.reduce((sum, c) => 
-      sum + c.ClassSlot.filter((s) => s.status === 'upcoming' && new Date(s.dateTime) > new Date()).length, 0
+      sum + c.ClassSlot.filter((s) => s.status === ClassSlotStatus.upcoming && new Date(s.dateTime) > new Date()).length, 0
     );
     const avgRating = ratingsPerClass.filter((r) => r.rating > 0).reduce((sum, r, _, arr) => 
       sum + r.rating / arr.length, 0
@@ -1341,6 +1342,176 @@ export const getTutorReviewsService = async (tutorId: string) => {
     };
   } catch (error) {
     console.error('Error fetching tutor reviews:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel a class slot and send notifications to students and admin
+ */
+export const cancelClassSlotService = async (
+  slotId: string,
+  tutorId: string,
+  reason?: string
+) => {
+  try {
+    // Get the slot with class and enrollment information
+    const slot = await prisma.classSlot.findUnique({
+      where: { cslot_id: slotId },
+      include: {
+        Class: {
+          include: {
+            Mass_Tutor: {
+              include: {
+                User: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            Enrolment: {
+              where: {
+                status: 'valid',
+              },
+              include: {
+                Student: {
+                  include: {
+                    User: {
+                      select: {
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!slot || slot.Class?.m_tutor_id !== tutorId) {
+      throw new Error('Class slot not found or access denied');
+    }
+
+    // Update slot status to cancelled
+    const updatedSlot = await prisma.classSlot.update({
+      where: { cslot_id: slotId },
+      data: { status: ClassSlotStatus.cancelled },
+    });
+
+    const classData = slot.Class!;
+    const tutorName = classData.Mass_Tutor?.User?.name || 'Unknown Tutor';
+    const tutorEmail = classData.Mass_Tutor?.User?.email || '';
+    const classDate = new Date(slot.dateTime).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const classTime = new Date(slot.dateTime).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    // Send email to each enrolled student
+    const emailPromises = classData.Enrolment.map(async (enrollment) => {
+      const studentName = enrollment.Student?.User?.name || 'Student';
+      const studentEmail = enrollment.Student?.User?.email;
+
+      if (studentEmail) {
+        const { sendClassCancellationEmail } = await import('./email.service');
+        await sendClassCancellationEmail(studentEmail, {
+          studentName,
+          className: classData.title,
+          tutorName,
+          classDate,
+          classTime,
+          reason,
+          refundInfo: 'This session is part of your monthly subscription. No refund is applicable.',
+        });
+      }
+    });
+
+    // Send notification email to admin
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@tutorly.com';
+    const { sendClassCancellationAdminEmail } = await import('./email.service');
+    
+    emailPromises.push(
+      sendClassCancellationAdminEmail(adminEmail, {
+        tutorName,
+        tutorEmail,
+        className: classData.title,
+        classDate,
+        classTime,
+        reason,
+        affectedStudentsCount: classData.Enrolment.length,
+        classId: classData.class_id,
+      })
+    );
+
+    // Wait for all emails to be sent
+    await Promise.all(emailPromises);
+
+    return {
+      success: true,
+      message: 'Class slot cancelled and notifications sent',
+      updatedSlot,
+      notifiedStudents: classData.Enrolment.length,
+    };
+  } catch (error) {
+    console.error('Error cancelling class slot:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update class slot status to 'live' when tutor joins
+ */
+export const setClassSlotLiveService = async (slotId: string, tutorId: string) => {
+  try {
+    // Verify slot exists and belongs to tutor
+    const slot = await prisma.classSlot.findUnique({
+      where: { cslot_id: slotId },
+      include: {
+        Class: true,
+      },
+    });
+
+    if (!slot || slot.Class?.m_tutor_id !== tutorId) {
+      throw new Error('Class slot not found or access denied');
+    }
+
+    // If already live, return success (idempotent operation)
+    if (slot.status === ClassSlotStatus.live) {
+      return {
+        success: true,
+        message: 'Class is already live',
+        updatedSlot: slot,
+      };
+    }
+
+    // Check if slot is upcoming
+    if (slot.status !== ClassSlotStatus.upcoming) {
+      throw new Error(`Cannot set slot to live. Current status: ${slot.status}`);
+    }
+
+    // Update slot status to live
+    const updatedSlot = await prisma.classSlot.update({
+      where: { cslot_id: slotId },
+      data: { status: ClassSlotStatus.live },
+    });
+
+    return {
+      success: true,
+      message: 'Class is now live',
+      updatedSlot,
+    };
+  } catch (error) {
+    console.error('Error setting class slot to live:', error);
     throw error;
   }
 };

@@ -150,7 +150,7 @@ model Sessions {
   session_id              String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id              String?                   @db.Uuid
   status                  SessionStatus?
-  materials               String[]                  @db.VarChar
+  materials               String[]
   created_at              DateTime?                 @db.Timestamp(6)
   date                    DateTime?                 @db.Date
   i_tutor_id              String?                   @db.Uuid
@@ -432,6 +432,8 @@ enum UserRole {
 enum ClassSlotStatus {
   completed
   upcoming
+  live
+  cancelled
 }
 
 enum EnrolmentStatus {

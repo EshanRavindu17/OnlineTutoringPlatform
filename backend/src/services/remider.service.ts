@@ -352,6 +352,44 @@ const sendAllReminders = async (hoursAhead: number) => {
   }
 };
 
+
+const setPaymentStatus = async () => {
+  try {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const updatedEnrollments = await prisma.enrolment.updateMany({
+      where: {
+        created_at: {
+          lt: oneMonthAgo
+        },
+        status: {
+          not: 'invalid'
+        }
+      },
+      data: {
+        status: 'invalid'
+      }
+    });
+    
+    console.log(`✅ Updated ${updatedEnrollments.count} enrollments to invalid status`);
+    return updatedEnrollments.count;
+  } catch (error) {
+    console.error('❌ Error updating enrollment status:', error);
+    return 0;
+  }
+};
+
+// Cron job to update payment status daily at midnight
+const startPaymentStatusJob = () => {
+  return cron.schedule('0 0 * * *', async () => { 
+    await setPaymentStatus();
+  }
+  , {
+    timezone: "Asia/Colombo" // Adjust to your timezone
+  });
+};
+
 // Cron job for 24-hour reminders (runs every hour)
 const start24HourReminderJob = () => {
   return cron.schedule('0 * * * *', async () => {

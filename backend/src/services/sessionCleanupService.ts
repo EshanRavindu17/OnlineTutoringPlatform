@@ -21,17 +21,10 @@ class SessionCleanupService {
       return;
     }
 
-    console.log('Starting session cleanup service...');
-    console.log(`- Auto-expire check interval: ${expireCheckIntervalMs / 1000}s`);
-    console.log(`- Auto-complete check interval: ${completeCheckIntervalMs / 1000}s`);
-
     // Set up auto-expiry of scheduled sessions
     this.expireInterval = setInterval(async () => {
       try {
         const result = await autoExpireScheduledSessions();
-        if (result.expiredCount > 0) {
-          console.log(`Auto-expired ${result.expiredCount} sessions:`, result.sessionIds);
-        }
       } catch (error) {
         console.error('Error in auto-expire scheduled sessions:', error);
       }
@@ -41,9 +34,6 @@ class SessionCleanupService {
     this.completeInterval = setInterval(async () => {
       try {
         const result = await autoCompleteLongRunningSessions();
-        if (result.completedCount > 0) {
-          console.log(`Auto-completed ${result.completedCount} long running sessions:`, result.sessionIds);
-        }
       } catch (error) {
         console.error('Error in auto-complete long running sessions:', error);
       }

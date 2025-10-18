@@ -1,12 +1,11 @@
 import prisma from "../prismaClient";
 import { SessionStatus } from "@prisma/client";
 import { sendSessionCancellationEmail, sendSessionCompletionEmail, sendAutoCancellationEmail } from './email.service';
+import { refundPayment } from './paymentService';
 
 // Helper function to get session time range from slots
 const getSessionTimeRange = (slots: (string | Date)[]): string => {
   if (!slots || slots.length === 0) return 'Time not available';
-  
-  // Sort slots to ensure proper order
   const sortedSlots = slots.map(slot => new Date(slot)).sort((a, b) => a.getTime() - b.getTime());
   
   const extractTime = (slot: Date): string => {
@@ -14,8 +13,6 @@ const getSessionTimeRange = (slots: (string | Date)[]): string => {
   };
   
   const startTime = extractTime(sortedSlots[0]);
-  
-  // Calculate end time: start time + number of slots (each slot = 1 hour)
   const endDate = new Date(sortedSlots[0]);
   endDate.setHours(endDate.getHours() + slots.length);
   const endTime = extractTime(endDate);
@@ -28,7 +25,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface MaterialData {
   id: string;
   name: string;
-  type: 'document' | 'video' | 'link' | 'image' | 'text' | 'presentation';
+  type?: string;
   url?: string;
   content?: string;
   description?: string;
@@ -43,7 +40,7 @@ export interface SessionWithDetails {
   session_id: string;
   student_id: string | null;
   status: SessionStatus | null;
-  materials: (string | MaterialData)[]; // Support both formats for backward compatibility
+  materials: (MaterialData)[]; 
   created_at: Date | null;
   date: Date | null;
   i_tutor_id: string | null;
@@ -51,7 +48,7 @@ export interface SessionWithDetails {
   price: number | null;
   slots: Date[];
   title: string | null;
-  subject: string | null;  // Added subject column from Sessions table
+  subject: string | null;  
   start_time: Date | null;
   end_time: Date | null;
   Student?: {
@@ -70,7 +67,6 @@ export interface SessionWithDetails {
 
 // Helper function to convert Prisma sessions to SessionWithDetails
 const convertPrismaSessionToSessionWithDetails = (session: any): SessionWithDetails => {
-  // Parse enhanced materials from materials array (stored as JSON strings with prefix)
   let parsedMaterials: (string | MaterialData)[] = [];
   
   if (session.materials && Array.isArray(session.materials)) {
@@ -158,7 +154,6 @@ export const getTutorSessionsByStatus = async (
   status: SessionStatus
 ): Promise<SessionWithDetails[]> => {
   try {
-    // For canceled sessions, limit to the latest 10 to avoid overwhelming the UI
     const queryOptions: any = {
       where: {
         i_tutor_id: tutorId,
@@ -196,13 +191,13 @@ export const getTutorSessionsByStatus = async (
 
     // Limit canceled sessions to the latest 10 for better UX
     if (status === 'canceled') {
-      queryOptions.take = 10; // Limit to 10 latest canceled sessions
+      queryOptions.take = 10; 
       queryOptions.orderBy = [
         {
-          date: 'desc' // Most recent cancellations first
+          date: 'desc' 
         },
         {
-          created_at: 'desc' // Then by creation time (most recent first)
+          created_at: 'desc'
         }
       ];
     }
@@ -245,13 +240,13 @@ export const getTutorRecentCanceledSessions = async (tutorId: string, limit: num
       },
       orderBy: [
         {
-          date: 'desc' // Most recent cancellations first
+          date: 'desc' 
         },
         {
-          created_at: 'desc' // Then by creation time (most recent first)
+          created_at: 'desc' 
         }
       ],
-      take: limit // Limit the number of results
+      take: limit 
     });
 
     return sessions.map(convertPrismaSessionToSessionWithDetails);
@@ -379,8 +374,6 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
       }
     });
 
-    // Get upcoming sessions count (scheduled and in future) 
-    // We'll use the same logic as getTutorUpcomingSessions to get accurate count
     const upcomingSessionsResult = await getTutorUpcomingSessions(tutorId);
     const upcomingSessions = upcomingSessionsResult.length;
 
@@ -465,44 +458,32 @@ export const getTutorSessionStatistics = async (tutorId: string): Promise<Sessio
 
 // Enhanced add materials to a session (stores enhanced data as JSON in materials array)
 export const addSessionMaterial = async (
-  sessionId: string, 
-  materialData: string | Omit<MaterialData, 'id' | 'uploadDate'>
-): Promise<SessionWithDetails> => {
+    sessionId: string,
+    materialData: Omit<MaterialData, 'id' | 'uploadDate'>
+  ): Promise<SessionWithDetails> => {
   try {
-    // First, get the current session
+    // Get the current session's materials
     const session = await prisma.sessions.findUnique({
       where: { session_id: sessionId },
       select: { materials: true }
     });
 
-    if (!session) {
-      throw new Error('Session not found');
-    }
+    if (!session) throw new Error('Session not found');
 
-    let updatedMaterials: string[];
+    // Create the new material object
+    const newMaterial = {
+      ...materialData,
+      id: uuidv4(),
+      uploadDate: new Date().toISOString()
+    };
 
-    if (typeof materialData === 'string') {
-      // Simple string material - backward compatibility
-      updatedMaterials = [...session.materials, materialData];
-    } else {
-      // Enhanced MaterialData object - store as JSON string in materials array
-      const newMaterial: MaterialData = {
-        id: uuidv4(),
-        uploadDate: new Date().toISOString(),
-        ...materialData
-      };
+    const materialJsonString = JSON.stringify(newMaterial);
+    const updatedMaterials = [...session.materials, materialJsonString];
 
-      // Store the enhanced material as JSON string
-      const materialJsonString = `__ENHANCED_MATERIAL__${JSON.stringify(newMaterial)}`;
-      updatedMaterials = [...session.materials, materialJsonString];
-    }
-
-    // Update the session with the new materials
+    // Update the session in the database
     const updatedSession = await prisma.sessions.update({
       where: { session_id: sessionId },
-      data: { 
-        materials: updatedMaterials
-      },
+      data: { materials: updatedMaterials },
       include: {
         Student: {
           include: {
@@ -528,47 +509,45 @@ export const addSessionMaterial = async (
     return convertPrismaSessionToSessionWithDetails(updatedSession);
   } catch (error) {
     console.error('Error adding session material:', error);
-    throw new Error(`Failed to add session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to add session material: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 };
 
 // Remove materials from a session (enhanced version)
-export const removeSessionMaterial = async (sessionId: string, materialIndex: number): Promise<SessionWithDetails> => {
+export const removeSessionMaterial = async (
+  sessionId: string, 
+  materialIndex: number
+): Promise<SessionWithDetails> => {
   try {
-    // First, get the current materials
+    // Get the current materials
     const session = await prisma.sessions.findUnique({
       where: { session_id: sessionId },
       select: { materials: true }
     });
 
-    if (!session) {
-      throw new Error('Session not found');
-    }
+    if (!session) throw new Error('Session not found');
 
     if (materialIndex < 0 || materialIndex >= session.materials.length) {
       throw new Error('Invalid material index');
     }
 
-    // Log the material being removed for debugging
+    // Optionally, log the material name being removed
     const materialToRemove = session.materials[materialIndex];
     let materialName = 'Unknown';
-    
-    if (materialToRemove.startsWith('__ENHANCED_MATERIAL__')) {
-      try {
-        const jsonString = materialToRemove.replace('__ENHANCED_MATERIAL__', '');
-        const parsedMaterial = JSON.parse(jsonString) as MaterialData;
-        materialName = parsedMaterial.name;
-      } catch (error) {
-        materialName = 'Enhanced Material';
-      }
-    } else {
-      materialName = materialToRemove;
+    try {
+      const parsedMaterial = JSON.parse(materialToRemove) as MaterialData;
+      materialName = parsedMaterial.name;
+    } catch (error) {
+      console.warn('Failed to parse material JSON:', error);
     }
+    console.log(`Removing material: ${materialName}`);
 
     // Remove the material at the specified index
     const updatedMaterials = session.materials.filter((_, index) => index !== materialIndex);
 
-    // Update the session with the new materials
+    // Update the session in the database
     const updatedSession = await prisma.sessions.update({
       where: { session_id: sessionId },
       data: { materials: updatedMaterials },
@@ -600,6 +579,7 @@ export const removeSessionMaterial = async (sessionId: string, materialIndex: nu
     throw new Error(`Failed to remove session material: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
+
 
 // Update session status (e.g., start session, complete session, cancel session)
 export const updateSessionStatus = async (sessionId: string, status: SessionStatus): Promise<SessionWithDetails> => {
@@ -699,7 +679,7 @@ export const requestSessionCancellation = async (
   tutorId: string, 
   sessionId: string, 
   reason?: string
-): Promise<{ success: boolean; message: string }> => {
+): Promise<{ success: boolean; message: string; refund?: { id: string; amount: number; currency: string } | null }> => {
   try {
     // Verify that the session belongs to the tutor
     const session = await prisma.sessions.findFirst({
@@ -729,22 +709,62 @@ export const requestSessionCancellation = async (
       throw new Error('Only scheduled sessions can be cancelled');
     }
 
+    // Process Stripe refund before database transaction
+    let stripeRefund = null;
+    let refundError = null;
+    
+    try {
+      // Get payment information for Stripe refund
+      const paymentInfo = await prisma.individual_Payments.findFirst({
+        where: { session_id: sessionId },
+        select: { 
+          payment_intent_id: true, 
+          amount: true,
+          i_payment_id: true
+        }
+      });
+
+      // Process Stripe refund if payment exists
+      if (paymentInfo?.payment_intent_id) {
+        console.log(`🔄 Processing Stripe refund for session ${sessionId}`);
+        stripeRefund = await refundPayment(paymentInfo.payment_intent_id);
+        console.log(`✅ Stripe refund processed successfully: ${stripeRefund.id}`);
+      }
+    } catch (stripeError) {
+      console.error('❌ Stripe refund failed:', stripeError);
+      refundError = stripeError instanceof Error ? stripeError.message : 'Unknown refund error';
+      // Continue with cancellation even if refund fails - this can be handled manually later
+    }
+
     // Use transaction for data consistency
     await prisma.$transaction(async (tx) => {
       // Update session status to cancelled
       await tx.sessions.update({
         where: { session_id: sessionId },
-        data: { status: 'canceled' }
+        data: { 
+          status: 'canceled'}
       });
 
-      // Update payment status to refund
+      // Update payment status based on refund success
       try {
-        const paymentUpdateResult = await tx.individual_Payments.updateMany({
+        // Use existing 'refund' status from Status enum
+        await tx.individual_Payments.updateMany({
           where: { session_id: sessionId },
-          data: { status: 'refund' }
+          data: { 
+            status: 'refund' // Use existing enum value
+          }
         });
+
+        // Log refund details for audit purposes
+        if (stripeRefund) {
+          console.log(`✅ Payment status updated to 'refund' for session ${sessionId}`);
+          console.log(`💰 Refund details - ID: ${stripeRefund.id}, Amount: LKR ${(stripeRefund.amount / 100).toFixed(2)}`);
+        } else if (refundError) {
+          console.log(`⚠️ Payment status updated to 'refund' but Stripe refund failed: ${refundError}`);
+        }
       } catch (paymentError) {
-        // Continue with transaction
+        console.error('❌ Payment update failed:', paymentError);
+        // Continue with transaction - the session cancellation is more important
       }
 
       // Restore free time slots - mark slots back as 'free'
@@ -838,9 +858,27 @@ export const requestSessionCancellation = async (
       // Don't throw error here as the main cancellation was successful
     }
 
+    // Prepare success message based on refund status
+    let successMessage = 'Session cancelled successfully. ';
+    
+    if (stripeRefund) {
+      successMessage += `Refund of LKR ${(stripeRefund.amount / 100).toFixed(2)} has been processed and will appear in the student's account within 5-10 business days. `;
+    } else if (refundError) {
+      successMessage += 'Payment refund failed and needs manual processing. ';
+    } else {
+      successMessage += 'No payment found for refund. ';
+    }
+    
+    successMessage += 'Notification emails sent to both tutor and student.';
+
     return {
       success: true,
-      message: 'Session cancellation processed successfully. Payment refund initiated and notification emails sent to both tutor and student.'
+      message: successMessage,
+      refund: stripeRefund ? {
+        id: stripeRefund.id,
+        amount: stripeRefund.amount / 100,
+        currency: stripeRefund.currency
+      } : null
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

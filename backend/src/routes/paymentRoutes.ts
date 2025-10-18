@@ -6,7 +6,7 @@ import { parseArgs } from "util";
 import { Status } from "@prisma/client";
 import { createPaymentRecord } from "../services/paymentService";
 import { UUID } from "crypto";
-import { conformSessionBookingEmail, sendPaymentConfirmationEmail } from "../services/email.service";
+import { conformSessionBookingEmail, sendEnrollmentConfirmationEmail, sendNewEnrollmentNotificationEmail, sendPaymentConfirmationEmail } from "../services/email.service";
 import { verifyFirebaseTokenSimple } from "../middleware/authMiddlewareSimple";
 import { verifyRole } from "../middleware/verifyRole";
 
@@ -556,11 +556,65 @@ router.post('/confirm-payment-mass', verifyFirebaseTokenSimple, verifyRole('stud
       return res.status(400).json({ error: 'Payment not completed' });
     }
     // Create a mass payment record
-    const massPayment = await createMassPayment(studentId, classId, amount);
+    const massPayment = await createMassPayment(studentId, classId, amount, paymentIntentId);
     console.log('Mass payment record created:', massPayment);
     // Create an enrolment record
     const enrolment = await createEnrolment(studentId, classId);
     console.log('Enrolment record created:', enrolment);
+
+    // Email Notifications
+    try{
+    const student_details = (await prisma.student.findUnique({ // find student name
+      where: { student_id: studentId },
+      select: { User: { select: { name: true, email:true } } }
+    }))
+
+    const classDetails = await prisma.class.findUnique({
+      where: { class_id: classId },
+      include: { Mass_Tutor: { 
+        select: { 
+          User: { select: { name: true, email:true } }
+        }
+      } }
+    });
+    
+    const student_data = {
+      studentName: student_details?.User.name || 'Student',
+      className : classDetails?.title || 'Class',
+      tutorName: classDetails?.Mass_Tutor?.User.name || 'Tutor',
+      subject: classDetails?.subject || 'Subject',
+      day: classDetails?.day || 'Day',
+      time: classDetails?.time.toISOString().split('T')[1].substring(0, 8) || 'Time',
+      amount: amount,
+      dashboardUrl: `${process.env.FRONTEND_URL}/mass-class/${classId}`
+    }
+
+
+    const tutor_data = {
+      tutorName: classDetails?.Mass_Tutor?.User.name || 'Tutor',
+      studentName: student_details?.User.name || 'Student',
+      studentEmail: student_details?.User.email || 'student@example.com',
+      className : classDetails?.title || 'Class',
+      enrollmentDate: enrolment.created_at.toDateString(),
+      totalStudents: 50,
+      dashboardUrl: `${process.env.FRONTEND_URL}/mass-tutor-dashboard`
+    }
+    
+
+    const confirmEnrollmentStudent = await sendEnrollmentConfirmationEmail(
+         student_details.User.email,
+         student_data
+    )
+    console.log('Enrollment confirmation email sent to student:', confirmEnrollmentStudent);
+
+    const confirmEnrollmentTutor = await sendNewEnrollmentNotificationEmail(
+          classDetails?.Mass_Tutor?.User.email || '',
+          tutor_data
+    )
+    console.log('Enrollment confirmation email sent to tutor:', confirmEnrollmentTutor);
+  }catch(error){
+    console.error('Error sending confirmation emails:', error);
+  }
 
     res.status(200).json({
       success: true,

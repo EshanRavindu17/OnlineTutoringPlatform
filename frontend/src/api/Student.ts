@@ -141,6 +141,7 @@ export interface Session {
   reason?: string;
   cancelledBy?: string;
   refunded?: boolean;
+  reviewed?: boolean; // New field to indicate if reviewed  
   Individual_Tutor: {
     User: {
       name: string;
@@ -185,9 +186,16 @@ interface SessionData{
     date: string; // Date of the session
 }
 
-interface Student{
+interface StudentCreateData{
     user_id:string;
     points:number;
+}
+
+interface StudentResponse{
+    student_id: string;
+    user_id: string;
+    points: number;
+    customer_id?: string;
 }
 
 const baseUrl = 'http://localhost:5000/api';
@@ -218,11 +226,11 @@ export const getToken = async (): Promise<string | null> => {
     }
 };
 
-export const addStudent = async (studentData: Student): Promise<Student> => {
+export const addStudent = async (studentData: StudentCreateData): Promise<StudentResponse> => {
     console.log('Adding new student...', studentData);
 
     try {
-        const response = await axios.post<Student>(
+        const response = await axios.post<StudentResponse>(
             `${baseUrl2}/addStudent`,
             studentData
         );
@@ -820,6 +828,8 @@ export interface MassTutor {
   rating: string; // you might convert this to number if needed
   prices: string; // you might convert this to number if needed
   User: MassTutorUser;
+  _count: { Class: number;  // count of classes
+  };
 }
 
 export interface ClassCount {

@@ -20,7 +20,9 @@ import {
   startSessionController,
   completeSessionController,
   autoExpireSessionsController,
-  autoCompleteSessionsController
+  autoCompleteSessionsController,
+  refreshZoomLinkController,
+  getMaterialContentController
 } from '../controllers/sessionController';
 import { materialsUpload } from '../config/multer';
 
@@ -55,8 +57,15 @@ router.post('/:firebaseUid/session/:sessionId/enhanced-material', addEnhancedSes
 router.delete('/:firebaseUid/session/:sessionId/enhanced-material/:materialIndex', removeEnhancedSessionMaterialController);
 router.get('/:firebaseUid/session/:sessionId/enhanced-materials', getEnhancedSessionMaterialsController);
 
+// Material content viewing route
+router.get('/:firebaseUid/:sessionId/materials/:materialIndex/content', getMaterialContentController);
+
 // File upload routes for session materials
 // Use materialsUpload for all files - it will handle both materials and videos
 router.post('/:firebaseUid/session/:sessionId/upload-file', materialsUpload.single('file'), uploadMaterialFileController);
+
+router.post('/:firebaseUid/:sessionId/refresh-zoom-link', refreshZoomLinkController);
+
+
 
 export default router;

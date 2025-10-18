@@ -19,7 +19,8 @@ import {
   Eye,
   MessageSquare,
   X,
-  Send
+  Send,
+  ThumbsUp
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -792,7 +793,7 @@ const StudentProfile: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-500 mb-2">No Individual Tutors Yet</h3>
           <p className="text-gray-400 mb-6">You haven't booked any individual tutoring sessions yet.</p>
           <button 
-            onClick={() => navigate('/find-tutors')}
+            onClick={() => navigate('/findtutors')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Find Tutors
@@ -877,7 +878,7 @@ const StudentProfile: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-500 mb-2">No Group Classes Yet</h3>
           <p className="text-gray-400 mb-6">You haven't enrolled in any group classes yet.</p>
           <button 
-            onClick={() => navigate('/find-tutors')}
+            onClick={() => navigate('/findtutors')}
             className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             Find Group Classes
@@ -897,7 +898,7 @@ const StudentProfile: React.FC = () => {
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-800">{tutor.User.name}</h3>
                 <p className="text-purple-600 font-medium text-sm sm:text-base">{tutor.subjects.join(', ')}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Instructor: {tutor.User.name}</p>
+                <p className="text-xs sm:text-sm text-gray-600">{tutor.heading}</p>
               </div>
               <div className="text-center sm:text-right">
                 <div className="flex items-center justify-center sm:justify-end space-x-1 mb-1">
@@ -914,7 +915,7 @@ const StudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 text-sm">
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
-                <div className="text-base sm:text-lg font-bold text-purple-600">{tutor.Class?.length || 0}</div>
+                <div className="text-base sm:text-lg font-bold text-purple-600">{tutor._count.Class || 0}</div>
                 <div className="text-gray-600 text-xs sm:text-sm">Total Classes</div>
               </div>
               <div className="bg-white rounded-lg p-2 sm:p-3 text-center">
@@ -954,6 +955,11 @@ const StudentProfile: React.FC = () => {
         {type === "cancelled" && <XCircle className="w-5 h-5 mr-2 text-red-600" />}
         {type === "ongoing" && <Clock className="w-5 h-5 mr-2 text-yellow-600" />}
         {title}
+        {/* {(type === "previous" || type === "cancelled") && sessions.length > 3 && (
+          <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+            Scrollable
+          </span>
+        )} */}
       </h3>
       {sessions.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
@@ -961,7 +967,7 @@ const StudentProfile: React.FC = () => {
           <p className="text-gray-500 text-lg">{emptyMessage}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className={`space-y-4 ${(type === "previous" || type === "cancelled") ? "max-h-150 overflow-y-auto pr-2 scrollbar-thin" : ""}`}>
           {sessions.map((session: Session) => (
             <div key={session.session_id} className={`border-l-4 rounded-xl p-4 sm:p-6 shadow-md hover:shadow-lg transition-all duration-300 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25 ${canCancelSession(session) ? 'ring-1 ring-orange-200' : ''}`}>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
@@ -1098,13 +1104,13 @@ const StudentProfile: React.FC = () => {
                       {session.materials.map((link, index) => (
                         <a
                           key={index}
-                          href={link}
+                          href={JSON.parse(link).url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center px-3 py-2 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors text-sm text-green-700 mr-2 mb-2"
                         >
                           <FileText className="w-4 h-4 mr-2" />
-                          Material {index + 1}
+                          {JSON.parse(link).name || `Material ${index + 1}`}
                         </a>
                       ))}
                     </div>
@@ -1128,7 +1134,22 @@ const StudentProfile: React.FC = () => {
 
               {showRating && !session.rating && session.status === 'completed' && (
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-t border-blue-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  {session.reviewed == true ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-1">You Have rated this session</h4>
+                      <p className="text-sm text-gray-600">Thank you for your feedback!</p>
+                    </div>
+                    <button
+                      // onClick={() => openRatingModal(session)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                    >
+                      <ThumbsUp className="w-4 h-4 mr-2" />
+                      Reviewed
+                    </button>
+                  </div>
+                  ):(
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                     <div>
                       <h4 className="font-medium text-gray-700 mb-1">Share Your Experience</h4>
                       <p className="text-sm text-gray-600">Rate and review this session to help other students</p>
@@ -1141,6 +1162,9 @@ const StudentProfile: React.FC = () => {
                       Rate & Review
                     </button>
                   </div>
+                  )}
+                  
+                  
                 </div>
               )}
 
@@ -1261,28 +1285,28 @@ const StudentProfile: React.FC = () => {
                         <span className="font-medium text-gray-600">Subject</span>
                       </div>
                       <p className="font-semibold text-gray-800">{massClass.subject}</p>
-                      <p className="text-gray-600 text-xs">Duration: {massClass.ClassSlot?.[0]?.duration || 'N/A'} min</p>
+                      {/* <p className="text-gray-600 text-xs">Duration: {massClass.ClassSlot?.[0]?.duration || 'N/A'} hr</p> */}
                     </div>
                     <div className="bg-white rounded-lg p-3">
                       <div className="flex items-center space-x-2 mb-1">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <span className="font-medium text-gray-600">Schedule</span>
                       </div>
-                      <p className="font-semibold text-gray-800 text-xs">{massClass.day} at {massClass.time}</p>
+                      <p className="font-semibold text-gray-800 text-xs">{massClass.day} at {massClass.time.split('T')[1].substring(0, 5)}</p>
                       {nextSlot && (
                         <p className="text-blue-600 text-xs mt-1">
                           Next: {new Date(nextSlot.dateTime).toLocaleDateString()}
                         </p>
                       )}
                     </div>
-                    <div className="bg-white rounded-lg p-3">
+                    {/* <div className="bg-white rounded-lg p-3">
                       <div className="flex items-center space-x-2 mb-1">
                         <Users className="w-4 h-4 text-gray-400" />
                         <span className="font-medium text-gray-600">Sessions</span>
                       </div>
                       <p className="font-semibold text-gray-800">{massClass.ClassSlot?.length || 0}</p>
                       <p className="text-xs text-gray-600">total sessions</p>
-                    </div>
+                    </div> */}
                   </div>
 
                   <p className="text-gray-600 text-sm mb-4">{massClass.description}</p>
@@ -1350,18 +1374,18 @@ const StudentProfile: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="w-full sm:w-auto">
+        {/* <div className="w-full sm:w-auto">
           <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-4">
             <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">{individualTutors.reduce((acc, tutor) => acc + tutor.sessionsUsed, 0)}</div>
                 <div className="text-blue-900 text-xs sm:text-sm font-bold">Sessions Completed</div>
             </div>
             <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">${individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + Number(tutor.prices), 0)}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-950">LKR {individualTutors.reduce((acc, tutor) => acc + tutor.amountPaid, 0) + massTutors.reduce((acc, tutor) => acc + Number(tutor.prices), 0)}</div>
               <div className="text-blue-900 text-xs sm:text-sm font-bold">Total Invested</div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

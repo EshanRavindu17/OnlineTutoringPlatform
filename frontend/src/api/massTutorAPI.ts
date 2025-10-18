@@ -320,4 +320,24 @@ export const massTutorAPI = {
     });
     return response.data;
   },
+
+  // Cancel a class slot
+  async cancelClassSlot(slotId: string, reason?: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/mass-tutor/slots/${slotId}/cancel`, 
+      { reason },
+      { headers }
+    );
+    return response.data;
+  },
+
+  // Set class slot status to live when joining
+  async setClassSlotLive(slotId: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/mass-tutor/slots/${slotId}/set-live`, 
+      {},
+      { headers }
+    );
+    return response.data;
+  },
 };

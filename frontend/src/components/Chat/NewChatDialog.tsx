@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { auth } from '../../firebase';
-import './NewChatDialog.css';
+import { X, Search, UserPlus, Users } from 'lucide-react';
+import chatunknown from '../../assets/chatunknown.avif';
 
 interface User {
   id: string;
@@ -122,49 +123,89 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onClose, onChatCre
   );
 
   return (
-    <div className="new-chat-dialog-overlay" onClick={onClose}>
-      <div className="new-chat-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-header">
-          <h2>Start New Conversation</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom duration-300">
+        {/* Header */}
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                Start New Conversation
+              </h2>
+            </div>
+            <button 
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors" 
+              onClick={onClose}
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
         
-        <div className="dialog-content">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search users by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            autoFocus
-          />
+        {/* Content */}
+        <div className="p-6">
+          {/* Search Input */}
+          <div className="relative mb-4">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              placeholder="Search users by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+          </div>
           
-          <div className="users-list">
+          {/* Users List */}
+          <div className="max-h-96 overflow-y-auto space-y-2">
             {loading ? (
-              <div className="loading">Loading users...</div>
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-gray-600 font-medium">Loading users...</p>
+                </div>
+              </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="empty-state">
-                {searchQuery ? 'No users found' : 'No users available'}
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-600 font-medium">
+                  {searchQuery ? 'No users found' : 'No users available'}
+                </p>
+                <p className="text-gray-500 text-sm mt-1">
+                  {searchQuery ? 'Try a different search term' : 'Check back later'}
+                </p>
               </div>
             ) : (
               filteredUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="user-item"
+                  className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
+                    creating 
+                      ? 'cursor-not-allowed opacity-50' 
+                      : 'cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:shadow-md'
+                  }`}
                   onClick={() => !creating && handleCreateChat(user.id)}
-                  style={{ cursor: creating ? 'not-allowed' : 'pointer' }}
                 >
                   <img
-                    src={user.photo_url || '/default-avatar.png'}
+                    src={user.photo_url || chatunknown}
                     alt={user.name}
-                    className="user-avatar"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md group-hover:scale-110 transition-transform"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/default-avatar.png';
+                      (e.target as HTMLImageElement).src = chatunknown;
                     }}
                   />
-                  <div className="user-info">
-                    <div className="user-name">{user.name}</div>
-                    <div className="user-role">{user.role}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{user.name}</div>
+                    <div className="text-sm text-gray-600 capitalize">{user.role}</div>
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <UserPlus className="w-5 h-5 text-purple-600" />
                   </div>
                 </div>
               ))
