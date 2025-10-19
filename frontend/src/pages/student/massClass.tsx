@@ -1202,7 +1202,7 @@ function MassClassPage() {
                         {slot.recording && isCompleted && (
                           <div className="mt-4 pt-4 border-t">
                             <button
-                              onClick={() => slot.recording && window.open(slot.recording, '_blank')}
+                              onClick={() => slot.recording && window.open(JSON.parse(slot.recording).url, '_blank')}
                               className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
                             >
                               <PlayCircle className="w-4 h-4 mr-2 inline" />
