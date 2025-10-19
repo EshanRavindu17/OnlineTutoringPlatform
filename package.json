@@ -1,5 +1,27 @@
 {
+  "name": "online-tutoring-platform",
+  "version": "1.0.0",
+  "description": "Full-stack online tutoring platform with React frontend and Node.js backend",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "test": "node test-runner.js",
+    "test:watch": "node test-runner.js --watch",
+    "test:coverage": "node test-runner.js --coverage",
+    "test:frontend": "node test-runner.js --frontend-only",
+    "test:backend": "node test-runner.js --backend-only"
+  },
+  "keywords": ["tutoring", "education", "react", "nodejs", "typescript"],
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
-    "@types/node": "^24.5.2"
+    "@types/node": "^24.5.2",
+    "concurrently": "^8.2.2"
   }
 }
