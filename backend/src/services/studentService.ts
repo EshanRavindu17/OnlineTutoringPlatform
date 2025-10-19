@@ -1174,6 +1174,12 @@ export const createEnrolment = async (
     },
   });
 
+   const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+
   if (existingEnrolment) {
     // Update the existing record: set status to 'valid' and update subscription_id
     const updatedEnrolment = await prisma.enrolment.update({
@@ -1191,6 +1197,8 @@ export const createEnrolment = async (
         student_id,
         class_id,
         status: 'valid', // set initial status to valid
+        enrolledMonth: monthNames[new Date().getMonth()],
+        year: new Date().getFullYear().toString(),
       },
     });
     return enrolment;
@@ -1330,3 +1338,28 @@ export const getMassPaymentsByStudentId=async(student_id:string,page:number,limi
 }
 
 
+export const getFirstEnrollementMonth = async (
+    student_id: string,
+    class_id: string
+) => {
+    const enrolment = await prisma.enrolment.findFirst({
+        where: {
+            student_id,
+            class_id
+        },
+        select: {
+            enrolledMonth: true,
+            year: true
+        }
+    });
+
+    console.log("Enrolment found:", enrolment);
+
+    if (enrolment) {
+        return enrolment;
+    }
+
+    return null;
+};
+
+            

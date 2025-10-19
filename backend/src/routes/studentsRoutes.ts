@@ -24,7 +24,8 @@ import { addStudentController,
          sendEmailController,
          getMassPaymentsByStudentIdController,
          getClassReviewsByClassIdController,
-         rateMassClassesController} 
+         rateMassClassesController,
+         getFirstEnrollementMonthController} 
 from '../controllers/studentController';
 import { getReviewsByIndividualTutorIdController, rateAndReviewIndividualController } from '../controllers/rateAndReview.controller';
 import { generateReportController, getReportsByStudentIdController } from '../controllers/report.controller';
@@ -97,7 +98,7 @@ router.get('/getMassTutorsByStudentId/:studentId', verifyFirebaseTokenSimple , v
 router.get('/getMassPaymentByStudentId/:studentId', verifyFirebaseTokenSimple , verifyRole('student'), getMassPaymentsByStudentIdController);
 router.get('/getClassReviewsByClassId/:class_id',getClassReviewsByClassIdController)
 router.post('/rateAreviewMassClass', verifyFirebaseTokenSimple , verifyRole('student'), rateMassClassesController)
-
+router.get('/getFirstEnrollementMonth/:classId/:studentId', getFirstEnrollementMonthController);
 
 router.post('/send-test-email', sendEmailController);
 

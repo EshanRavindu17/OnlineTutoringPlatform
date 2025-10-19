@@ -26,7 +26,7 @@ import {
 import NavBar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import MassClassPaymentComponent from '../../components/MassClassPaymentComponent';
-import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID, getReviewByClassID, rateAndReviewClass } from '../../api/Student';
+import { getClassByClassIdAndStudentId, getClassSlotsByClassId, getStudentIDByUserID, getReviewByClassID, rateAndReviewClass, getFirstEnrollmentMonth } from '../../api/Student';
 import type { MassClassPage, MassClassSlots, Review } from '../../api/Student';
 import { useAuth } from '../../context/authContext';
 
@@ -101,6 +101,7 @@ function MassClassPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showPayment, setShowPayment] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [firstEnrollmentMonth, setFirstEnrollmentMonth] = useState<number | null>(null);
   
   // Review and rating states
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -143,10 +144,18 @@ function MassClassPage() {
     const currentMonth = new Date().getMonth() + 1;
     
     if (enrollmentStatus === 'valid') {
-      // Valid users can navigate to any month up to current month
+      // Valid users can navigate from their first enrollment month up to current month
+      if (firstEnrollmentMonth !== null) {
+        return month >= firstEnrollmentMonth && month <= currentMonth;
+      }
+      // Fallback: if first enrollment month is not loaded yet, allow current month only
       return month <= currentMonth;
     } else if (enrollmentStatus === 'invalid') {
-      // Invalid users can navigate to any past month
+      // Invalid users can navigate from their first enrollment month to past months only
+      if (firstEnrollmentMonth !== null) {
+        return month >= firstEnrollmentMonth && month < currentMonth;
+      }
+      // Fallback: allow past months
       return month < currentMonth;
     } else if (enrollmentStatus === null) {
       // Non-enrolled users can only see current month
@@ -291,7 +300,7 @@ function MassClassPage() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedMonth, enrollmentStatus]);
+  }, [selectedMonth, enrollmentStatus, firstEnrollmentMonth]);
 
   // Update current time every minute for real-time countdown
   useEffect(() => {
@@ -306,10 +315,18 @@ function MassClassPage() {
     const currentMonth = new Date().getMonth() + 1;
     
     if (enrollmentStatus === 'valid') {
-      // Valid users can see all months up to current month (including past months)
+      // Valid users can see months from their first enrollment month up to current month
+      if (firstEnrollmentMonth !== null) {
+        return selectedMonth >= firstEnrollmentMonth && selectedMonth <= currentMonth;
+      }
+      // Fallback: if first enrollment month is not loaded yet, allow current month only
       return selectedMonth <= currentMonth;
     } else if (enrollmentStatus === 'invalid') {
-      // Invalid users can see all past months but NOT current month
+      // Invalid users can see months from their first enrollment month to past months only
+      if (firstEnrollmentMonth !== null) {
+        return selectedMonth >= firstEnrollmentMonth && selectedMonth < currentMonth;
+      }
+      // Fallback: allow past months
       return selectedMonth < currentMonth;
     } else if (enrollmentStatus === null) {
       // Non-enrolled users can only see current month's first week
@@ -344,6 +361,35 @@ function MassClassPage() {
 
         console.log('Class data:', classInfo);
         console.log('Enrollment status:', classInfo.enrollmentStatus?.status);
+
+        // If user is enrolled (valid or invalid), fetch their first enrollment month
+        if (classInfo.enrollmentStatus?.status === 'valid' || classInfo.enrollmentStatus?.status === 'invalid') {
+          try {
+            const firstEnrollmentData = await getFirstEnrollmentMonth(fetchedStudentId, classId);
+            
+            // Handle the new API response structure
+            if (firstEnrollmentData?.existingEnrolment) {
+              const { enrolledMonth, year } = firstEnrollmentData.existingEnrolment;
+              
+              // Convert month name to month number (1-12)
+              const monthDate = new Date(`${enrolledMonth} 1, ${year}`);
+              const monthNumber = monthDate.getMonth() + 1;
+              
+              setFirstEnrollmentMonth(monthNumber);
+              console.log('First enrollment month:', monthNumber, `(${enrolledMonth} ${year})`);
+            } else {
+              console.warn('No enrollment data found in response');
+              setFirstEnrollmentMonth(null);
+            }
+          } catch (enrollmentError) {
+            console.error('Error fetching first enrollment month:', enrollmentError);
+            // Don't fail the entire component if this fails
+            setFirstEnrollmentMonth(null);
+          }
+        } else {
+          // User is not enrolled, set to null
+          setFirstEnrollmentMonth(null);
+        }
 
       } catch (err) {
         console.error('Error fetching class data:', err);
@@ -389,7 +435,7 @@ function MassClassPage() {
     };
 
     fetchSlots();
-  }, [classId, selectedMonth, classData]);
+  }, [classId, selectedMonth, classData, enrollmentStatus, firstEnrollmentMonth]);
 
   // Fetch class reviews when class data is loaded
   useEffect(() => {
@@ -397,6 +443,25 @@ function MassClassPage() {
       fetchClassReviews();
     }
   }, [classData]);
+
+  // Update selected month when first enrollment month is loaded
+  useEffect(() => {
+    if (firstEnrollmentMonth !== null && enrollmentStatus) {
+      const currentMonth = new Date().getMonth() + 1;
+      
+      // If current selected month is before first enrollment month, 
+      // set it to first enrollment month or current month (whichever is valid)
+      if (selectedMonth < firstEnrollmentMonth) {
+        if (enrollmentStatus === 'valid') {
+          // For valid users, set to current month if it's after first enrollment month
+          setSelectedMonth(currentMonth >= firstEnrollmentMonth ? currentMonth : firstEnrollmentMonth);
+        } else if (enrollmentStatus === 'invalid') {
+          // For invalid users, set to first enrollment month
+          setSelectedMonth(firstEnrollmentMonth);
+        }
+      }
+    }
+  }, [firstEnrollmentMonth, enrollmentStatus]);
 
   // Helper functions
   const toggleSaveClass = () => {
@@ -929,7 +994,13 @@ function MassClassPage() {
                     ? 'text-gray-300 cursor-not-allowed bg-gray-50'
                     : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50 active:bg-purple-100'
                 }`}
-                title={selectedMonth <= 1 ? "No previous months" : "Previous month"}
+                title={
+                  selectedMonth <= 1 
+                    ? "Already at first month of year" 
+                    : !canNavigateToMonth(selectedMonth - 1, enrollmentStatus)
+                    ? `Cannot access ${getMonthName(selectedMonth - 1)} - before your enrollment month`
+                    : `Go to ${getMonthName(selectedMonth - 1)}`
+                }
                 aria-label="Previous month"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -955,7 +1026,13 @@ function MassClassPage() {
                     ? 'text-gray-300 cursor-not-allowed bg-gray-50'
                     : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50 active:bg-purple-100'
                 }`}
-                title={selectedMonth >= 12 ? "No more months" : "Next month"}
+                title={
+                  selectedMonth >= 12 
+                    ? "Already at last month of year" 
+                    : !canNavigateToMonth(selectedMonth + 1, enrollmentStatus)
+                    ? `Cannot access ${getMonthName(selectedMonth + 1)} - beyond your enrollment period`
+                    : `Go to ${getMonthName(selectedMonth + 1)}`
+                }
                 aria-label="Next month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -967,13 +1044,17 @@ function MassClassPage() {
               {enrollmentStatus === 'valid' && (
                 <>
                   <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
-                  <span>Navigate through all months up to {getMonthName(new Date().getMonth() + 1)} • Use ← → keys</span>
+                  <span>
+                    Navigate from {firstEnrollmentMonth ? getMonthName(firstEnrollmentMonth) : 'enrollment month'} to {getMonthName(new Date().getMonth() + 1)} • Use ← → keys
+                  </span>
                 </>
               )}
               {enrollmentStatus === 'invalid' && (
                 <>
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></div>
-                  <span>Navigate through previous months only • Use ← → keys</span>
+                  <span>
+                    Navigate from {firstEnrollmentMonth ? getMonthName(firstEnrollmentMonth) : 'enrollment month'} to previous months only • Use ← → keys
+                  </span>
                 </>
               )}
               {enrollmentStatus === null && (

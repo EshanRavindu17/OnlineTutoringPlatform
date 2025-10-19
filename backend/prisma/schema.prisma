@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 model Admin {
@@ -258,6 +258,8 @@ model Enrolment {
   student_id      String?          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   status          EnrolmentStatus? @default(valid)
   subscription_id String?          @db.VarChar
+  enrolledMonth   String?          @db.VarChar
+  year            String?          @db.VarChar
   Class           Class?           @relation(fields: [class_id], references: [class_id], onDelete: Cascade)
   Student         Student?         @relation(fields: [student_id], references: [student_id], onDelete: Cascade)
 }
