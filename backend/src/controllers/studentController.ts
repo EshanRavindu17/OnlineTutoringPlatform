@@ -5,7 +5,7 @@ import {
     createASession,
     findTimeSlots,
     getAllIndividualTutors
-    ,getAllSessionByStudentId,getClassSlotsByClassID,getIndividualTutorById
+    ,getAllSessionByStudentId,getClassSlotsByClassID,getFirstEnrollementMonth,getIndividualTutorById
     ,getMassPaymentsByStudentId,getPaymentSummaryByStudentId,getReviewsByClassId,getSlotsOfIndividualTutorById,
     getStudentIDByUserID,
     getTutorNameAndTypeById,
@@ -612,3 +612,20 @@ export const getClassReviewsByClassIdController=async(req:Request,res:Response)=
        throw new Error("Faild to fetch Class Reviews");
     }
 }
+
+export const getFirstEnrollementMonthController = async (req: Request, res: Response) => {
+    const { studentId, classId } = req.params;
+    console.log("Fetching first enrollement month for student_ID:", studentId, "and class_ID:", classId);
+    try {
+    const existingEnrolment = await getFirstEnrollementMonth(studentId,classId);
+
+        if (existingEnrolment) {
+            return res.status(200).json({ existingEnrolment });
+        }
+    } catch (error) {
+        console.error("Error fetching first enrolment month:", error);
+        return res.status(500).json({ error: "Failed to fetch first enrolment month" });
+    }
+
+    return res.status(404).json({ message: "Enrolment not found" });
+};

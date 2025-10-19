@@ -1144,3 +1144,28 @@ export const rateAndReviewClass=async(student_id:string,class_id:string,review:s
         throw new Error(`Failed to rate and review class: ${error.message || 'Unknown error occurred'}`);
     }
 }
+
+interface FirstEnrollmentMonth {
+    existingEnrolment: {
+        enrolledMonth: string;
+        year: string;
+    };
+}
+
+export const getFirstEnrollmentMonth=async(student_id:string,class_id:string):Promise<FirstEnrollmentMonth>=>{
+    console.log('Fetching first enrollment month for student ID and class ID:', { student_id, class_id });
+    const idToken = await getToken();
+    try{
+        const response = await axios.get<FirstEnrollmentMonth>(`${baseUrl2}/getFirstEnrollementMonth/${class_id}/${student_id}`, {
+            headers: {
+                Authorization: `Bearer ${idToken}`
+            }
+        });
+        console.log('First enrollment month fetched:', response.data);
+        return response.data;
+    }
+    catch (error: any) {
+        console.error('Failed to fetch first enrollment month:', error);
+        throw new Error(`Failed to fetch first enrollment month: ${error.message || 'Unknown error occurred'}`);
+    }
+}
