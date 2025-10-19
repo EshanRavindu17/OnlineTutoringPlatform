@@ -153,9 +153,7 @@ describe('AuthPage', () => {
       );
 
       const passwordInput = screen.getByLabelText(/password/i) as HTMLInputElement;
-      // Find the toggle button by looking for the button that's a sibling of the password input
-      const passwordContainer = passwordInput.closest('div');
-      const toggleButton = passwordContainer?.querySelector('button[type="button"]') as HTMLButtonElement;
+      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
 
       expect(passwordInput.type).toBe('password');
       
@@ -289,12 +287,6 @@ describe('AuthPage', () => {
     });
 
     test('handles Firebase auth errors', async () => {
-      // Mock successful backend validation but failed Firebase auth
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: jest.fn().mockResolvedValue({ success: true }),
-      });
-      
       (signInWithEmailAndPassword as jest.Mock).mockRejectedValue({
         code: 'auth/wrong-password',
       });
@@ -313,10 +305,9 @@ describe('AuthPage', () => {
       fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
       fireEvent.click(submitButton);
 
-      // Wait for the error to appear
       await waitFor(() => {
         expect(screen.getByText('Incorrect password')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      });
     });
   });
 
@@ -362,8 +353,12 @@ describe('AuthPage', () => {
       const tutorRadio = screen.getByDisplayValue('Individual');
       fireEvent.click(tutorRadio);
 
-      // Google button should not be visible for non-student roles
-      expect(screen.queryByText('Continue with Google')).not.toBeInTheDocument();
+      const googleButton = screen.getByText('Continue with Google');
+      fireEvent.click(googleButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Google sign-in is only available for students')).toBeInTheDocument();
+      });
 
       expect(signInWithPopup).not.toHaveBeenCalled();
     });
@@ -382,9 +377,12 @@ describe('AuthPage', () => {
 
       expect(screen.getByText('Reset Password')).toBeInTheDocument();
 
-      // Look for the Cancel button to close the modal
-      const cancelButton = screen.getByText('Cancel');
-      fireEvent.click(cancelButton);
+      // Look for the X button (close button) - it doesn't have accessible name, just the X icon
+      const closeButtons = screen.getAllByRole('button');
+      const closeButton = closeButtons.find(btn => btn.querySelector('svg')); // Find button with SVG (X icon)
+      expect(closeButton).toBeInTheDocument();
+      
+      fireEvent.click(closeButton!);
 
       expect(screen.queryByText('Reset Password')).not.toBeInTheDocument();
     });
@@ -460,17 +458,14 @@ describe('AuthPage', () => {
       });
 
       const emailInput = screen.getByPlaceholderText('Enter your email address');
-      const form = emailInput.closest('form');
-      
+      const sendButton = screen.getByRole('button', { name: /send reset link/i });
+
       fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
+      fireEvent.click(sendButton);
       
-      // Submit the form instead of clicking the button
-      fireEvent.submit(form!);
-      
-      // Wait for the error message to appear
       await waitFor(() => {
         expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      });
 
       expect(sendPasswordResetEmail).not.toHaveBeenCalled();
     });
@@ -488,19 +483,10 @@ describe('AuthPage', () => {
         </TestWrapper>
       );
 
-      // Fill in the form first
-      const emailInput = screen.getByLabelText(/email address/i);
-      const passwordInput = screen.getByLabelText(/password/i);
-      
-      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-      fireEvent.change(passwordInput, { target: { value: 'password123' } });
-
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(screen.getByText('Processing...')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Processing...')).toBeInTheDocument();
       expect(submitButton).toBeDisabled();
     });
 
@@ -550,13 +536,6 @@ describe('AuthPage', () => {
         </TestWrapper>
       );
 
-      // Fill in the form first
-      const emailInput = screen.getByLabelText(/email address/i);
-      const passwordInput = screen.getByLabelText(/password/i);
-      
-      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-      fireEvent.change(passwordInput, { target: { value: 'password123' } });
-
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       fireEvent.click(submitButton);
 
@@ -588,13 +567,6 @@ describe('AuthPage', () => {
       // Select Individual tutor role
       const tutorRadio = screen.getByDisplayValue('Individual');
       fireEvent.click(tutorRadio);
-
-      // Fill in the form
-      const emailInput = screen.getByLabelText(/email address/i);
-      const passwordInput = screen.getByLabelText(/password/i);
-      
-      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-      fireEvent.change(passwordInput, { target: { value: 'password123' } });
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
       fireEvent.click(submitButton);
