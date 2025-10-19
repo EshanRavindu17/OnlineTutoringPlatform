@@ -340,4 +340,40 @@ export const massTutorAPI = {
     );
     return response.data;
   },
+
+  // Get all materials
+  async getAllMaterials() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/materials`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Get all recordings
+  async getAllRecordings() {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/mass-tutor/recordings`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Delete a material
+  async deleteMaterial(slotId: string, materialIndex: number) {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/mass-tutor/materials/${slotId}/${materialIndex}`, {
+      headers,
+    });
+    return response.data;
+  },
+
+  // Delete a recording
+  async deleteRecording(slotId: string) {
+    const headers = await getAuthHeaders();
+    const response = await axios.delete(`${API_URL}/mass-tutor/recordings/${slotId}`, {
+      headers,
+    });
+    return response.data;
+  },
 };

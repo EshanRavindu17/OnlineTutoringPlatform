@@ -52,6 +52,10 @@ import {
   deleteAdminSessionController,
   updateAdminSessionStatusController,
 } from '../controllers/adminMeeting.controller';
+import {
+  sendBroadcastEmailController,
+  getBroadcastHistoryController,
+} from '../controllers/broadcast.controller';
 
 const r = Router();
 
@@ -108,5 +112,9 @@ r.get('/meetings/sessions', requireAdminJWT, getAdminSessionsController);
 r.post('/meetings/send-email', requireAdminJWT, sendMeetingEmailController);
 r.delete('/meetings/sessions/:sessionId', requireAdminJWT, deleteAdminSessionController);
 r.put('/meetings/sessions/:sessionId/status', requireAdminJWT, updateAdminSessionStatusController);
+
+// Broadcast Email — secured
+r.post('/broadcast/send', requireAdminJWT, sendBroadcastEmailController);
+r.get('/broadcast/history', requireAdminJWT, getBroadcastHistoryController);
 
 export default r;

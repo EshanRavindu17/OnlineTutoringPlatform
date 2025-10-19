@@ -391,6 +391,41 @@ export const policiesApi = {
   },
 };
 
+// Broadcast email API
+export const broadcastApi = {
+  async send(data: {
+    title: string;
+    content: string;
+    targetAudience: 'all' | 'students' | 'tutors' | 'individual_tutors' | 'mass_tutors';
+    priority: 'normal' | 'high' | 'urgent';
+  }) {
+    return request('/broadcast/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }) as Promise<{
+      success: boolean;
+      sent: number;
+      failed: number;
+      total: number;
+    }>;
+  },
+  
+  async getHistory() {
+    return request('/broadcast/history') as Promise<{
+      broadcasts: Array<{
+        id: string;
+        title: string;
+        content: string;
+        targetAudience: string;
+        priority: string;
+        sentAt: string;
+        sentBy: string;
+        recipientCount: number;
+      }>;
+    }>;
+  },
+};
+
 // Shared policy row shape from backend
 export type PolicyRow = {
   policy_id: string;

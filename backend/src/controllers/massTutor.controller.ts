@@ -705,3 +705,101 @@ export const setClassSlotLiveController = async (req: Request, res: Response) =>
     });
   }
 };
+
+/**
+ * Get all materials for the tutor
+ */
+export const getAllMaterialsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const materials = await massTutorService.getAllMaterialsService(tutorId);
+    return res.status(200).json(materials);
+  } catch (error: any) {
+    console.error('Error in getAllMaterialsController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch materials',
+    });
+  }
+};
+
+/**
+ * Get all recordings for the tutor
+ */
+export const getAllRecordingsController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    const recordings = await massTutorService.getAllRecordingsService(tutorId);
+    return res.status(200).json(recordings);
+  } catch (error: any) {
+    console.error('Error in getAllRecordingsController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to fetch recordings',
+    });
+  }
+};
+
+/**
+ * Delete a material
+ */
+export const deleteMaterialController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { slotId, materialIndex } = req.params;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!slotId || materialIndex === undefined) {
+      return res.status(400).json({ error: 'Slot ID and material index are required' });
+    }
+
+    const result = await massTutorService.deleteMaterialService(
+      slotId,
+      parseInt(materialIndex),
+      tutorId
+    );
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in deleteMaterialController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to delete material',
+    });
+  }
+};
+
+/**
+ * Delete a recording
+ */
+export const deleteRecordingController = async (req: Request, res: Response) => {
+  try {
+    const tutorId = await getTutorIdFromRequest(req);
+    const { slotId } = req.params;
+
+    if (!tutorId) {
+      return res.status(401).json({ error: 'Unauthorized or tutor profile not found' });
+    }
+
+    if (!slotId) {
+      return res.status(400).json({ error: 'Slot ID is required' });
+    }
+
+    const result = await massTutorService.deleteRecordingService(slotId, tutorId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error in deleteRecordingController:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to delete recording',
+    });
+  }
+};

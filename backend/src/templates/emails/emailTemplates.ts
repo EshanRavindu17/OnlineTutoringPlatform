@@ -827,4 +827,57 @@ export const createClassCancellationAdminEmail = (data: {
     html: createBaseEmailTemplate(templateOptions),
     text: generatePlainText(templateOptions)
   };
+};
+
+/**
+ * Broadcast email template from admin
+ */
+export const createBroadcastEmail = (data: {
+  recipientName: string;
+  adminName: string;
+  title: string;
+  content: string;
+  priority: 'normal' | 'high' | 'urgent';
+}): EmailContent => {
+  const { recipientName, adminName, title, content, priority } = data;
+  
+  // Priority styling
+  const priorityConfig = {
+    normal: { icon: '📢', color: '#3b82f6', label: 'Announcement' },
+    high: { icon: '⚠️', color: '#f59e0b', label: 'Important Notice' },
+    urgent: { icon: '🚨', color: '#ef4444', label: 'Urgent Alert' }
+  };
+  
+  const config = priorityConfig[priority];
+  
+  const templateOptions = {
+    title: `${config.icon} ${title}`,
+    content: `<p>Dear <strong>${recipientName}</strong>,</p>
+              <div style="background: ${priority === 'urgent' ? '#fef2f2' : priority === 'high' ? '#fffbeb' : '#eff6ff'}; 
+                          border-left: 4px solid ${config.color}; 
+                          padding: 16px; 
+                          margin: 20px 0; 
+                          border-radius: 4px;">
+                <p style="margin: 0; white-space: pre-wrap; color: #374151; line-height: 1.6;">${content}</p>
+              </div>
+              <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                This message was sent by <strong>${adminName}</strong> from the SmartTutor Admin Team.
+              </p>`,
+    
+    alertType: priority === 'urgent' ? 'error' as const : priority === 'high' ? 'warning' as const : 'info' as const,
+    alertMessage: `${config.label}: ${title}`,
+    
+    details: [
+      { label: 'From', value: `${adminName} (Admin)` },
+      { label: 'Priority', value: config.label }
+    ],
+    
+    footerMessage: 'This is an official broadcast from SmartTutor Administration'
+  };
+
+  return {
+    subject: `${config.icon} ${title}`,
+    html: createBaseEmailTemplate(templateOptions),
+    text: generatePlainText(templateOptions)
+  };
 };     
