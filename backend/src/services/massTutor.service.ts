@@ -1515,3 +1515,247 @@ export const setClassSlotLiveService = async (slotId: string, tutorId: string) =
     throw error;
   }
 };
+
+/**
+ * Get all materials across all classes for a tutor
+ */
+export const getAllMaterialsService = async (tutorId: string) => {
+  try {
+    // Get all classes for the tutor
+    const classes = await prisma.class.findMany({
+      where: {
+        m_tutor_id: tutorId,
+      },
+      include: {
+        ClassSlot: {
+          where: {
+            materials: {
+              isEmpty: false,
+            },
+          },
+          orderBy: {
+            dateTime: 'desc',
+          },
+        },
+      },
+    });
+
+    // Extract all materials with their context
+    const materials: Array<{
+      material_id: string;
+      name: string;
+      url: string;
+      slot_id: string;
+      class_id: string;
+      class_title: string;
+      class_subject: string;
+      slot_date: Date;
+      uploaded_at: Date;
+      material_index: number;
+    }> = [];
+
+    classes.forEach((classItem) => {
+      classItem.ClassSlot.forEach((slot) => {
+        slot.materials.forEach((materialData, index) => {
+          try {
+            const parsed = JSON.parse(materialData);
+            if (parsed.name && parsed.url) {
+              materials.push({
+                material_id: `${slot.cslot_id}_${index}`,
+                name: parsed.name,
+                url: parsed.url,
+                slot_id: slot.cslot_id,
+                class_id: classItem.class_id,
+                class_title: classItem.title || '',
+                class_subject: classItem.subject || '',
+                slot_date: slot.dateTime,
+                uploaded_at: slot.created_at,
+                material_index: index,
+              });
+            }
+          } catch {
+            // If not JSON, extract filename from URL
+            const name = decodeURIComponent(materialData.split('/').pop() || `Material ${index + 1}`);
+            materials.push({
+              material_id: `${slot.cslot_id}_${index}`,
+              name,
+              url: materialData,
+              slot_id: slot.cslot_id,
+              class_id: classItem.class_id,
+              class_title: classItem.title || '',
+              class_subject: classItem.subject || '',
+              slot_date: slot.dateTime,
+              uploaded_at: slot.created_at,
+              material_index: index,
+            });
+          }
+        });
+      });
+    });
+
+    return materials;
+  } catch (error) {
+    console.error('Error fetching materials:', error);
+    throw new Error('Failed to fetch materials');
+  }
+};
+
+/**
+ * Get all recordings across all classes for a tutor
+ */
+export const getAllRecordingsService = async (tutorId: string) => {
+  try {
+    // Get all classes for the tutor
+    const classes = await prisma.class.findMany({
+      where: {
+        m_tutor_id: tutorId,
+      },
+      include: {
+        ClassSlot: {
+          where: {
+            recording: {
+              not: null,
+            },
+          },
+          orderBy: {
+            dateTime: 'desc',
+          },
+        },
+      },
+    });
+
+    // Extract all recordings with their context
+    const recordings: Array<{
+      recording_id: string;
+      name: string;
+      url: string;
+      slot_id: string;
+      class_id: string;
+      class_title: string;
+      class_subject: string;
+      slot_date: Date;
+      uploaded_at: Date;
+    }> = [];
+
+    classes.forEach((classItem) => {
+      classItem.ClassSlot.forEach((slot) => {
+        if (slot.recording) {
+          try {
+            const parsed = JSON.parse(slot.recording);
+            if (parsed.name && parsed.url) {
+              recordings.push({
+                recording_id: slot.cslot_id,
+                name: parsed.name,
+                url: parsed.url,
+                slot_id: slot.cslot_id,
+                class_id: classItem.class_id,
+                class_title: classItem.title || '',
+                class_subject: classItem.subject || '',
+                slot_date: slot.dateTime,
+                uploaded_at: slot.created_at,
+              });
+            }
+          } catch {
+            // If not JSON, extract filename from URL
+            const name = decodeURIComponent(slot.recording.split('/').pop() || 'Recording');
+            recordings.push({
+              recording_id: slot.cslot_id,
+              name,
+              url: slot.recording,
+              slot_id: slot.cslot_id,
+              class_id: classItem.class_id,
+              class_title: classItem.title || '',
+              class_subject: classItem.subject || '',
+              slot_date: slot.dateTime,
+              uploaded_at: slot.created_at,
+            });
+          }
+        }
+      });
+    });
+
+    return recordings;
+  } catch (error) {
+    console.error('Error fetching recordings:', error);
+    throw new Error('Failed to fetch recordings');
+  }
+};
+
+/**
+ * Delete a specific material from a slot
+ */
+export const deleteMaterialService = async (
+  slotId: string,
+  materialIndex: number,
+  tutorId: string
+) => {
+  try {
+    // Verify slot exists and belongs to tutor
+    const slot = await prisma.classSlot.findUnique({
+      where: { cslot_id: slotId },
+      include: {
+        Class: {
+          where: {
+            m_tutor_id: tutorId,
+          },
+        },
+      },
+    });
+
+    if (!slot || !slot.Class) {
+      throw new Error('Slot not found or access denied');
+    }
+
+    // Remove material at index
+    const updatedMaterials = slot.materials.filter((_, index) => index !== materialIndex);
+
+    // Update slot
+    await prisma.classSlot.update({
+      where: { cslot_id: slotId },
+      data: {
+        materials: updatedMaterials,
+      },
+    });
+
+    return { success: true, message: 'Material deleted successfully' };
+  } catch (error) {
+    console.error('Error deleting material:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete recording from a slot
+ */
+export const deleteRecordingService = async (slotId: string, tutorId: string) => {
+  try {
+    // Verify slot exists and belongs to tutor
+    const slot = await prisma.classSlot.findUnique({
+      where: { cslot_id: slotId },
+      include: {
+        Class: {
+          where: {
+            m_tutor_id: tutorId,
+          },
+        },
+      },
+    });
+
+    if (!slot || !slot.Class) {
+      throw new Error('Slot not found or access denied');
+    }
+
+    // Remove recording
+    await prisma.classSlot.update({
+      where: { cslot_id: slotId },
+      data: {
+        recording: null,
+      },
+    });
+
+    return { success: true, message: 'Recording deleted successfully' };
+  } catch (error) {
+    console.error('Error deleting recording:', error);
+    throw error;
+  }
+};

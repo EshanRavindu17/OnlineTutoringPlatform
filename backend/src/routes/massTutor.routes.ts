@@ -60,4 +60,10 @@ router.post('/upload/material', materialsUpload.single('file'), uploadController
 router.post('/upload/materials', materialsUpload.array('files', 10), uploadController.uploadMultipleMaterialsController);
 router.post('/upload/recording', recordingsUpload.single('file'), uploadController.uploadRecordingController);
 
+// Materials and recordings management
+router.get('/materials', massTutorController.getAllMaterialsController);
+router.get('/recordings', massTutorController.getAllRecordingsController);
+router.delete('/materials/:slotId/:materialIndex', massTutorController.deleteMaterialController);
+router.delete('/recordings/:slotId', massTutorController.deleteRecordingController);
+
 export default router;
