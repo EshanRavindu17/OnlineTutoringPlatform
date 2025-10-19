@@ -213,7 +213,7 @@ export default function WelcomePage() {
                     </button>
                   ) : userProfile?.role === 'Individual'  ? (
                     <button 
-                      onClick={() => navigate('/dashboard')}
+                      onClick={() => navigate('/tutorprofile')}
                       className="group px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-bold text-base hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl border-2 border-white/20"
                     >
                       <span className="flex items-center justify-center">
@@ -223,7 +223,7 @@ export default function WelcomePage() {
                     </button>
                   ) : (
                     <button 
-                      onClick={() => navigate('/dashboard')}
+                      onClick={() => navigate('/mass-tutor/schedule')}
                       className="group relative px-6 py-3 bg-white text-blue-600 rounded-2xl font-bold text-base hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
                     >
                       <span className="relative z-10 flex items-center justify-center">
@@ -476,16 +476,29 @@ export default function WelcomePage() {
                 </div>
               </button>
               <button 
-                className={`px-8 py-4 text-base font-semibold rounded-xl transition-all duration-300 ${
-                  activeTab === 'tutor' 
+                className={`px-6 py-4 text-base font-semibold rounded-xl transition-all duration-300 ${
+                  activeTab === 'individual' 
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105' 
                     : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
                 }`}
-                onClick={() => setActiveTab('tutor')}
+                onClick={() => setActiveTab('individual')}
+              >
+                <div className="flex items-center space-x-2">
+                  <User className="w-5 h-5" />
+                  <span>Individual Tutor</span>
+                </div>
+              </button>
+              <button 
+                className={`px-6 py-4 text-base font-semibold rounded-xl transition-all duration-300 ${
+                  activeTab === 'mass' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+                }`}
+                onClick={() => setActiveTab('mass')}
               >
                 <div className="flex items-center space-x-2">
                   <Users className="w-5 h-5" />
-                  <span>For Tutors</span>
+                  <span>Mass Tutor</span>
                 </div>
               </button>
             </div>
@@ -537,7 +550,7 @@ export default function WelcomePage() {
                 <p className="text-gray-600 leading-relaxed">Attend interactive sessions and track your amazing learning progress</p>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'individual' ? (
             <div className="grid md:grid-cols-4 gap-8">
               <div className="group text-center">
                 <div className="relative mb-6">
@@ -580,23 +593,80 @@ export default function WelcomePage() {
                   <div className="absolute -inset-4 bg-gradient-to-r from-violet-500 to-purple-500 rounded-3xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity"></div>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-violet-600 transition-colors">Start Teaching</h3>
-                <p className="text-gray-600 leading-relaxed">Connect with eager students and begin conducting engaging learning sessions</p>
+                <p className="text-gray-600 leading-relaxed">Connect with eager students and begin conducting one-on-one tutoring sessions</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-4 gap-8">
+              <div className="group text-center">
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+                    <span className="text-2xl font-bold text-white">1</span>
+                  </div>
+                  <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500 to-green-500 rounded-3xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-emerald-600 transition-colors">Apply & Verify</h3>
+                <p className="text-gray-600 leading-relaxed">Submit your credentials and complete verification to join our mass tutoring platform</p>
+              </div>
+              
+              <div className="group text-center">
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+                    <span className="text-2xl font-bold text-white">2</span>
+                  </div>
+                  <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-3xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-cyan-600 transition-colors">Create Classes</h3>
+                <p className="text-gray-600 leading-relaxed">Design and create engaging mass classes with structured curriculum and schedules</p>
+              </div>
+              
+              <div className="group text-center">
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-amber-500 to-amber-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+                    <span className="text-2xl font-bold text-white">3</span>
+                  </div>
+                  <div className="absolute -inset-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-amber-600 transition-colors">Manage Students</h3>
+                <p className="text-gray-600 leading-relaxed">Track enrollments, monitor progress, and manage your growing student community</p>
+              </div>
+              
+              <div className="group text-center">
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 bg-gradient-to-br from-rose-500 to-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
+                    <span className="text-2xl font-bold text-white">4</span>
+                  </div>
+                  <div className="absolute -inset-4 bg-gradient-to-r from-rose-500 to-pink-500 rounded-3xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-rose-600 transition-colors">Teach & Scale</h3>
+                <p className="text-gray-600 leading-relaxed">Conduct live classes and scale your teaching to reach hundreds of students</p>
               </div>
             </div>
           )}
           
-          <div className="text-center mt-16">
-            <button 
-              onClick={() => {activeTab === 'student' ? navigate('/selectuser/student') : navigate('/selectuser/individual')}}
-              className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
-            >
-              <span className="relative z-10 flex items-center">
-                Get Started Today
-                <ChevronRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-white/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </button>
-          </div>
+          {/* Get Started Button - Only show if user is not logged in */}
+          {!currentUser && (
+            <div className="text-center mt-16">
+              <button 
+                onClick={() => {
+                  if (activeTab === 'student') {
+                    navigate('/selectuser/student');
+                  } else if (activeTab === 'individual') {
+                    navigate('/selectuser/individual');
+                  } else {
+                    navigate('/selectuser/mass');
+                  }
+                }}
+                className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
+              >
+                <span className="relative z-10 flex items-center">
+                  Get Started Today
+                  <ChevronRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-white/0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -767,7 +837,9 @@ export default function WelcomePage() {
                 Sign Up
               </button>
               </a>
-              <button className="px-6 py-3 bg-blue-700 text-white rounded-md font-medium hover:bg-blue-800 text-center">
+              <button className="px-6 py-3 bg-blue-700 text-white rounded-md font-medium hover:bg-blue-800 text-center"
+              onClick={() => window.open('https://res.cloudinary.com/dwk2uss1k/image/upload/v1760899140/User_Manual_for_Our_Online_Tutoring_Platform_yorwoc.pdf')}
+              >
                 Learn More
               </button>
             </div>

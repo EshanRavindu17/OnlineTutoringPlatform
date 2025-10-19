@@ -166,10 +166,14 @@ export default function UserSelectionPage() {
                   Not sure which role is right for you? You can always switch later.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                  <button className="px-6 py-3 bg-blue-700 text-white rounded-md font-medium hover:bg-blue-800 text-center">
+                  <button className="px-6 py-3 bg-blue-700 text-white rounded-md font-medium hover:bg-blue-800 text-center"
+                  onClick={() => window.open('https://res.cloudinary.com/dwk2uss1k/image/upload/v1760899140/User_Manual_for_Our_Online_Tutoring_Platform_yorwoc.pdf')}
+                  >
                     Learn More
                   </button>
-                  <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-md font-medium hover:bg-white hover:text-blue-600 text-center">
+                  <button className="px-6 py-3 bg-transparent border-2 border-white text-white rounded-md font-medium hover:bg-white hover:text-blue-600 text-center"
+                  onClick={() => window.open('https://www.youtube.com/watch?v=gqQrsLLAtiE')}
+                  >
                     Watch Demo
                   </button>
                 </div>
