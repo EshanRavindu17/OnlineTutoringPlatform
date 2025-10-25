@@ -578,6 +578,7 @@ export const cancelSession = async (session_id: string) => {
     try {
         const response = await axios.post<Session>(
             `${baseUrl2}/cancelSession/${session_id}`,
+            {},
             {
                 headers: {
                     Authorization: `Bearer ${idToken}`
