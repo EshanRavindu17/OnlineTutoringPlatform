@@ -10,6 +10,13 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# ============ Python ============
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+
 # ============ Environment Variables ============
 .env
 .env.local
