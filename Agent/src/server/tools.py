@@ -87,11 +87,16 @@ async def find_individual_tutors(
     output = []
     for t in results:
         user = t.get("User", {})
+        subjects_str = ", ".join(t.get("subjects", []))
+        topics_str = ", ".join(t.get("titles", []))
         output.append(
-            f"👤 Name: {user.get('name')}\n"
+            f"👤 Name: {user.get('name', 'Unknown')}\n"
+            f"   - Tutor ID: {t.get('i_tutor_id', '')}\n"           # Must give ID to LLM
+            f"   - Image URL: {user.get('photo_url', '')}\n"        # Must give Image to LLM
+            f"   - Subjects: {subjects_str}\n"                      # Must give Subjects
+            f"   - Topics: {topics_str}\n"                          # Must give Topics
             f"   - Rate: {t.get('hourly_rate')} LKR/hr\n"
             f"   - Rating: {t.get('rating')} Stars\n"
-            f"   - Bio: {t.get('heading')}"
         )
     
     return "\n".join(output)
@@ -123,11 +128,22 @@ async def find_mass_classes(
 
     output = []
     for c in results:
+        
+        mass_tutor = c.get("Mass_Tutor", {})
+        user = mass_tutor.get("User", {})
+        name = user.get("name", "Unknown")
+        photo_url = user.get("photo_url", "")
+        price = mass_tutor.get("prices", "N/A")
+        rating = mass_tutor.get("rating", "N/A")
+        class_id = c.get("class_id", "")
+
         output.append(
             f"🎓 Class: {c.get('title')}\n"
-            f"   - Tutor: {c.get('tutorName')}\n"
-            f"   - Schedule: {c.get('day')} at {c.get('time')}\n"
-            f"   - Fee: {c.get('monthlyRate')} LKR/month"
+            f"    Class_ID: {class_id}\n"
+            f"   - Tutor: {name}\n"
+            f"   - Image: {photo_url}\n"
+            f"   - Rating: {rating} Stars\n"
+            f"   - Price: {price} LKR/month\n"
         )
         
     return "\n".join(output)

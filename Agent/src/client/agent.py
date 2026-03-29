@@ -120,8 +120,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AI
 from langchain_core.prompts import ChatPromptTemplate
 
 #------Geminai------
-from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 # --- MCP Imports ---
 from mcp import ClientSession, StdioServerParameters
@@ -197,6 +197,13 @@ async def run_chat_session():
                     api_key=settings.GROQ_API_KEY,
                     temperature=0
                 )
+
+            # chat_model = ChatOpenAI(
+            #     model="mistralai/mistral-7b-instruct:free",
+            #     openai_api_key=settings.OPEN_ROUTER_API_KEY,
+            #     base_url="https://openrouter.ai/api/v1",
+            #     temperature=0
+            # )
 
             # Bind tools (This works EXACTLY the same for both!)
             llm_with_tools = chat_model.bind_tools(formatted_tools)

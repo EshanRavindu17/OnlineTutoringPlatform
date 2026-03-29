@@ -65,6 +65,8 @@ import ThemeTest from './admin/ThemeTest';
 
 import SavedPage from './pages/student/saved';
 
+import TutorlyAssistantWidget from './components/TutorlyAssistantWidget';
+
 
 // (Optional) If you want http://admin.localhost:5173 to auto-redirect to /admin
 function HostRedirectToAdmin() {
@@ -163,6 +165,9 @@ const App = () => {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+
+      {/* Global floating assistant (logged-in users only) */}
+      <TutorlyAssistantWidget />
       </SocketProvider>
     </Router>
   );
